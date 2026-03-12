@@ -12,8 +12,8 @@
 ## 默认输入顺序
 1. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/shared/tiger_shared_watchlist.json`
 2. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading-spec-v1-30min.md`
-3. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/system/tiger_30m/app_config.paper.json`
-4. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_30m/.last_execution_cycle.json`
+3. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/system/tiger_engine/app_config.paper.json`
+4. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/.last_execution_cycle.json`
 
 ## 关注重点
 - 共享清单里 `enabled=true` 的标的

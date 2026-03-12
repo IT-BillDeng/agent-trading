@@ -10,12 +10,12 @@
 
 ## 默认输入顺序
 1. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/shared/tiger_shared_watchlist.json`
-2. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/system/tiger_30m/README.md`
-3. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/system/tiger_30m/app_config.paper.json`
-4. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_30m/.last_execution_cycle.json`
-5. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_30m/logs/execution.jsonl`
-6. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_30m/logs/dispatch_queue.jsonl`
-7. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_30m/state/control_state.json`
+2. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/system/tiger_engine/README.md`
+3. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/system/tiger_engine/app_config.paper.json`
+4. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/.last_execution_cycle.json`
+5. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/logs/execution.jsonl`
+6. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/logs/dispatch_queue.jsonl`
+7. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/state/control_state.json`
 
 ## 关注重点
 - 共享清单里 `enabled=true` 的标的是否与当前执行输出一致

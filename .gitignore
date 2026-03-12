@@ -4,8 +4,8 @@ __pycache__/
 .DS_Store
 data/
 runtime/
-system/tiger_30m/logs/
-system/tiger_30m/state/
-system/tiger_30m/.last_execution_cycle.json
-system/tiger_30m/.tmp_*
-system/tiger_30m/__pycache__/
+system/tiger_engine/logs/
+system/tiger_engine/state/
+system/tiger_engine/.last_execution_cycle.json
+system/tiger_engine/.tmp_*
+system/tiger_engine/__pycache__/

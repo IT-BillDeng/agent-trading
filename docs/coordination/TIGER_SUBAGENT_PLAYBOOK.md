@@ -69,8 +69,8 @@
 目标：检查共享清单中的标的最近一轮候选与市场状态是否有变化。
 输入：
 - `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/shared/tiger_shared_watchlist.json`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_30m/.last_execution_cycle.json`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_30m/logs/dispatch_queue.jsonl`
+- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/.last_execution_cycle.json`
+- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/logs/dispatch_queue.jsonl`
 边界：只读，不运行 Python，不对外发消息。
 输出：
 - 一句话结论

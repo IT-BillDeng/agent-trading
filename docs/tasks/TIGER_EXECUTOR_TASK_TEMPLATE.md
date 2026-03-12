@@ -8,12 +8,12 @@
 
 输入：
 - `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/shared/tiger_shared_watchlist.json`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/system/tiger_30m/README.md`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/system/tiger_30m/app_config.paper.json`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_30m/.last_execution_cycle.json`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_30m/logs/execution.jsonl`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_30m/logs/dispatch_queue.jsonl`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_30m/state/control_state.json`
+- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/system/tiger_engine/README.md`
+- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/system/tiger_engine/app_config.paper.json`
+- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/.last_execution_cycle.json`
+- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/logs/execution.jsonl`
+- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/logs/dispatch_queue.jsonl`
+- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/state/control_state.json`
 
 要求：
 - 优先只看共享清单中 `enabled=true` 的标的

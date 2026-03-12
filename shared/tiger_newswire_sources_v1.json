@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "name": "tiger-newswire-sources-v1",
+  "purpose": "Free v1 information sources for tiger-newswire",
+  "default_market_priority": {
+    "US": ["brave_search", "web_fetch", "yahoo_finance"],
+    "HK": ["brave_search", "web_fetch", "yahoo_finance"]
+  },
+  "sources": [
+    {
+      "id": "brave_search",
+      "type": "search",
+      "tool": "web_search",
+      "role": "primary_discovery",
+      "enabled": true,
+      "notes": "Primary source for fresh event discovery and ticker news lookup"
+    },
+    {
+      "id": "web_fetch",
+      "type": "fetch",
+      "tool": "web_fetch",
+      "role": "article_summary",
+      "enabled": true,
+      "notes": "Use after discovery to extract readable article summaries"
+    },
+    {
+      "id": "yahoo_finance",
+      "type": "page",
+      "tool": "web_fetch",
+      "role": "auxiliary_page_check",
+      "enabled": true,
+      "notes": "Auxiliary fallback for headline/page context, not a primary source"
+    }
+  ],
+  "query_templates": {
+    "US": [
+      "{symbol} stock news today",
+      "{symbol} earnings guidance analyst news",
+      "{symbol} SEC regulation product launch news"
+    ],
+    "HK": [
+      "{symbol} stock news Hong Kong today",
+      "{symbol} earnings guidance company announcement",
+      "{symbol} regulation filing news"
+    ],
+    "macro": [
+      "US market macro news today fed treasury yields inflation jobs",
+      "AI semiconductor megacap market news today"
+    ]
+  },
+  "yahoo_urls": {
+    "AAPL": "https://finance.yahoo.com/quote/AAPL",
+    "MSFT": "https://finance.yahoo.com/quote/MSFT",
+    "NVDA": "https://finance.yahoo.com/quote/NVDA",
+    "AMZN": "https://finance.yahoo.com/quote/AMZN",
+    "SMCI": "https://finance.yahoo.com/quote/SMCI",
+    "GOOGL": "https://finance.yahoo.com/quote/GOOGL",
+    "01810": "https://finance.yahoo.com/quote/1810.HK",
+    "02097": "https://finance.yahoo.com/quote/2097.HK"
+  },
+  "rules": {
+    "prefer_priority_high": true,
+    "prefer_current_buy_candidates": true,
+    "max_relevant_items": 3,
+    "if_insufficient_data_say_so": true,
+    "do_not_issue_trade_orders": true
+  }
+}

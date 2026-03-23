@@ -28,11 +28,17 @@
 - 不对外发送消息
 - 不修改股票池或配置
 
+结构化落盘要求（MVP v1）：
+- 额外写入 `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/newswire/latest.json`
+- 额外追加 `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/newswire/history.jsonl`
+- 若无有效新闻，也要写结构化空结果
+
 输出格式：
 1. 一句话结论
 2. 1~3 条最相关新闻 / 催化
 3. 最值得继续盯的 1 个标的
 4. 1 个需要警惕的风险事件
+5. 并写入结构化 newswire 输出
 
 ---
 

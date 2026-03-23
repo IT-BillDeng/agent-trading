@@ -79,12 +79,33 @@
 - HK `quote_delay/brief` 无权限（当前已知限制）
 - 无持仓时 `order_sync.count = 0`
 
+## 结构化输出要求（MVP v1）
+
+在保持自然语言结论输出的同时，必须额外写入：
+
+- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/watcher/latest.json`
+- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/watcher/history.jsonl`
+
+最小字段要求：
+- `watch_id`
+- `generated_at`
+- `market_session`
+- `window`
+- `symbols`
+- `summary`
+
+说明：
+- `latest.json` 保存本轮最新快照
+- `history.jsonl` 追加本轮结构化记录
+- 若信息不足，也应写出空数组 / 空摘要，而不是跳过文件
+
 ## 输出格式
 
 统一输出：
 1. 一句话结论
 2. 3 个关键观察
 3. 1 个下一步建议
+4. 并写入结构化 watcher 输出
 
 ## 推荐判断顺序
 

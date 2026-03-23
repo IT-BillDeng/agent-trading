@@ -38,11 +38,40 @@
 - 对单个标的整理最近 24h / 72h 的关键事件
 - 输出简明时间线，不写长篇新闻抄录
 
+## 结构化输出要求（MVP v1）
+
+在保持自然语言摘要输出的同时，必须额外写入：
+
+- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/newswire/latest.json`
+- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/newswire/history.jsonl`
+
+最小字段要求：
+- `news_batch_id`
+- `generated_at`
+- `window`
+- `items`
+- `summary`
+
+每条 `items[]` 最少包含：
+- `news_id`
+- `symbol`
+- `headline`
+- `source`
+- `published_at`
+- `priority`
+- `dedupe_key`
+
+说明：
+- `latest.json` 保存本轮最新情报批次
+- `history.jsonl` 追加本轮结构化记录
+- 若没有有效新闻，也应写空 `items`，并在 `summary` 中说明
+
 ## 输出格式
 1. 一句话结论
 2. 1~3 条最相关新闻 / 催化
 3. 最值得继续盯的 1 个标的
 4. 1 个需要警惕的风险事件
+5. 并写入结构化 newswire 输出
 
 ## 频率建议
 ### 默认频率（当前采用）

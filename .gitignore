@@ -9,3 +9,12 @@ system/tiger_engine/state/
 system/tiger_engine/.last_execution_cycle.json
 system/tiger_engine/.tmp_*
 system/tiger_engine/__pycache__/
+
+# API credentials - NEVER commit
+config/credentials.json
+config/tiger_openapi_config
+config/app_config*.json
+config/secrets*
+*.env
+.env*
+

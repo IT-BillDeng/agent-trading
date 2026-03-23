@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiger Trading Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        tiger: { 50: '#fff7ed', 500: '#f97316', 600: '#ea580c', 700: '#c2410c' },
+                        dark: { 800: '#1e1e2e', 900: '#11111b', 700: '#2a2a3c' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', -apple-system, sans-serif; }
+        .card { @apply bg-dark-700 rounded-xl p-4 border border-gray-700/50; }
+        .card-title { @apply text-sm font-medium text-gray-400 mb-2; }
+        .positive { color: #22c55e; }
+        .negative { color: #ef4444; }
+        .neutral { color: #a1a1aa; }
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+    </style>
+</head>
+<body class="bg-dark-900 text-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="border-b border-gray-700/50 px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <span class="text-2xl">🐯</span>
+            <h1 class="text-lg font-semibold">Tiger Trading Dashboard</h1>
+            <span id="env-badge" class="text-xs px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-medium">PAPER</span>
+        </div>
+        <div class="flex items-center gap-4 text-sm">
+            <span id="refresh-status" class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></span>
+                <span class="text-gray-400">更新中</span>
+            </span>
+            <span id="last-update" class="text-gray-500"></span>
+        </div>
+    </header>
+
+    <main class="p-6 max-w-7xl mx-auto">
+        <!-- Account Overview -->
+        <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="card">
+                <div class="card-title">总资产</div>
+                <div id="total-assets" class="text-2xl font-bold">--</div>
+            </div>
+            <div class="card">
+                <div class="card-title">今日盈亏</div>
+                <div id="today-pnl" class="text-2xl font-bold">--</div>
+            </div>
+            <div class="card">
+                <div class="card-title">可用资金</div>
+                <div id="buying-power" class="text-2xl font-bold">--</div>
+            </div>
+            <div class="card">
+                <div class="card-title">持仓市值</div>
+                <div id="position-value" class="text-2xl font-bold">--</div>
+            </div>
+        </section>
+
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Positions -->
+            <div class="lg:col-span-2 card">
+                <div class="card-title">📊 持仓</div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-gray-500 border-b border-gray-700/50">
+                                <th class="text-left py-2">标的</th>
+                                <th class="text-right py-2">数量</th>
+                                <th class="text-right py-2">均价</th>
+                                <th class="text-right py-2">市值</th>
+                                <th class="text-right py-2">浮动盈亏</th>
+                            </tr>
+                        </thead>
+                        <tbody id="positions-body">
+                            <tr><td colspan="5" class="py-4 text-center text-gray-500">加载中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Quotes -->
+            <div class="card">
+                <div class="card-title">📈 自选行情</div>
+                <div id="quotes-list" class="space-y-2">
+                    <div class="text-gray-500 text-sm">加载中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Second Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+            <!-- Orders -->
+            <div class="card">
+                <div class="card-title">📋 今日订单</div>
+                <div id="orders-list" class="space-y-2 max-h-64 overflow-y-auto">
+                    <div class="text-gray-500 text-sm">加载中...</div>
+                </div>
+            </div>
+
+            <!-- P&L -->
+            <div class="card">
+                <div class="card-title">💰 盈亏明细</div>
+                <div id="pnl-details" class="space-y-2 max-h-64 overflow-y-auto">
+                    <div class="text-gray-500 text-sm">加载中...</div>
+                </div>
+            </div>
+
+            <!-- Agents -->
+            <div class="card">
+                <div class="card-title">🤖 Subagent 状态</div>
+                <div id="agents-list" class="space-y-2">
+                    <div class="text-gray-500 text-sm">加载中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Status -->
+        <section class="mt-6 card">
+            <div class="flex items-center justify-between">
+                <div class="card-title mb-0">⚙️ 系统状态</div>
+                <div id="system-info" class="text-xs text-gray-500"></div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const API_BASE = '';
+        const REFRESH_MS = 15000; // 15 seconds
+
+        // --- Helpers ---
+        function fmt(n, decimals = 2) {
+            if (n === null || n === undefined || isNaN(n)) return '--';
+            return Number(n).toFixed(decimals);
+        }
+        function fmtUSD(n) { return '$' + fmt(n); }
+        function pnlClass(n) {
+            if (n === null || n === undefined || isNaN(n)) return 'neutral';
+            return n > 0 ? 'positive' : n < 0 ? 'negative' : 'neutral';
+        }
+        function pnlSign(n) {
+            if (n === null || n === undefined) return '';
+            return n > 0 ? '+' : '';
+        }
+        function ago(isoStr) {
+            if (!isoStr) return '--';
+            const d = new Date(isoStr);
+            const diff = (Date.now() - d.getTime()) / 1000;
+            if (diff < 60) return Math.floor(diff) + 's ago';
+            if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+            return d.toLocaleTimeString('zh-CN');
+        }
+
+        // --- Render Functions ---
+        function renderAccount(data) {
+            document.getElementById('total-assets').textContent = fmtUSD(data.net_liquidation || data.total_equity || data.cash);
+            const pnl = data.daily_pnl || data.unrealized_pnl || 0;
+            const pnlEl = document.getElementById('today-pnl');
+            pnlEl.textContent = pnlSign(pnl) + fmtUSD(pnl);
+            pnlEl.className = 'text-2xl font-bold ' + pnlClass(pnl);
+            document.getElementById('buying-power').textContent = fmtUSD(data.buying_power || data.available_funds || data.cash);
+        }
+
+        function renderPositions(data) {
+            const tbody = document.getElementById('positions-body');
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-gray-500">无持仓</td></tr>';
+                return;
+            }
+            let totalValue = 0;
+            tbody.innerHTML = data.map(p => {
+                const val = p.market_value || 0;
+                totalValue += val;
+                const pnl = p.unrealized_pnl;
+                return `<tr class="border-b border-gray-700/30 hover:bg-dark-800/50">
+                    <td class="py-2 font-medium">${p.symbol || '--'}<br><span class="text-xs text-gray-500">${p.name || ''}</span></td>
+                    <td class="text-right py-2">${p.quantity || '--'}</td>
+                    <td class="text-right py-2">${fmtUSD(p.average_cost)}</td>
+                    <td class="text-right py-2">${fmtUSD(val)}</td>
+                    <td class="text-right py-2 ${pnlClass(pnl)}">${pnlSign(pnl)}${fmtUSD(pnl)}</td>
+                </tr>`;
+            }).join('');
+            document.getElementById('position-value').textContent = fmtUSD(totalValue);
+        }
+
+        function renderQuotes(data) {
+            const list = document.getElementById('quotes-list');
+            const symbols = Object.keys(data);
+            if (symbols.length === 0) {
+                list.innerHTML = '<div class="text-gray-500 text-sm">无行情数据</div>';
+                return;
+            }
+            list.innerHTML = symbols.map(sym => {
+                const q = data[sym];
+                const price = q.latest_price || q.last_price || '--';
+                const change = q.change || 0;
+                const changeRate = q.change_rate || 0;
+                const cls = pnlClass(change);
+                return `<div class="flex items-center justify-between py-1.5 border-b border-gray-700/30">
+                    <div>
+                        <span class="font-medium">${sym}</span>
+                        <span class="text-xs text-gray-500 ml-1">${q.name || ''}</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="font-medium">${fmt(price)}</span>
+                        <span class="${cls} text-xs ml-2">${pnlSign(change)}${fmt(changeRate * 100)}%</span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderOrders(data) {
+            const list = document.getElementById('orders-list');
+            if (!data || data.length === 0) {
+                list.innerHTML = '<div class="text-gray-500 text-sm">今日无订单</div>';
+                return;
+            }
+            list.innerHTML = data.map(o => {
+                const actionCls = o.action === 'BUY' ? 'text-green-400' : 'text-red-400';
+                return `<div class="py-1.5 border-b border-gray-700/30 flex items-center justify-between">
+                    <div>
+                        <span class="${actionCls} font-medium">${o.action || '--'}</span>
+                        <span class="ml-1">${o.symbol || '--'}</span>
+                        <span class="text-gray-500 text-xs ml-1">${o.quantity || ''}股</span>
+                    </div>
+                    <div class="text-right text-xs">
+                        <span class="text-gray-400">${o.order_type || ''}</span>
+                        <span class="ml-1 text-gray-500">${o.status || ''}</span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderPnl(data) {
+            const el = document.getElementById('pnl-details');
+            if (!data || !data.details || data.details.length === 0) {
+                el.innerHTML = '<div class="text-gray-500 text-sm">无数据</div>';
+                return;
+            }
+            el.innerHTML = `
+                <div class="text-sm mb-2">
+                    <span class="text-gray-400">总浮动:</span>
+                    <span class="${pnlClass(data.total_unrealized)} font-medium ml-1">${pnlSign(data.total_unrealized)}${fmtUSD(data.total_unrealized)}</span>
+                    <span class="text-gray-400 ml-3">总已实现:</span>
+                    <span class="${pnlClass(data.total_realized)} font-medium ml-1">${pnlSign(data.total_realized)}${fmtUSD(data.total_realized)}</span>
+                </div>
+            ` + data.details.map(d => `
+                <div class="flex justify-between py-1 border-b border-gray-700/30 text-sm">
+                    <span>${d.symbol || '--'}</span>
+                    <span class="${pnlClass(d.unrealized_pnl)}">${pnlSign(d.unrealized_pnl)}${fmtUSD(d.unrealized_pnl)}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderAgents(data) {
+            const el = document.getElementById('agents-list');
+            const agentNames = {
+                watcher: '👁️ Watcher', strategist: '🧠 Strategist', executor: '⚡ Executor',
+                newswire: '📰 Newswire', scout: '🔍 Scout', closer: '🔚 Closer'
+            };
+            el.innerHTML = Object.entries(data).map(([name, info]) => {
+                const statusCls = info.last_update ? 'text-green-400' : 'text-gray-500';
+                return `<div class="flex items-center justify-between py-1.5 border-b border-gray-700/30 text-sm">
+                    <span>${agentNames[name] || name}</span>
+                    <span class="${statusCls} text-xs">${info.last_update ? ago(info.last_update) : '待启动'}</span>
+                </div>`;
+            }).join('');
+        }
+
+        function renderSystem(data) {
+            document.getElementById('system-info').textContent =
+                `账户: ${data.account_id || '--'} | 刷新: ${data.refresh_count || 0}次 | 间隔: ${data.refresh_interval || '--'}s`;
+            const updateTime = data.last_updated ? ago(data.last_updated) : '--';
+            document.getElementById('last-update').textContent = '上次更新: ' + updateTime;
+        }
+
+        // --- Fetch & Render ---
+        async function fetchAll() {
+            try {
+                const [account, positions, quotes, orders, pnl, agents, system] = await Promise.all([
+                    fetch(API_BASE + '/api/account').then(r => r.json()),
+                    fetch(API_BASE + '/api/positions').then(r => r.json()),
+                    fetch(API_BASE + '/api/quotes').then(r => r.json()),
+                    fetch(API_BASE + '/api/orders').then(r => r.json()),
+                    fetch(API_BASE + '/api/pnl').then(r => r.json()),
+                    fetch(API_BASE + '/api/agents').then(r => r.json()),
+                    fetch(API_BASE + '/api/system').then(r => r.json()),
+                ]);
+
+                renderAccount(account);
+                renderPositions(positions);
+                renderQuotes(quotes);
+                renderOrders(orders);
+                renderPnl(pnl);
+                renderAgents(agents);
+                renderSystem(system);
+            } catch (e) {
+                console.error('Fetch error:', e);
+                document.getElementById('refresh-status').innerHTML =
+                    '<span class="w-2 h-2 rounded-full bg-red-500"></span><span class="text-red-400">连接失败</span>';
+            }
+        }
+
+        // --- Init ---
+        fetchAll();
+        setInterval(fetchAll, REFRESH_MS);
+    </script>
+</body>
+</html>

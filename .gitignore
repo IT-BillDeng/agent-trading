@@ -13,6 +13,7 @@ system/tiger_engine/__pycache__/
 # API credentials - NEVER commit
 config/credentials.json
 config/tiger_openapi_config
+config/tiger_openapi_config.properties
 config/app_config*.json
 config/secrets*
 *.env

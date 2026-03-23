@@ -1,6 +1,6 @@
 # Tiger Engine Schema v1
 
-> 目标：为 watcher / newswire / strategist / yuuka review / executor / closer 建立统一的数据契约。
+> 目标：为 watcher / newswire / strategist / Operator review / executor / closer 建立统一的数据契约。
 > 原则：结构化优先、可追踪、可审计、可扩展到更高频和多周期。
 
 ---
@@ -201,7 +201,7 @@ runtime/tiger_engine/
     "take_profit_zone": [418.0, 421.0],
     "max_holding_horizon": "intraday"
   },
-  "requires_yuuka_review": true,
+  "requires_operator_review": true,
   "summary_text": "MSFT breakout candidate with news support."
 }
 ```
@@ -216,12 +216,12 @@ runtime/tiger_engine/
 - `trigger_context`
 - `thesis`
 - `risk_points`
-- `requires_yuuka_review`
+- `requires_operator_review`
 
 ### 说明
 - strategist 只产出候选信号
 - 不直接调用 executor
-- 必须经过 yuuka review
+- 必须经过 Operator review
 
 ---
 
@@ -283,7 +283,7 @@ runtime/tiger_engine/
 ## 7. executor task schema
 
 ### 用途
-把 yuuka 的审核结果转换成明确执行任务。
+把 Operator 的审核结果转换成明确执行任务。
 
 ### 文件
 - `runtime/tiger_engine/executor/latest_task.json`
@@ -356,7 +356,7 @@ runtime/tiger_engine/
     "filled_qty": 0,
     "avg_fill_price": null
   },
-  "next_action": "return_to_yuuka"
+  "next_action": "return_to_operator"
 }
 ```
 
@@ -373,7 +373,7 @@ runtime/tiger_engine/
 ## 9. closer summary schema
 
 ### 用途
-在 HK / US 收盘后生成总结，再由 yuuka 汇总给用户。
+在 HK / US 收盘后生成总结，再由 Operator 汇总给用户。
 
 ### 文件
 - `runtime/tiger_engine/closer/hk_latest.json`
@@ -412,7 +412,7 @@ runtime/tiger_engine/
 ## 10. 事件唤醒建议 schema
 
 ### 用途
-为 strategist → yuuka、yuuka → executor 这种非纯 cron 的唤醒链路提供轻量事件对象。
+为 strategist → Operator、Operator → executor 这种非纯 cron 的唤醒链路提供轻量事件对象。
 
 ### 推荐结构
 
@@ -425,7 +425,7 @@ runtime/tiger_engine/
   "refs": {
     "signal_id": "sig_20260313_msft_breakout_001"
   },
-  "message": "High-priority strategist signal ready for yuuka review."
+  "message": "High-priority strategist signal ready for Operator review."
 }
 ```
 
@@ -471,7 +471,7 @@ runtime/tiger_engine/
 - 写入 `strategist/signals.jsonl`
 - 写事件 `strategist_signal_ready`
 
-### yuuka review
+### Operator review
 - 被 strategist 信号唤醒
 - 读取 signal，做二次裁决
 - 写入 `decision/decisions.jsonl`

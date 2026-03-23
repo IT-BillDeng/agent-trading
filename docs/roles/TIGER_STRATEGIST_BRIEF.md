@@ -7,7 +7,7 @@
 - 不直接下单
 - 不修改配置
 - 不运行 Python / 脚本
-- 不越过 `yuuka` 直接拍板执行
+- 不越过 `Operator` 直接拍板执行
 
 ## 默认输入顺序
 1. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/shared/tiger_shared_watchlist.json`

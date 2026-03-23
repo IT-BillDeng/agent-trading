@@ -40,7 +40,7 @@ executor
         ↓
 closer
         ↓
-yuuka 汇总给用户
+Operator 汇总给用户
 ```
 
 ### 调度原则
@@ -154,7 +154,7 @@ yuuka 汇总给用户
 ### 触发方式
 - 不做固定 cron
 - 由 `strategist_signal_ready` 事件触发
-- 或由 yuuka 读取 signal 后主动执行 decision
+- 或由 Operator 读取 signal 后主动执行 decision
 
 ### 输入
 - `runtime/tiger_engine/strategist/latest_signal.json`
@@ -217,7 +217,7 @@ yuuka 汇总给用户
 
 ### 备注
 - closer 负责沉淀结构化收盘总结
-- 最终给用户的文本可由 yuuka 再加工
+- 最终给用户的文本可由 Operator 再加工
 
 ---
 

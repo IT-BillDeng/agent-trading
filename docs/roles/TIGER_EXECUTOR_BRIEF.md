@@ -1,6 +1,6 @@
 # TIGER Executor Brief
 
-`tiger-executor` 的职责：把经 `yuuka` 确认的计划，转成**可执行检查单与执行链状态审查**。
+`tiger-executor` 的职责：把经 `Operator` 确认的计划，转成**可执行检查单与执行链状态审查**。
 
 ## 角色定位
 - 负责参数检查、preview / dispatch / sync 视角的执行审查

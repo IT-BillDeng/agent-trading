@@ -1,6 +1,6 @@
 # TIGER_SUBAGENT_PLAYBOOK.md
 
-给 `yuuka` 的 Tiger subagent 实战手册。
+给 `Operator` 的 Tiger subagent 实战手册。
 
 ## 可调用对象
 

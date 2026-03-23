@@ -66,9 +66,9 @@ tiger-trading/
 
 当前协作模式不是“常驻多 agent 实时互聊”，而是：
 
-> **yuuka 定规则与调度，cron 定时触发岗位，岗位通过共享文件和运行产物完成交接。**
+> **Operator 定规则与调度，cron 定时触发岗位，岗位通过共享文件和运行产物完成交接。**
 
-### yuuka
+### Operator
 
 职责：
 - 总协调 / 改配置 / 调 cron / 风险把关 / 对用户汇报
@@ -95,7 +95,7 @@ tiger-trading/
 - HK / US 收盘后生成收盘总结
 - 汇总行情、新闻、执行与风控摘要
 
-### yuuka 的 execution / portfolio-report 任务
+### Operator 的 execution / portfolio-report 任务
 
 职责：
 - 定时运行 `tiger_engine` 执行周期
@@ -164,7 +164,7 @@ tiger-trading/
 
 ### 5.1 手动触发
 
-由用户直接在对话中要求 yuuka：
+由用户直接在对话中要求 Operator：
 - 改规则
 - 调 cron
 - 整理项目
@@ -198,7 +198,7 @@ Tiger Engine 执行周期 / watcher / newswire / closer
         ↓
 runtime/tiger_engine/*.json / *.jsonl
         ↓
-yuuka / closer / portfolio-report 消费结果
+Operator / closer / portfolio-report 消费结果
         ↓
 给用户汇报 / 留下下一轮可读状态
 ```
@@ -212,7 +212,7 @@ run_strategy_cycle / run_dry_run_cycle / run_execution_cycle
         ↓
 .last_execution_cycle.json + execution.jsonl + state/*.json
         ↓
-watcher / closer / portfolio-report / yuuka
+watcher / closer / portfolio-report / Operator
         ↓
 Telegram 汇报 / 下一轮继续读取
 ```

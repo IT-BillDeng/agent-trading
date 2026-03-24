@@ -228,3 +228,62 @@ class DataCache:
             except Exception:
                 self._data["watchlist"] = {"symbols": []}
         return self._data["watchlist"]
+
+    def _save_watchlist(self):
+        """Save watchlist back to file."""
+        with self._lock:
+            data = self._data["watchlist"]
+            if data:
+                data["updated_at"] = datetime.now().strftime("%Y-%m-%d")
+                data["updated_by"] = "dashboard"
+                WATCHLIST_PATH.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+                self._data["_watchlist_mtime"] = WATCHLIST_PATH.stat().st_mtime
+
+    def add_symbol(self, item: dict) -> dict:
+        """Add a new symbol to the watchlist."""
+        watchlist = self._load_watchlist()
+        symbols = watchlist.setdefault("symbols", [])
+
+        # Check for duplicates
+        for s in symbols:
+            if s["symbol"].upper() == item["symbol"].upper():
+                raise ValueError(f"Symbol {item['symbol']} already in watchlist")
+
+        new_entry = {
+            "symbol": item["symbol"].upper(),
+            "market": item.get("market", "US"),
+            "name": item.get("name", ""),
+            "enabled": item.get("enabled", True),
+            "priority": item.get("priority", "normal"),
+            "roles": ["watcher", "strategist", "executor", "newswire", "scout", "closer"],
+            "notes": item.get("notes", ""),
+        }
+        if item.get("lot_size"):
+            new_entry["lot_size"] = item["lot_size"]
+
+        symbols.append(new_entry)
+        self._save_watchlist()
+        return new_entry
+
+    def update_symbol(self, symbol: str, updates: dict) -> dict | None:
+        """Update a symbol in the watchlist."""
+        watchlist = self._load_watchlist()
+        for s in watchlist.get("symbols", []):
+            if s["symbol"].upper() == symbol.upper():
+                for key, val in updates.items():
+                    if val is not None:
+                        s[key] = val
+                self._save_watchlist()
+                return s
+        return None
+
+    def remove_symbol(self, symbol: str) -> bool:
+        """Remove a symbol from the watchlist."""
+        watchlist = self._load_watchlist()
+        symbols = watchlist.get("symbols", [])
+        for i, s in enumerate(symbols):
+            if s["symbol"].upper() == symbol.upper():
+                symbols.pop(i)
+                self._save_watchlist()
+                return True
+        return False

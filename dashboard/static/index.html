@@ -125,6 +125,25 @@
             </div>
         </div>
 
+        <!-- Watchlist Management -->
+        <section class="mt-6 card">
+            <div class="card-title">📝 自选管理</div>
+            <div class="flex gap-2 mb-3">
+                <input id="wl-symbol" type="text" placeholder="代码 (如 AAPL)" class="bg-dark-900 border border-gray-600 rounded px-3 py-1.5 text-sm w-28 focus:outline-none focus:border-tiger-500">
+                <select id="wl-market" class="bg-dark-900 border border-gray-600 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-tiger-500">
+                    <option value="US">US</option>
+                    <option value="HK">HK</option>
+                </select>
+                <input id="wl-name" type="text" placeholder="名称" class="bg-dark-900 border border-gray-600 rounded px-3 py-1.5 text-sm w-32 focus:outline-none focus:border-tiger-500">
+                <input id="wl-lotsize" type="number" placeholder="Lot Size" class="bg-dark-900 border border-gray-600 rounded px-3 py-1.5 text-sm w-24 focus:outline-none focus:border-tiger-500 hidden">
+                <button onclick="addWatchlist()" class="bg-tiger-600 hover:bg-tiger-700 text-white px-3 py-1.5 rounded text-sm font-medium transition">+ 添加</button>
+            </div>
+            <div id="watchlist-mgmt" class="space-y-1 text-sm">
+                <div class="text-gray-500">加载中...</div>
+            </div>
+            <div id="wl-msg" class="text-xs mt-2 hidden"></div>
+        </section>
+
         <!-- System Status -->
         <section class="mt-6 card">
             <div class="flex items-center justify-between">
@@ -164,7 +183,7 @@
         // --- Render Functions ---
         function renderAccount(data) {
             document.getElementById('total-assets').textContent = fmtUSD(data.net_liquidation || data.total_equity || data.cash);
-            const pnl = data.daily_pnl || data.unrealized_pnl || 0;
+            const pnl = data.unrealized_pnl || 0;
             const pnlEl = document.getElementById('today-pnl');
             pnlEl.textContent = pnlSign(pnl) + fmtUSD(pnl);
             pnlEl.className = 'text-2xl font-bold ' + pnlClass(pnl);
@@ -284,6 +303,122 @@
             document.getElementById('last-update').textContent = '上次更新: ' + updateTime;
         }
 
+        // --- Watchlist Management ---
+        function showWlMsg(msg, isError) {
+            const el = document.getElementById('wl-msg');
+            el.textContent = msg;
+            el.className = 'text-xs mt-2 ' + (isError ? 'text-red-400' : 'text-green-400');
+            setTimeout(() => el.className = 'text-xs mt-2 hidden', 3000);
+        }
+
+        // Toggle lot size field based on market
+        document.getElementById('wl-market')?.addEventListener('change', function() {
+            document.getElementById('wl-lotsize').classList.toggle('hidden', this.value !== 'HK');
+        });
+
+        async function fetchWatchlist() {
+            try {
+                const data = await fetch(API_BASE + '/api/watchlist').then(r => r.json());
+                renderWatchlistMgmt(data);
+            } catch (e) {
+                console.error('watchlist fetch error:', e);
+            }
+        }
+
+        function renderWatchlistMgmt(data) {
+            const el = document.getElementById('watchlist-mgmt');
+            const symbols = data.symbols || [];
+            if (symbols.length === 0) {
+                el.innerHTML = '<div class="text-gray-500">暂无自选</div>';
+                return;
+            }
+            el.innerHTML = symbols.map(s => {
+                const prioBadge = s.priority === 'high'
+                    ? '<span class="text-xs px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400">高</span>'
+                    : '';
+                const enabledCls = s.enabled ? '' : 'opacity-40';
+                const nextPrio = s.priority === 'high' ? 'normal' : 'high';
+                return '<div class="flex items-center justify-between py-1.5 border-b border-gray-700/30 ' + enabledCls + '">' +
+                    '<div class="flex items-center gap-2">' +
+                        '<span class="font-medium">' + s.symbol + '</span>' +
+                        '<span class="text-xs text-gray-500">' + (s.name || '') + '</span>' +
+                        '<span class="text-xs text-gray-600">' + s.market + '</span>' +
+                        prioBadge +
+                        (s.lot_size ? '<span class="text-xs text-gray-600">lot=' + s.lot_size + '</span>' : '') +
+                    '</div>' +
+                    '<div class="flex items-center gap-1">' +
+                        '<button onclick="toggleEnabled(\'' + s.symbol + '\', ' + !s.enabled + ')" class="text-xs px-2 py-0.5 rounded border border-gray-600 hover:border-gray-400 transition" title="' + (s.enabled ? '禁用' : '启用') + '">' +
+                            (s.enabled ? '👁️' : '🚫') +
+                        '</button>' +
+                        '<button onclick="togglePriority(\'' + s.symbol + '\', \'' + nextPrio + '\')" class="text-xs px-2 py-0.5 rounded border border-gray-600 hover:border-gray-400 transition" title="切换优先级">' +
+                            (s.priority === 'high' ? '⭐' : '☆') +
+                        '</button>' +
+                        '<button onclick="removeSymbol(\'' + s.symbol + '\')" class="text-xs px-2 py-0.5 rounded border border-gray-600 hover:border-red-400 hover:text-red-400 transition" title="删除">' +
+                            '✕' +
+                        '</button>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        }
+
+        async function addWatchlist() {
+            const symbol = document.getElementById('wl-symbol').value.trim();
+            const market = document.getElementById('wl-market').value;
+            const name = document.getElementById('wl-name').value.trim();
+            const lotSize = document.getElementById('wl-lotsize').value;
+
+            if (!symbol) { showWlMsg('请输入代码', true); return; }
+
+            const body = { symbol, market, name };
+            if (market === 'HK' && lotSize) body.lot_size = parseInt(lotSize);
+
+            try {
+                const res = await fetch(API_BASE + '/api/watchlist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                const data = await res.json();
+                if (data.error) { showWlMsg(data.error, true); return; }
+                showWlMsg(`已添加 ${symbol}`, false);
+                document.getElementById('wl-symbol').value = '';
+                document.getElementById('wl-name').value = '';
+                document.getElementById('wl-lotsize').value = '';
+                fetchWatchlist();
+            } catch (e) { showWlMsg('添加失败', true); }
+        }
+
+        async function toggleEnabled(symbol, enabled) {
+            try {
+                await fetch(API_BASE + '/api/watchlist/' + symbol, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled }),
+                });
+                fetchWatchlist();
+            } catch (e) { showWlMsg('操作失败', true); }
+        }
+
+        async function togglePriority(symbol, priority) {
+            try {
+                await fetch(API_BASE + '/api/watchlist/' + symbol, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ priority }),
+                });
+                fetchWatchlist();
+            } catch (e) { showWlMsg('操作失败', true); }
+        }
+
+        async function removeSymbol(symbol) {
+            if (!confirm(`确认删除 ${symbol}？')) return;
+            try {
+                await fetch(API_BASE + '/api/watchlist/' + symbol, { method: 'DELETE' });
+                showWlMsg(`已删除 ${symbol}`, false);
+                fetchWatchlist();
+            } catch (e) { showWlMsg('删除失败', true); }
+        }
+
         // --- Fetch & Render ---
         async function fetchAll() {
             try {
@@ -304,6 +439,7 @@
                 renderPnl(pnl);
                 renderAgents(agents);
                 renderSystem(system);
+                fetchWatchlist();
             } catch (e) {
                 console.error('Fetch error:', e);
                 document.getElementById('refresh-status').innerHTML =

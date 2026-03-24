@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from .tiger_client import TigerClient
 from .data_cache import DataCache
@@ -118,6 +119,65 @@ async def api_system():
     if not cache:
         return JSONResponse({"error": "not ready"}, status_code=503)
     return cache.get_system()
+
+
+# --- Watchlist management ---
+
+
+class WatchlistItem(BaseModel):
+    symbol: str
+    market: str = "US"
+    name: str = ""
+    enabled: bool = True
+    priority: str = "normal"
+    lot_size: int | None = None
+    notes: str = ""
+
+
+class WatchlistUpdate(BaseModel):
+    enabled: bool | None = None
+    priority: str | None = None
+    notes: str | None = None
+
+
+@app.post("/api/watchlist")
+async def api_watchlist_add(item: WatchlistItem):
+    """Add a symbol to the watchlist."""
+    if not cache:
+        return JSONResponse({"error": "not ready"}, status_code=503)
+    try:
+        result = cache.add_symbol(item.model_dump())
+        return {"status": "ok", "data": result}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+@app.patch("/api/watchlist/{symbol}")
+async def api_watchlist_update(symbol: str, update: WatchlistUpdate):
+    """Update a symbol in the watchlist."""
+    if not cache:
+        return JSONResponse({"error": "not ready"}, status_code=503)
+    try:
+        result = cache.update_symbol(symbol, update.model_dump(exclude_unset=True))
+        if result is None:
+            return JSONResponse({"error": f"Symbol {symbol} not found"}, status_code=404)
+        return {"status": "ok", "data": result}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+@app.delete("/api/watchlist/{symbol}")
+async def api_watchlist_remove(symbol: str):
+    """Remove a symbol from the watchlist."""
+    if not cache:
+        return JSONResponse({"error": "not ready"}, status_code=503)
+    try:
+        result = cache.remove_symbol(symbol)
+        if not result:
+            return JSONResponse({"error": f"Symbol {symbol} not found"}, status_code=404)
+        return {"status": "ok", "removed": symbol}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
 
 
 # --- Entry point ---

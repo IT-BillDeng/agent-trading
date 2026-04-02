@@ -1,0 +1,43 @@
+# ============================================================
+# Tiger Trading — Docker 编排
+# ============================================================
+# 两个服务：
+#   tiger-engine  — 按需执行（cron 触发），不常驻
+#   dashboard     — Web 看板，可常驻
+# ============================================================
+
+services:
+  # ---------- 核心执行引擎（按需） ----------
+  tiger-engine:
+    build:
+      context: ./system/tiger_engine
+      dockerfile: Dockerfile
+    container_name: tiger-engine
+    volumes:
+      - ./shared:/app/shared:ro
+      - ./config:/app/config:ro
+      - ./runtime/tiger_engine:/app/runtime
+    environment:
+      - TZ=Asia/Shanghai
+    entrypoint: []
+    command: ["--help"]
+    restart: "no"
+
+  # ---------- Web 看板（可常驻） ----------
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    container_name: tiger-dashboard
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./shared:/app/shared:ro
+      - ./config:/app/config:ro
+      - ./runtime/tiger_engine:/app/runtime:ro
+    environment:
+      - TZ=Asia/Shanghai
+      - TIGER_CONFIG_DIR=/app/config
+      - TIGER_WORKSPACE=/app
+      - TIGER_WATCHLIST_PATH=/app/shared/tiger_shared_watchlist.json
+    restart: unless-stopped

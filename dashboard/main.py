@@ -54,6 +54,14 @@ async def index():
     return FileResponse(STATIC_DIR / "index.html")
 
 
+# --- Health ---
+
+@app.get("/health")
+async def health():
+    """Health check endpoint for Docker."""
+    return {"status": "ok"}
+
+
 # --- API routes ---
 
 

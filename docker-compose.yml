@@ -19,8 +19,6 @@ services:
       - ./runtime/tiger_engine:/app/runtime
     environment:
       - TZ=Asia/Shanghai
-    entrypoint: []
-    command: ["--help"]
     restart: "no"
 
   # ---------- Web 看板（可常驻） ----------

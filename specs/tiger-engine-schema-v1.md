@@ -507,6 +507,45 @@ executor / closer 可以作为第二批严格结构化。
 
 ---
 
-## 14. 一句话总结
+## 14. control_state health schema
+
+### 用途
+引擎每次执行后写入健康状态，供 watcher 外部监控服务健康。
+
+### 文件
+- `runtime/tiger_engine/state/control_state.json`
+
+### health 字段
+
+```json
+{
+  "health": {
+    "last_heartbeat": "2026-04-03T00:15:00+08:00",
+    "last_exit_code": 0,
+    "last_run_at": "2026-04-03T00:15:00+08:00",
+    "consecutive_failures": 0
+  }
+}
+```
+
+### 字段说明
+
+| 字段 | 类型 | 说明 | watcher 判断逻辑 |
+|------|------|------|-----------------|
+| `last_heartbeat` | string (ISO 8601) | 引擎最近一次成功写入的时间戳 | 超过 2 个周期（60min）未更新 → 预警 |
+| `last_exit_code` | int | 最近一次执行的退出码 | ≠ 0 → 预警 |
+| `last_run_at` | string (ISO 8601) | 最近一次执行开始时间 | 与 heartbeat 对比可判断执行是否卡住 |
+| `consecutive_failures` | int | 连续失败次数 | ≥ 3 → 升级为严重预警 |
+
+### 引擎写入规则
+
+1. 执行开始时写入 `last_run_at`
+2. 执行成功结束时写入 `last_heartbeat`（更新时间戳）和 `last_exit_code = 0`，重置 `consecutive_failures = 0`
+3. 执行失败时写入 `last_exit_code = 非零值`，递增 `consecutive_failures`
+4. 异常崩溃时不更新 `last_heartbeat`，下次启动时检测超时
+
+---
+
+## 15. 一句话总结
 
 **Tiger Engine Schema v1 的核心思想是：watcher 产观察对象、newswire 产情报对象、strategist 产信号对象、decision 层产裁决对象、executor 产执行对象、closer 产总结对象，全部通过 id 串联。**

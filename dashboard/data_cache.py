@@ -8,6 +8,7 @@ from pathlib import Path
 from datetime import datetime
 
 from .tiger_client import TigerClient
+from .quote_provider import QuoteProvider
 
 WORKSPACE = Path(os.environ.get("TIGER_WORKSPACE", str(Path(__file__).parent.parent.parent)))
 WATCHLIST_PATH = Path(os.environ.get("TIGER_WATCHLIST_PATH", str(WORKSPACE / "tiger_shared_watchlist.json")))
@@ -19,8 +20,9 @@ if not MARKET_CONTEXT_PATH.exists():
 class DataCache:
     """Caches Tiger API responses with periodic refresh."""
 
-    def __init__(self, tiger_client: TigerClient, refresh_interval: int = 30):
+    def __init__(self, tiger_client: TigerClient, quote_provider: QuoteProvider, refresh_interval: int = 30):
         self._client = tiger_client
+        self._quote_provider = quote_provider
         self._interval = refresh_interval
         self._lock = threading.Lock()
         self._data = {
@@ -137,6 +139,7 @@ class DataCache:
                 "last_updated": self._data["last_updated"],
                 "errors": self._data["errors"][-10:],  # last 10 errors
                 "account_id": self._client.account,
+                "quote_provider": self._quote_provider.name,
             }
 
     # --- Internal ---
@@ -193,13 +196,13 @@ class DataCache:
                          if s.get("enabled") and s.get("market") == "HK"]
 
             if us_symbols:
-                us_quotes = self._client.get_quote(us_symbols, "US")
+                us_quotes = self._quote_provider.get_quote(us_symbols, "US")
                 for q in us_quotes:
                     if q.get("symbol"):
                         quotes[q["symbol"]] = q
 
             if hk_symbols:
-                hk_quotes = self._client.get_quote(hk_symbols, "HK")
+                hk_quotes = self._quote_provider.get_quote(hk_symbols, "HK")
                 for q in hk_quotes:
                     if q.get("symbol"):
                         quotes[q["symbol"]] = q

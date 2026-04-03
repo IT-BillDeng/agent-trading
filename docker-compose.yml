@@ -38,6 +38,7 @@ services:
       - TIGER_CONFIG_DIR=/app/config
       - TIGER_WORKSPACE=/app
       - TIGER_WATCHLIST_PATH=/app/shared/tiger_shared_watchlist.json
+      - TIGER_QUOTE_PROVIDER=yfinance
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]

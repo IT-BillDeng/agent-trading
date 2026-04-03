@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from .tiger_client import TigerClient
 from .data_cache import DataCache
+from .quote_provider import get_quote_provider
 
 # --- App lifecycle ---
 
@@ -29,7 +30,12 @@ async def lifespan(app: FastAPI):
     )
 
     tiger_client = TigerClient(config_dir=config_dir)
-    cache = DataCache(tiger_client, refresh_interval=30)
+
+    # Quote provider: TIGER_QUOTE_PROVIDER env var (default: yfinance)
+    provider_name = os.environ.get("TIGER_QUOTE_PROVIDER", "yfinance")
+    quote_provider = get_quote_provider(provider_name, config_dir=config_dir)
+
+    cache = DataCache(tiger_client, quote_provider, refresh_interval=30)
     cache.start()
 
     yield

@@ -120,25 +120,31 @@ class TigerClient:
         """Get quotes for given symbols."""
         try:
             market_enum = Market.US if market == "US" else Market.HK
-            result = self._quote_client.get_stock_briefs(symbols, market=market_enum)
-            if not result:
+            result = self._quote_client.get_stock_briefs(symbols)
+            if result is None or (hasattr(result, 'empty') and result.empty):
                 return []
+            # get_stock_briefs returns pd.DataFrame
             quotes = []
-            for q in result:
+            for _, row in result.iterrows():
+                def val(col, default=None):
+                    v = row.get(col, default)
+                    if v is None or (isinstance(v, float) and v != v):  # NaN check
+                        return default
+                    return v
                 quotes.append({
-                    "symbol": getattr(q, 'symbol', None),
-                    "name": getattr(q, 'name', None),
-                    "latest_price": getattr(q, 'latest_price', None) or getattr(q, 'last_price', None),
-                    "prev_close": getattr(q, 'prev_close', None),
-                    "open": getattr(q, 'open', None),
-                    "high": getattr(q, 'high', None),
-                    "low": getattr(q, 'low', None),
-                    "volume": getattr(q, 'volume', None),
-                    "change": getattr(q, 'change', None),
-                    "change_rate": getattr(q, 'change_rate', None),
-                    "bid_price": getattr(q, 'bid_price', None),
-                    "ask_price": getattr(q, 'ask_price', None),
-                    "market_status": getattr(q, 'market_status', None),
+                    "symbol": val('symbol'),
+                    "name": val('name'),
+                    "latest_price": val('latest_price') or val('last_price'),
+                    "prev_close": val('prev_close'),
+                    "open": val('open'),
+                    "high": val('high'),
+                    "low": val('low'),
+                    "volume": val('volume'),
+                    "change": val('change'),
+                    "change_rate": val('change_rate'),
+                    "bid_price": val('bid_price'),
+                    "ask_price": val('ask_price'),
+                    "market_status": val('market_status'),
                 })
             return quotes
         except Exception as e:

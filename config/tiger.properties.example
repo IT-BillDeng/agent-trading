@@ -1,0 +1,11 @@
+# ============================================================
+# Tiger API 凭证（容器内路径：/app/config/tiger.properties）
+# ============================================================
+# ⚠️ 此文件包含敏感信息，已被 .gitignore 排除
+# 从旧环境复制后，按实际值填入
+# ============================================================
+
+tiger_id=YOUR_TIGER_ID
+account=YOUR_PAPER_ACCOUNT
+private_key_pk8=YOUR_PRIVATE_KEY_PK8
+secret_key=YOUR_SECRET_KEY

@@ -1,5 +1,6 @@
 """Polling cache layer for Tiger data - reduces API call frequency."""
 
+import os
 import json
 import time
 import threading
@@ -8,9 +9,11 @@ from datetime import datetime
 
 from .tiger_client import TigerClient
 
-WORKSPACE = Path(__file__).parent.parent.parent
-WATCHLIST_PATH = WORKSPACE / "tiger_shared_watchlist.json"
-MARKET_CONTEXT_PATH = WORKSPACE / "tiger_shared_market_context.json"
+WORKSPACE = Path(os.environ.get("TIGER_WORKSPACE", str(Path(__file__).parent.parent.parent)))
+WATCHLIST_PATH = Path(os.environ.get("TIGER_WATCHLIST_PATH", str(WORKSPACE / "tiger_shared_watchlist.json")))
+MARKET_CONTEXT_PATH = WORKSPACE / "shared" / "tiger_shared_market_context.json"
+if not MARKET_CONTEXT_PATH.exists():
+    MARKET_CONTEXT_PATH = WORKSPACE / "tiger_shared_market_context.json"
 
 
 class DataCache:

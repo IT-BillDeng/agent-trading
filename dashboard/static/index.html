@@ -380,7 +380,7 @@
                 });
                 const data = await res.json();
                 if (data.error) { showWlMsg(data.error, true); return; }
-                showWlMsg(`已添加 ${symbol}`, false);
+                showWlMsg('\u5df2\u6dfb\u52a0 ' + symbol, false);
                 document.getElementById('wl-symbol').value = '';
                 document.getElementById('wl-name').value = '';
                 document.getElementById('wl-lotsize').value = '';
@@ -411,10 +411,10 @@
         }
 
         async function removeSymbol(symbol) {
-            if (!confirm(`确认删除 ${symbol}？')) return;
+            if (!confirm('\u78ba\u8ba4\u5220\u9664 ' + symbol + ' ?')) return;
             try {
                 await fetch(API_BASE + '/api/watchlist/' + symbol, { method: 'DELETE' });
-                showWlMsg(`已删除 ${symbol}`, false);
+                showWlMsg('\u5df2\u5220\u9664 ' + symbol, false);
                 fetchWatchlist();
             } catch (e) { showWlMsg('删除失败', true); }
         }

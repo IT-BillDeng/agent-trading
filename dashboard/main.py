@@ -278,6 +278,57 @@ async def api_control(action: str):
         return JSONResponse({"error": f"unknown action: {action}"}, status_code=400)
 
 
+@app.get("/api/audit")
+async def api_audit(limit: int = 50):
+    """Read recent audit log entries."""
+    import json
+    logs_dir = RUNTIME_DIR / "logs"
+    result = []
+    # Read from JSONL audit files
+    for log_file in sorted(logs_dir.glob("*.jsonl"), reverse=True):
+        try:
+            lines = log_file.read_text().strip().split("\n")
+            for line in lines[-limit:]:
+                if line.strip():
+                    entry = json.loads(line)
+                    entry["_source"] = log_file.name
+                    result.append(entry)
+        except Exception:
+            continue
+        if len(result) >= limit:
+            break
+    return {"entries": result[:limit], "count": len(result)}
+
+
+@app.get("/api/health/engine")
+async def api_engine_health():
+    """Check engine health from runtime files."""
+    import json, time
+    result = {"status": "unknown"}
+    # Check last execution cycle timestamp
+    cycle_file = RUNTIME_DIR / ".last_execution_cycle.json"
+    if cycle_file.exists():
+        try:
+            cycle = json.loads(cycle_file.read_text())
+            result["last_cycle_id"] = cycle.get("cycle_id")
+            result["has_signals"] = bool(cycle.get("strategy", {}).get("signals"))
+            result["signal_count"] = len(cycle.get("strategy", {}).get("signals", []))
+            result["status"] = "ok"
+        except Exception as e:
+            result["status"] = f"error: {e}"
+    else:
+        result["status"] = "no_cycle_data"
+    # Check control state
+    state_file = RUNTIME_DIR / "state" / "control_state.json"
+    if state_file.exists():
+        try:
+            state = json.loads(state_file.read_text())
+            result["locked"] = state.get("locked", False)
+        except Exception:
+            pass
+    return result
+
+
 class RefreshConfig(BaseModel):
     interval: int | None = None
 

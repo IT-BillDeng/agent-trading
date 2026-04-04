@@ -51,8 +51,8 @@ Tiger Open Platform (Paper → Live)
 | 2.3 | 风控参数在线调整 | 暴露上限、止损比例等参数可从 web UI 修改 | ✅ 完成（/api/config PATCH） |
 | 2.4 | 系统开关控制 | /api/control/lock, /api/control/unlock | ✅ 完成 |
 | 2.5 | 行情刷新频率调整 | 前端可修改 DataCache 的 refresh_interval | ✅ 完成（/api/refresh） |
-| 2.6 | 审计日志查看 | /api/audit 端点，展示最近 N 条审计记录 | ⬜ 未开始 |
-| 2.7 | Engine 状态健康检查 | engine 的 last_heartbeat, consecutive_failures 等 | ⬜ 未开始 |
+| 2.6 | 审计日志查看 | /api/audit 端点，展示最近 N 条审计记录 | ✅ 完成 |
+| 2.7 | Engine 状态健康检查 | engine 的 last_heartbeat, consecutive_failures 等 | ✅ 完成（/api/health/engine） |
 | 2.8 | Tiger 配置文件上传入口 | 支持 paper/live 配置切换 | ⬜ 未开始 |
 | 2.9 | Paper/Live 模式自动检测 | 从配置文件读取 env 字段，自动适配 | ⬜ 未开始 |
 

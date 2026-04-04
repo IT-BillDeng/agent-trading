@@ -194,6 +194,106 @@ async def api_watchlist_remove(symbol: str):
         return JSONResponse({"error": str(e)}, status_code=400)
 
 
+# --- Engine results & control ---
+
+RUNTIME_DIR = Path(os.environ.get("TIGER_RUNTIME_DIR", "/app/runtime"))
+CONFIG_DIR_PATH = Path(os.environ.get("TIGER_CONFIG_DIR", "/app/config"))
+
+
+@app.get("/api/engine")
+async def api_engine():
+    """Read latest engine cycle output."""
+    result = {}
+    # Read last execution cycle
+    cycle_file = RUNTIME_DIR / ".last_execution_cycle.json"
+    if cycle_file.exists():
+        try:
+            import json
+            result["last_cycle"] = json.loads(cycle_file.read_text())
+        except Exception as e:
+            result["last_cycle_error"] = str(e)
+    else:
+        result["last_cycle"] = None
+
+    # Read control state
+    state_file = RUNTIME_DIR / "state" / "control_state.json"
+    if state_file.exists():
+        try:
+            import json
+            result["control_state"] = json.loads(state_file.read_text())
+        except Exception:
+            result["control_state"] = None
+    else:
+        result["control_state"] = None
+
+    return result
+
+
+@app.get("/api/config")
+async def api_config_get():
+    """Get current engine config (risk params, markets, etc.)."""
+    config_file = CONFIG_DIR_PATH / "app_config.docker.json"
+    if not config_file.exists():
+        return JSONResponse({"error": "config not found"}, status_code=404)
+    import json
+    return json.loads(config_file.read_text())
+
+
+@app.patch("/api/config")
+async def api_config_update(update: dict):
+    """Update engine config (risk params, markets, etc.)."""
+    config_file = CONFIG_DIR_PATH / "app_config.docker.json"
+    if not config_file.exists():
+        return JSONResponse({"error": "config not found"}, status_code=404)
+    import json
+    config = json.loads(config_file.read_text())
+    # Allow updating top-level risk and markets
+    if "risk" in update:
+        config["risk"].update(update["risk"])
+    if "markets" in update:
+        config["markets"] = update["markets"]
+    if "strategy" in update and "timeframe" in update["strategy"]:
+        config["strategy"]["timeframe"] = update["strategy"]["timeframe"]
+    config_file.write_text(json.dumps(config, indent=2, ensure_ascii=False))
+    return {"status": "ok", "config": config}
+
+
+@app.post("/api/control/{action}")
+async def api_control(action: str):
+    """Lock or unlock the engine control plane."""
+    import json
+    state_dir = RUNTIME_DIR / "state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    state_file = state_dir / "control_state.json"
+
+    if action == "lock":
+        state = {"locked": True, "reason": "manual_lock", "updated_by": "dashboard"}
+        state_file.write_text(json.dumps(state, indent=2))
+        return {"status": "ok", "action": "locked"}
+    elif action == "unlock":
+        state = {"locked": False, "reason": "manual_unlock", "updated_by": "dashboard"}
+        state_file.write_text(json.dumps(state, indent=2))
+        return {"status": "ok", "action": "unlocked"}
+    else:
+        return JSONResponse({"error": f"unknown action: {action}"}, status_code=400)
+
+
+class RefreshConfig(BaseModel):
+    interval: int | None = None
+
+
+@app.post("/api/refresh")
+async def api_refresh(config: RefreshConfig):
+    """Adjust quote refresh interval (seconds)."""
+    if not cache:
+        return JSONResponse({"error": "not ready"}, status_code=503)
+    if config.interval is not None:
+        if config.interval < 5:
+            return JSONResponse({"error": "minimum interval is 5 seconds"}, status_code=400)
+        cache._interval = config.interval
+    return {"status": "ok", "interval": cache._interval}
+
+
 # --- Entry point ---
 
 def main():

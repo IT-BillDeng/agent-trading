@@ -144,6 +144,59 @@
             <div id="wl-msg" class="text-xs mt-2 hidden"></div>
         </section>
 
+        <!-- Engine Results -->
+        <section class="mt-6 card">
+            <div class="card-title">🔧 Engine 运行结果</div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">最近信号</div>
+                    <div id="engine-signals" class="text-sm">--</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">风控状态</div>
+                    <div id="engine-risk" class="text-sm">--</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">控制状态</div>
+                    <div id="engine-control" class="text-sm">--</div>
+                </div>
+            </div>
+            <details class="text-xs text-gray-500">
+                <summary class="cursor-pointer hover:text-gray-300">查看原始数据</summary>
+                <pre id="engine-raw" class="mt-2 bg-dark-900 rounded p-3 overflow-auto max-h-64 text-gray-400">--</pre>
+            </details>
+        </section>
+
+        <!-- Control Panel -->
+        <section class="mt-6 card">
+            <div class="card-title">🎛️ 控制面板</div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <div class="text-xs text-gray-500 mb-2">系统锁定</div>
+                    <div class="flex gap-2">
+                        <button onclick="controlAction('lock')" class="bg-red-600/20 hover:bg-red-600/40 text-red-400 px-3 py-1.5 rounded text-sm border border-red-600/30 transition">🔒 锁定</button>
+                        <button onclick="controlAction('unlock')" class="bg-green-600/20 hover:bg-green-600/40 text-green-400 px-3 py-1.5 rounded text-sm border border-green-600/30 transition">🔓 解锁</button>
+                    </div>
+                    <div id="control-msg" class="text-xs mt-1 hidden"></div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 mb-2">行情刷新间隔 (秒)</div>
+                    <div class="flex items-center gap-2">
+                        <input id="refresh-slider" type="range" min="5" max="120" value="30" class="w-32" onchange="setRefreshInterval(this.value)">
+                        <span id="refresh-value" class="text-sm w-8">30</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 mb-2">风控参数</div>
+                    <div id="risk-display" class="text-sm space-y-1">
+                        <div>单笔上限: <span id="risk-max-order">--</span></div>
+                        <div>总暴露上限: <span id="risk-max-exposure">--</span></div>
+                        <div>日亏损限制: <span id="risk-daily-loss">--</span>%</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- System Status -->
         <section class="mt-6 card">
             <div class="flex items-center justify-between">
@@ -447,9 +500,103 @@
             }
         }
 
+        // --- Engine & Control ---
+        async function fetchEngine() {
+            try {
+                const data = await fetch(API_BASE + '/api/engine').then(r => r.json());
+                // Signals
+                const cycle = data.last_cycle;
+                if (cycle && cycle.strategy && cycle.strategy.signals) {
+                    const signals = cycle.strategy.signals;
+                    const buys = signals.filter(s => s.action === 'BUY').length;
+                    const exits = signals.filter(s => s.action === 'EXIT').length;
+                    const holds = signals.filter(s => s.action === 'HOLD').length;
+                    document.getElementById('engine-signals').innerHTML =
+                        '<span class="text-green-400">' + buys + ' BUY</span> / ' +
+                        '<span class="text-red-400">' + exits + ' EXIT</span> / ' +
+                        '<span class="text-gray-400">' + holds + ' HOLD</span>' +
+                        '<div class="text-xs text-gray-500 mt-1">cycle: ' + (cycle.cycle_id || '--') + '</div>';
+                } else {
+                    document.getElementById('engine-signals').textContent = cycle ? '无信号数据' : '尚未运行';
+                }
+
+                // Risk
+                if (cycle && cycle.risk) {
+                    const risk = cycle.risk;
+                    const allowed = risk.allowed_count || 0;
+                    const total = risk.decisions ? risk.decisions.length : 0;
+                    document.getElementById('engine-risk').innerHTML =
+                        allowed + '/' + total + ' 通过' +
+                        (risk.preview_blockers && risk.preview_blockers.length > 0
+                            ? '<div class="text-xs text-red-400 mt-1">' + risk.preview_blockers.length + ' 阻塞</div>'
+                            : '');
+                } else {
+                    document.getElementById('engine-risk').textContent = '--';
+                }
+
+                // Control
+                if (data.control_state) {
+                    const ctrl = data.control_state;
+                    const locked = ctrl.locked;
+                    document.getElementById('engine-control').innerHTML = locked
+                        ? '<span class="text-red-400">🔒 已锁定</span><div class="text-xs text-gray-500">' + (ctrl.reason || '') + '</div>'
+                        : '<span class="text-green-400">🔓 正常</span>';
+                } else {
+                    document.getElementById('engine-control').textContent = '无状态';
+                }
+
+                // Raw data
+                document.getElementById('engine-raw').textContent = JSON.stringify(cycle || {}, null, 2);
+            } catch (e) {
+                document.getElementById('engine-signals').textContent = '加载失败';
+            }
+        }
+
+        async function fetchConfig() {
+            try {
+                const config = await fetch(API_BASE + '/api/config').then(r => r.json());
+                const risk = config.risk || {};
+                document.getElementById('risk-max-order').textContent = fmtUSD(risk.max_order_notional_usd);
+                document.getElementById('risk-max-exposure').textContent = fmtUSD(risk.max_total_exposure_usd);
+                document.getElementById('risk-daily-loss').textContent = risk.daily_loss_limit_pct || '--';
+            } catch (e) {
+                console.error('config fetch error:', e);
+            }
+        }
+
+        async function controlAction(action) {
+            try {
+                const res = await fetch(API_BASE + '/api/control/' + action, { method: 'POST' });
+                const data = await res.json();
+                const msgEl = document.getElementById('control-msg');
+                msgEl.textContent = data.status === 'ok' ? '已' + (action === 'lock' ? '锁定' : '解锁') : data.error;
+                msgEl.className = 'text-xs mt-1 ' + (data.status === 'ok' ? 'text-green-400' : 'text-red-400');
+                setTimeout(() => msgEl.className = 'text-xs mt-1 hidden', 3000);
+                fetchEngine();
+            } catch (e) {
+                console.error('control error:', e);
+            }
+        }
+
+        async function setRefreshInterval(val) {
+            document.getElementById('refresh-value').textContent = val;
+            try {
+                await fetch(API_BASE + '/api/refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ interval: parseInt(val) }),
+                });
+            } catch (e) {
+                console.error('refresh interval error:', e);
+            }
+        }
+
         // --- Init ---
         fetchAll();
+        fetchEngine();
+        fetchConfig();
         setInterval(fetchAll, REFRESH_MS);
+        setInterval(fetchEngine, 30000);
     </script>
 </body>
 </html>

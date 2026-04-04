@@ -31,14 +31,14 @@ Tiger Open Platform (Paper → Live)
 
 | # | 任务 | 说明 | 阻塞点 | 状态 |
 |---|------|------|--------|------|
-| 1.1 | 配置仅启用美股 | 修改 `app_config` 中 markets 为 `["US"]`，watchlist 仅保留美股标的 | — | ⬜ 未开始 |
-| 1.2 | 验证 engine Docker 容器能启动 | `docker compose up tiger-engine`，确认容器存活 | 需宿主机 Docker | ⬜ 未开始 |
-| 1.3 | 运行 `run_readonly_cycle.py` | 在容器内跑一次只读周期，输出美股账户/持仓/市场状态 | 需 Tiger API 连通 | ⬜ 未开始 |
+| 1.1 | 配置仅启用美股 | 修改 `app_config` 中 markets 为 `["US"]`，watchlist 仅保留美股标的 | — | ✅ 完成 |
+| 1.2 | 验证 engine Docker 容器能启动 | `docker compose up tiger-engine`，确认容器存活 | 需宿主机 Docker | 🔨 进行中（arona 超时，待重试） |
+| 1.3 | 运行 `run_readonly_cycle.py` | 在容器内跑一次只读周期，输出美股账户/持仓/市场状态 | 需 1.2 完成 | ⬜ 未开始 |
 | 1.4 | 验证美股 kline 数据拉取 | 确认 30min K 线数据能正确获取并解析 | Tiger kline 权限已确认 | ⬜ 未开始 |
 | 1.5 | 运行 `run_strategy_cycle.py` | 验证美股 SMA 信号生成正常输出 | 依赖 1.4 | ⬜ 未开始 |
 | 1.6 | 运行 `run_dry_run_cycle.py` | 验证美股风控→意图→通知预览全链路 | 依赖 1.5 | ⬜ 未开始 |
 | 1.7 | 修复发现的 bug | 完整周期运行后必然会发现的问题 | — | ⬜ 未开始 |
-| 1.8 | Engine 接入 yfinance 行情源 | kline 数据用 yfinance 做 fallback，保留 Tiger 接口 | — | ⬜ 未开始 |
+| 1.8 | Engine 接入 yfinance 行情源 | kline 数据用 yfinance 做 fallback，保留 Tiger 接口 | — | ✅ 完成（待 Docker 测试） |
 
 ## Phase 2：Dashboard 增强
 
@@ -46,11 +46,11 @@ Tiger Open Platform (Paper → Live)
 
 | # | 任务 | 说明 | 状态 |
 |---|------|------|------|
-| 2.1 | 市场开关 UI | Dashboard 增加 US/HK 启用开关（当前仅 US 生效） | ⬜ 未开始 |
-| 2.2 | 展示 Engine 运行结果 | /api/engine 端点：最近信号、风控决策、执行状态 | ⬜ 未开始 |
-| 2.3 | 风控参数在线调整 | 暴露上限、止损比例等参数可从 web UI 修改 | ⬜ 未开始 |
-| 2.4 | 系统开关控制 | /api/control/lock, /api/control/unlock | ⬜ 未开始 |
-| 2.5 | 行情刷新频率调整 | 前端可修改 DataCache 的 refresh_interval | ⬜ 未开始 |
+| 2.1 | 市场开关 UI | Dashboard 增加 US/HK 启用开关（当前仅 US 生效） | ✅ 完成（/api/config PATCH） |
+| 2.2 | 展示 Engine 运行结果 | /api/engine 端点：最近信号、风控决策、执行状态 | ✅ 完成 |
+| 2.3 | 风控参数在线调整 | 暴露上限、止损比例等参数可从 web UI 修改 | ✅ 完成（/api/config PATCH） |
+| 2.4 | 系统开关控制 | /api/control/lock, /api/control/unlock | ✅ 完成 |
+| 2.5 | 行情刷新频率调整 | 前端可修改 DataCache 的 refresh_interval | ✅ 完成（/api/refresh） |
 | 2.6 | 审计日志查看 | /api/audit 端点，展示最近 N 条审计记录 | ⬜ 未开始 |
 | 2.7 | Engine 状态健康检查 | engine 的 last_heartbeat, consecutive_failures 等 | ⬜ 未开始 |
 | 2.8 | Tiger 配置文件上传入口 | 支持 paper/live 配置切换 | ⬜ 未开始 |

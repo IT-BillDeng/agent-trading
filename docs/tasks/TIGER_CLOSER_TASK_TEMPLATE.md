@@ -7,12 +7,12 @@
 目标：为指定市场生成收盘总结，覆盖行情、新闻、执行状态与明日关注点。
 
 输入：
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/shared/tiger_shared_watchlist.json`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/.last_execution_cycle.json`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/logs/execution.jsonl`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/logs/notifications.jsonl`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/logs/dispatch_queue.jsonl`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/state/control_state.json`
+- `./shared/tiger_shared_watchlist.json`
+- `./runtime/tiger_engine/.last_execution_cycle.json`
+- `./runtime/tiger_engine/logs/execution.jsonl`
+- `./runtime/tiger_engine/logs/notifications.jsonl`
+- `./runtime/tiger_engine/logs/dispatch_queue.jsonl`
+- `./runtime/tiger_engine/state/control_state.json`
 
 要求：
 - 优先只看共享清单中 `enabled=true` 的标的

@@ -4,13 +4,13 @@
 
 ---
 
-目标：基于共享股票清单与当前 Tiger Enginein paper 状态，输出保守版交易计划草案。
+目标：基于共享股票清单与当前 Tiger Engine paper 状态，输出保守版交易计划草案。
 
 输入：
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/shared/tiger_shared_watchlist.json`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading-spec-v1-30min.md`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/system/tiger_engine/app_config.paper.json`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/.last_execution_cycle.json`
+- `./shared/tiger_shared_watchlist.json`
+- `./specs/tiger-trading-spec-v1-30min.md`
+- `./system/tiger_engine/app_config.paper.json`
+- `./runtime/tiger_engine/.last_execution_cycle.json`
 
 要求：
 - 优先只看共享清单中 `enabled=true` 的标的

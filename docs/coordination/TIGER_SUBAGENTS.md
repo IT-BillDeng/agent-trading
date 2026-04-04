@@ -2,11 +2,11 @@
 
 `Operator` 当前可调用的 Tiger subagents：
 
-共享股票清单：`/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/shared/tiger_shared_watchlist.json`
+共享股票清单：`./shared/tiger_shared_watchlist.json`
 - 这是 Operator 与 Tiger subagents 的统一股票来源
 - 默认优先使用这份清单，而不是各自维护独立列表
 
-Newswire v1 信息源：`/home/openclaw/.openclaw/workspace-yuuka/tiger_newswire_sources_v1.json`
+Newswire v1 信息源：`./shared/tiger_newswire_sources_v1.json`
 - 主源 1：Brave Search
 - 主源 2：web_fetch
 - 辅助：Yahoo Finance / 其他可读页面
@@ -34,5 +34,5 @@ Newswire v1 信息源：`/home/openclaw/.openclaw/workspace-yuuka/tiger_newswire
 
 - 这些 agent 是给 `Operator` 的内部 subagent，不直接面向老师
 - 默认优先输出给 `Operator`，由 `Operator` 决定如何汇总
-- 默认优先读取共享股票清单：`/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/shared/tiger_shared_watchlist.json`
+- 默认优先读取共享股票清单：`./shared/tiger_shared_watchlist.json`
 - 涉及 Python、脚本执行、真实提交、支付或其他高风险动作时，默认转交 `arona` 代执行

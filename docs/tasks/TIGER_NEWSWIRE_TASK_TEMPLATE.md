@@ -7,8 +7,8 @@
 目标：为共享股票清单提供一轮新闻与催化扫描。
 
 输入：
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/shared/tiger_shared_watchlist.json`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger_newswire_sources_v1.json`
+- `./shared/tiger_shared_watchlist.json`
+- `./shared/tiger_newswire_sources_v1.json`
 - （可选）最新 watcher / strategist 输出
 
 信息源要求：
@@ -29,8 +29,8 @@
 - 不修改股票池或配置
 
 结构化落盘要求（MVP v1）：
-- 额外写入 `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/newswire/latest.json`
-- 额外追加 `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/newswire/history.jsonl`
+- 额外写入 `./runtime/tiger_engine/newswire/latest.json`
+- 额外追加 `./runtime/tiger_engine/newswire/history.jsonl`
 - 若无有效新闻，也要写结构化空结果
 
 输出格式：

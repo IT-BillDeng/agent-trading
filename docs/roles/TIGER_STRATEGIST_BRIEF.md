@@ -10,10 +10,10 @@
 - 不越过 `Operator` 直接拍板执行
 
 ## 默认输入顺序
-1. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/shared/tiger_shared_watchlist.json`
-2. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading-spec-v1-30min.md`
-3. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/system/tiger_engine/app_config.paper.json`
-4. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/.last_execution_cycle.json`
+1. `./shared/tiger_shared_watchlist.json`
+2. `./specs/tiger-trading-spec-v1-30min.md`
+3. `./system/tiger_engine/app_config.paper.json`
+4. `./runtime/tiger_engine/.last_execution_cycle.json`
 
 ## 关注重点
 - 共享清单里 `enabled=true` 的标的

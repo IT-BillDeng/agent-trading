@@ -11,8 +11,8 @@
 - 若信息不足，必须明确说明，不强行编造结论
 
 ## 默认输入顺序
-1. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/shared/tiger_shared_watchlist.json`
-2. `/home/openclaw/.openclaw/workspace-yuuka/tiger_newswire_sources_v1.json`
+1. `./shared/tiger_shared_watchlist.json`
+2. `./shared/tiger_newswire_sources_v1.json`
 3. 最新 watcher / strategist 结果（若有）
 4. 可访问的新闻 / 搜索结果 / 页面内容
 
@@ -20,7 +20,7 @@
 - **主源 1：Brave Search**（发现最新事件）
 - **主源 2：web_fetch**（提取文章摘要）
 - **辅助：Yahoo Finance / 其他可读页面**
-- 统一配置文件：`/home/openclaw/.openclaw/workspace-yuuka/tiger_newswire_sources_v1.json`
+- 统一配置文件：`./shared/tiger_newswire_sources_v1.json`
 
 ## 核心任务
 ### 1) 预开盘新闻扫描
@@ -42,8 +42,8 @@
 
 在保持自然语言摘要输出的同时，必须额外写入：
 
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/newswire/latest.json`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/newswire/history.jsonl`
+- `./runtime/tiger_engine/newswire/latest.json`
+- `./runtime/tiger_engine/newswire/history.jsonl`
 
 最小字段要求：
 - `news_batch_id`

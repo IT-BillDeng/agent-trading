@@ -14,12 +14,12 @@
 - HK（港股）
 
 ## 默认输入顺序
-1. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/shared/tiger_shared_watchlist.json`
-2. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/.last_execution_cycle.json`
-3. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/logs/execution.jsonl`
-4. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/logs/notifications.jsonl`
-5. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/logs/dispatch_queue.jsonl`
-6. `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/state/control_state.json`
+1. `./shared/tiger_shared_watchlist.json`
+2. `./runtime/tiger_engine/.last_execution_cycle.json`
+3. `./runtime/tiger_engine/logs/execution.jsonl`
+4. `./runtime/tiger_engine/logs/notifications.jsonl`
+5. `./runtime/tiger_engine/logs/dispatch_queue.jsonl`
+6. `./runtime/tiger_engine/state/control_state.json`
 7. 如需新闻补充，可使用 web_search / web_fetch 做简要新闻与催化整理（不要求逐条穷尽）
 
 ## 总结内容

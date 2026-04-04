@@ -7,11 +7,11 @@
 目标：执行一轮只读高频行情监控，并写入结构化 watcher 输出。
 
 输入：
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/shared/tiger_shared_watchlist.json`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/.last_execution_cycle.json`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/logs/dispatch_queue.jsonl`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/logs/execution.jsonl`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/state/control_state.json`
+- `./shared/tiger_shared_watchlist.json`
+- `./runtime/tiger_engine/.last_execution_cycle.json`
+- `./runtime/tiger_engine/logs/dispatch_queue.jsonl`
+- `./runtime/tiger_engine/logs/execution.jsonl`
+- `./runtime/tiger_engine/state/control_state.json`
 
 要求：
 - 优先关注共享清单中 `enabled=true` 的标的
@@ -26,8 +26,8 @@
 - 不修改股票池或配置
 
 结构化落盘要求（MVP v1）：
-- 写入 `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/watcher/latest.json`
-- 追加 `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/watcher/history.jsonl`
+- 写入 `./runtime/tiger_engine/watcher/latest.json`
+- 追加 `./runtime/tiger_engine/watcher/history.jsonl`
 - 即使无明显变化，也要写结构化空结果或低变化结果
 
 最小字段要求：

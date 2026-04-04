@@ -42,11 +42,11 @@
 ## 重点输入
 
 ### 核心文件
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/shared/tiger_shared_watchlist.json`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/.last_execution_cycle.json`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/logs/dispatch_queue.jsonl`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/logs/execution.jsonl`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/state/control_state.json`
+- `./shared/tiger_shared_watchlist.json`
+- `./runtime/tiger_engine/.last_execution_cycle.json`
+- `./runtime/tiger_engine/logs/dispatch_queue.jsonl`
+- `./runtime/tiger_engine/logs/execution.jsonl`
+- `./runtime/tiger_engine/state/control_state.json`
 
 ### 重点字段
 - `cycle_id`
@@ -83,8 +83,8 @@
 
 在保持自然语言结论输出的同时，必须额外写入：
 
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/watcher/latest.json`
-- `/home/openclaw/.openclaw/workspace-yuuka/tiger-trading/runtime/tiger_engine/watcher/history.jsonl`
+- `./runtime/tiger_engine/watcher/latest.json`
+- `./runtime/tiger_engine/watcher/history.jsonl`
 
 最小字段要求：
 - `watch_id`

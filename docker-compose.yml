@@ -30,7 +30,7 @@ services:
     ports:
       - "8088:8088"
     volumes:
-      - ./shared:/app/shared:ro
+      - ./shared:/app/shared
       - ./config:/app/config
       - ./runtime/tiger_engine:/app/runtime:ro
     environment:

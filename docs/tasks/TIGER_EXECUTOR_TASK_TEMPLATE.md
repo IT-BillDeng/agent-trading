@@ -7,7 +7,7 @@
 目标：审查当前 Tiger paper 执行链的准备度，并把计划转成最短执行检查单。
 
 输入：
-- `./data/tiger_shared_watchlist.json`
+- `./data/watchlist.json`
 - `./system/tiger_engine/README.md`
 - `./system/tiger_engine/app_config.paper.json`
 - `./runtime/tiger_engine/.last_execution_cycle.json`

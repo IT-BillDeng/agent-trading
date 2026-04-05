@@ -1,6 +1,6 @@
 # TIGER_SHARED_CONTEXT.md
 
-统一共享上下文文件：`tiger_shared_market_context.json`
+统一共享上下文文件：`market_context.json`
 
 ## 用途
 

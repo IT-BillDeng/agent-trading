@@ -36,7 +36,7 @@ services:
       - TZ=Asia/Shanghai
       - TIGER_CONFIG_DIR=/app/config
       - TIGER_WORKSPACE=/app
-      - TIGER_WATCHLIST_PATH=/app/data/tiger_shared_watchlist.json
+      - TIGER_WATCHLIST_PATH=/app/data/watchlist.json
       - TIGER_QUOTE_PROVIDER=yfinance
     restart: unless-stopped
     healthcheck:

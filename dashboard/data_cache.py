@@ -11,8 +11,8 @@ from .tiger_client import TigerClient
 from .quote_provider import QuoteProvider
 
 WORKSPACE = Path(os.environ.get("TIGER_WORKSPACE", str(Path(__file__).parent.parent.parent)))
-WATCHLIST_PATH = Path(os.environ.get("TIGER_WATCHLIST_PATH", str(WORKSPACE / "data" / "tiger_shared_watchlist.json")))
-MARKET_CONTEXT_PATH = Path(os.environ.get("TIGER_RUNTIME_DIR", str(WORKSPACE / "runtime" / "tiger_engine"))) / "tiger_shared_market_context.json"
+WATCHLIST_PATH = Path(os.environ.get("TIGER_WATCHLIST_PATH", str(WORKSPACE / "data" / "watchlist.json")))
+MARKET_CONTEXT_PATH = Path(os.environ.get("TIGER_RUNTIME_DIR", str(WORKSPACE / "runtime" / "tiger_engine"))) / "market_context.json"
 
 
 class DataCache:

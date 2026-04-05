@@ -29,9 +29,9 @@ tiger-trading/
     tasks/
     coordination/
   shared/
-    tiger_shared_watchlist.json
-    tiger_shared_market_context.json
-    tiger_newswire_sources_v1.json
+    watchlist.json
+    market_context.json
+    newswire_sources.json
   specs/
     tiger-trading-spec-v1-30min.md
   system/
@@ -109,14 +109,14 @@ tiger-trading/
 
 ### 4.1 共享输入
 
-- `data/tiger_shared_watchlist.json`
+- `data/watchlist.json`
   - 共享股票池
   - 各岗位优先读取
 
-- `runtime/tiger_engine/tiger_shared_market_context.json`
+- `runtime/tiger_engine/market_context.json`
   - 共享市场上下文
 
-- `config/tiger_newswire_sources_v1.json`
+- `config/newswire_sources.json`
   - newswire 的信息源配置
 
 ### 4.2 岗位说明 / SOP

@@ -99,9 +99,9 @@ tiger-trading/
 │   ├── tiger.properties        # API 凭证（.gitignore 排除）
 │   └── tiger.properties.example
 ├── shared/                     # 共享数据（只读 mount）
-│   ├── tiger_shared_watchlist.json
-│   ├── tiger_shared_market_context.json
-│   └── tiger_newswire_sources_v1.json
+│   ├── watchlist.json
+│   ├── market_context.json
+│   └── newswire_sources.json
 ├── runtime/tiger_engine/       # 运行时产物（读写 mount）
 │   ├── logs/
 │   └── state/
@@ -122,7 +122,7 @@ tiger-trading/
 |------|-----------|------|
 | `app_config.docker.json` | `/app/config/app_config.docker.json` | 已适配容器路径的配置 |
 | `tiger.properties` | `/app/config/tiger.properties` | API 凭证 |
-| `tiger_shared_watchlist.json` | `/app/data/tiger_shared_watchlist.json` | 共享标的清单 |
+| `watchlist.json` | `/app/data/watchlist.json` | 共享标的清单 |
 
 ### 6. 注意事项
 

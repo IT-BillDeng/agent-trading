@@ -7,7 +7,7 @@
 目标：执行一轮只读高频行情监控，并写入结构化 watcher 输出。
 
 输入：
-- `./data/tiger_shared_watchlist.json`
+- `./data/watchlist.json`
 - `./runtime/tiger_engine/.last_execution_cycle.json`
 - `./runtime/tiger_engine/logs/dispatch_queue.jsonl`
 - `./runtime/tiger_engine/logs/execution.jsonl`

@@ -7,7 +7,7 @@
 目标：基于共享股票清单与当前 Tiger Engine paper 状态，输出保守版交易计划草案。
 
 输入：
-- `./data/tiger_shared_watchlist.json`
+- `./data/watchlist.json`
 - `./specs/tiger-trading-spec-v1-30min.md`
 - `./system/tiger_engine/app_config.paper.json`
 - `./runtime/tiger_engine/.last_execution_cycle.json`

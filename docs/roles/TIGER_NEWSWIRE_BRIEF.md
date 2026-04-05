@@ -11,8 +11,8 @@
 - 若信息不足，必须明确说明，不强行编造结论
 
 ## 默认输入顺序
-1. `./data/tiger_shared_watchlist.json`
-2. `./config/tiger_newswire_sources_v1.json`
+1. `./data/watchlist.json`
+2. `./config/newswire_sources.json`
 3. 最新 watcher / strategist 结果（若有）
 4. 可访问的新闻 / 搜索结果 / 页面内容
 
@@ -20,7 +20,7 @@
 - **主源 1：Brave Search**（发现最新事件）
 - **主源 2：web_fetch**（提取文章摘要）
 - **辅助：Yahoo Finance / 其他可读页面**
-- 统一配置文件：`./config/tiger_newswire_sources_v1.json`
+- 统一配置文件：`./config/newswire_sources.json`
 
 ## 核心任务
 ### 1) 预开盘新闻扫描

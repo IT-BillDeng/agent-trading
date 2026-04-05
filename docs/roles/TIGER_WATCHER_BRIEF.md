@@ -42,7 +42,7 @@
 ## 重点输入
 
 ### 核心文件
-- `./data/tiger_shared_watchlist.json`
+- `./data/watchlist.json`
 - `./runtime/tiger_engine/.last_execution_cycle.json`
 - `./runtime/tiger_engine/logs/dispatch_queue.jsonl`
 - `./runtime/tiger_engine/logs/execution.jsonl`

@@ -10,7 +10,7 @@
 - 不越过 `Operator` 直接拍板执行
 
 ## 默认输入顺序
-1. `./data/tiger_shared_watchlist.json`
+1. `./data/watchlist.json`
 2. `./specs/tiger-trading-spec-v1-30min.md`
 3. `./system/tiger_engine/app_config.paper.json`
 4. `./runtime/tiger_engine/.last_execution_cycle.json`

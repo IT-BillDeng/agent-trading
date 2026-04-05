@@ -1,6 +1,6 @@
 # Tiger Trading 项目任务清单
 
-> 更新时间：2026-04-05
+> 更新时间：2026-04-06
 > 架构原则：Engine 做机械的，Agent 做判断的。决策权永远在 Agent 层。
 
 ## 架构概览
@@ -40,9 +40,46 @@ Tiger Open Platform (Paper → Live)
 | 1.7 | 修复发现的 bug | 完整周期运行后必然会发现的问题 | — | ✅ 完成（无重大 bug） |
 | 1.8 | Engine 接入 yfinance 行情源 | kline 数据用 yfinance 做 fallback，保留 Tiger 接口 | — | ✅ 完成（待 Docker 测试） |
 
-## Phase 2：Dashboard 增强
+## Phase 2：Dashboard 增强 + 数据源配置
 
-目标：Dashboard 成为美股交易的完整监控+控制面板
+目标：Dashboard 成为美股交易的完整监控+控制面板 + 新闻数据源可配置化
+
+### newswire_sources 设计说明
+
+**核心定位：** tiger-newswire 扫描市场新闻/催化事件时的数据源配置清单。
+
+**技术栈：** Brave Search + web_fetch + Yahoo Finance
+
+**三层数据源架构：**
+
+| 层级 | 来源 | 用途 |
+|------|------|------|
+| **搜索引擎层** | Brave Search API | 关键词搜索（如 "小米财报"、"NVDA earnings"），获取最新动态 |
+| **网页抓取层** | web_fetch | 定向抓取指定财经网站（如 Seeking Alpha、Yahoo Finance 特定页面） |
+| **结构化数据层** | Yahoo Finance API | 直接拉取财报日历、分析师评级、重大新闻等结构化数据 |
+
+**设计优势：**
+
+1. **冗余保障** — 三层互为备份，单源故障不阻塞
+2. **去重机制** — 不同源可能报道同一事件，需要合并/去重
+3. **调度适配** — HK 盘前/US 盘前/US 盘中各 15min 频率，信息源可能根据市场切换权重
+
+**信息流：**
+
+```
+Brave Search ─┐
+              ├─→ tiger-newswire ─→ 写入 tiger_shared_market_context.json
+web_fetch ────┤         ↓
+              │    催化事件/风险信号
+Yahoo Finance─┘         ↓
+                    tiger-strategist 读取 → 生成交易计划
+```
+
+**配置预留选项：**
+
+- JSON 配置文件支持多组 source，按优先级顺序尝试
+- 单源故障时自动降级到下一优先级源
+- 支持动态切换（如盘前用 Yahoo Finance，盘中用 Brave Search）
 
 | # | 任务 | 说明 | 状态 |
 |---|------|------|------|
@@ -55,6 +92,8 @@ Tiger Open Platform (Paper → Live)
 | 2.7 | Engine 状态健康检查 | engine 的 last_heartbeat, consecutive_failures 等 | ✅ 完成（/api/health/engine） |
 | 2.8 | Tiger 配置文件上传入口 | 支持 paper/live 配置切换 | ✅ 完成 |
 | 2.9 | Paper/Live 模式自动检测 | 从配置文件读取 env 字段，自动适配 | ✅ 完成 |
+| 2.10 | **newswire_sources 预留选项机制** | 新闻数据源可配置、可切换、可降级（Brave Search + web_fetch + Yahoo Finance） | 🔨 进行中 |
+| 2.11 | **newswire_sources 配置模板** | JSON 配置文件支持多组 source，按优先级顺序尝试 | 🔨 进行中 |
 
 ## Phase 3：Agent 体系搭建
 
@@ -68,6 +107,7 @@ Tiger Open Platform (Paper → Live)
 | 3.4 | tiger-executor | mimo-v2-pro | 美股执行检查单：参数校验、preview 确认 | 策略完成后触发 | ⬜ 未开始 |
 | 3.5 | tiger-scout | 中等模型 | 美股候选标的扫描、异常波动检测 | 按需或定时 | ⬜ 未开始 |
 | 3.6 | tiger-closer | 中等模型 | 美股收盘总结：行情+新闻+执行+次日关注 | US 收盘后 | ⬜ 未开始 |
+| 3.7 | **newswire_sources 设计解释** | — | 三层数据源架构：Brave Search + web_fetch + Yahoo Finance | — | ✅ 完成 |
 
 ## Phase 4：美股自动化调度
 
@@ -109,6 +149,7 @@ Tiger Open Platform (Paper → Live)
 | 2026-04-05 | Engine 做代码级信号，Agent 做判断级信号，灵活组合 |
 | 2026-04-05 | Dashboard 合并进 Engine 服务，作为前端展示+控制面板 |
 | 2026-04-05 | **Phase 1-4 仅实现美股，港股通过 market toggle 预留接口** |
+| 2026-04-06 | **newswire_sources 预留选项机制**：新闻数据源可配置、可切换、可降级 |
 
 ---
 

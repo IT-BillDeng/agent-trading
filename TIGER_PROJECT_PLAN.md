@@ -1,6 +1,7 @@
 # Tiger Trading 项目任务清单
 
-> 更新时间：2026-04-06 04:12
+> 更新时间：2026-04-06 04:13
+> 更新内容：整理结构，将设计说明和规则移至附录 A
 > 架构原则：Engine 做机械的，Agent 做判断的。决策权永远在 Agent 层。
 
 ## 架构概览
@@ -40,11 +41,67 @@ Tiger Open Platform (Paper → Live)
 | 1.7 | 修复发现的 bug | 完整周期运行后必然会发现的问题 | — | ✅ 完成（无重大 bug） |
 | 1.8 | Engine 接入 yfinance 行情源 | kline 数据用 yfinance 做 fallback，保留 Tiger 接口 | — | ✅ 完成（待 Docker 测试） |
 
-## Phase 2：Dashboard 增强 + 数据源配置
+## Phase 2：Dashboard 增强
 
-目标：Dashboard 成为美股交易的完整监控+控制面板 + 新闻数据源可配置化
+目标：Dashboard 成为美股交易的完整监控+控制面板
 
-### newswire_sources 设计说明
+| # | 任务 | 说明 | 状态 |
+|---|------|------|------|
+| 2.1 | 市场开关 UI | Dashboard 增加 US/HK 启用开关（当前仅 US 生效） | ✅ 完成（/api/config PATCH） |
+| 2.2 | 展示 Engine 运行结果 | /api/engine 端点：最近信号、风控决策、执行状态 | ✅ 完成 |
+| 2.3 | 风控参数在线调整 | 暴露上限、止损比例等参数可从 web UI 修改 | ✅ 完成（/api/config PATCH） |
+| 2.4 | 系统开关控制 | /api/control/lock, /api/control/unlock | ✅ 完成 |
+| 2.5 | 行情刷新频率调整 | 前端可修改 DataCache 的 refresh_interval | ✅ 完成（/api/refresh） |
+| 2.6 | 审计日志查看 | /api/audit 端点，展示最近 N 条审计记录 | ✅ 完成 |
+| 2.7 | Engine 状态健康检查 | engine 的 last_heartbeat, consecutive_failures 等 | ✅ 完成（/api/health/engine） |
+| 2.8 | Tiger 配置文件上传入口 | 支持 paper/live 配置切换 | ✅ 完成 |
+| 2.9 | Paper/Live 模式自动检测 | 从配置文件读取 env 字段，自动适配 | ✅ 完成 |
+
+## Phase 3：Agent 体系搭建
+
+目标：建立完整的美股 Agent 协作体系
+
+| # | Agent | 模型 | 任务 | 调度方式 | 状态 |
+|---|-------|------|------|----------|------|
+| 3.1 | tiger-watcher | mimo-v2-omni | 系统健康监控：engine 心跳、Docker 状态、API 权限 | 每 15min 定时 | ⬜ 未开始 |
+| 3.2 | tiger-newswire | mimo-v2-omni | 美股新闻/催化扫描，输出结构化情报 | US 盘前 + 盘中 15min | ⬜ 未开始 |
+| 3.3 | tiger-strategist | mimo-v2-pro | 基于美股信号+新闻+宏观产生交易建议（复杂推理） | 信号触发或定时 | ⬜ 未开始 |
+| 3.4 | tiger-executor | mimo-v2-omni | 美股执行检查单：参数校验、preview 确认 | 策略完成后触发 | ⬜ 未开始 |
+| 3.5 | tiger-scout | mimo-v2-omni | 美股候选标的扫描、异常波动检测 | 按需或定时 | ⬜ 未开始 |
+| 3.6 | tiger-closer | mimo-v2-omni | 美股收盘总结：行情+新闻+执行+次日关注 | US 收盘后 | ⬜ 未开始 |
+
+## Phase 4：美股自动化调度
+
+目标：Engine + Agent 全自动运转（美股）
+
+| # | 任务 | 说明 | 状态 |
+|---|------|------|------|
+| 4.1 | Engine cron 调度 | 每 30min 自动跑 `run_dry_run_cycle`（美股盘中） | ⬜ 未开始 |
+| 4.2 | Agent 定时任务 | OpenClaw cron 配置各 agent 的美股时段触发 | ⬜ 未开始 |
+| 4.3 | 信号触发链 | Engine 输出信号 → yuuka 读取 → 决定是否激活 strategist | ⬜ 未开始 |
+| 4.4 | A2A 通知链 | 美股交易发生 → yuuka → Telegram 通知 | ⬜ 未开始 |
+| 4.5 | 异常恢复 | Engine 异常 → watcher 检测 → yuuka 处理 | ⬜ 未开始 |
+| 4.6 | Dashboard 记录 | 所有事件写入 dashboard 日志 | ⬜ 未开始 |
+
+## Phase 5：港股扩展 + Live 过渡
+
+美股稳定运行后再推进
+
+| # | 任务 | 说明 | 状态 |
+|---|------|------|------|
+| 5.1 | 启用港股开关 | 打开 HK market toggle，watchlist 加入港股标的 | ⬜ 未开始 |
+| 5.2 | 港股行情接入 | kline + quote 数据源适配港股 | ⬜ 未开始 |
+| 5.3 | 港股交易时段适配 | entry_window、lunch_break 等时段逻辑 | ⬜ 未开始 |
+| 5.4 | 港股 Agent 调度 | newswire/closer 适配港股盘前盘后时段 | ⬜ 未开始 |
+| 5.5 | Paper/Live 配置差异适配 | API 端点、下单参数、权限差异处理 | ⬜ 未开始 |
+| 5.6 | Live 安全机制 | 更严格的 preview、人工确认、限速 | ⬜ 未开始 |
+| 5.7 | Dashboard live 模式切换 | UI 明确区分 paper/live 状态 | ⬜ 未开始 |
+
+---
+
+## 附录 A：设计说明
+
+### A.1 newswire_sources 设计说明
 
 **核心定位：** tiger-newswire 扫描市场新闻/催化事件时的数据源配置清单。
 
@@ -81,25 +138,7 @@ Yahoo Finance─┘         ↓
 - 单源故障时自动降级到下一优先级源
 - 支持动态切换（如盘前用 Yahoo Finance，盘中用 Brave Search）
 
-| # | 任务 | 说明 | 状态 |
-|---|------|------|------|
-| 2.1 | 市场开关 UI | Dashboard 增加 US/HK 启用开关（当前仅 US 生效） | ✅ 完成（/api/config PATCH） |
-| 2.2 | 展示 Engine 运行结果 | /api/engine 端点：最近信号、风控决策、执行状态 | ✅ 完成 |
-| 2.3 | 风控参数在线调整 | 暴露上限、止损比例等参数可从 web UI 修改 | ✅ 完成（/api/config PATCH） |
-| 2.4 | 系统开关控制 | /api/control/lock, /api/control/unlock | ✅ 完成 |
-| 2.5 | 行情刷新频率调整 | 前端可修改 DataCache 的 refresh_interval | ✅ 完成（/api/refresh） |
-| 2.6 | 审计日志查看 | /api/audit 端点，展示最近 N 条审计记录 | ✅ 完成 |
-| 2.7 | Engine 状态健康检查 | engine 的 last_heartbeat, consecutive_failures 等 | ✅ 完成（/api/health/engine） |
-| 2.8 | Tiger 配置文件上传入口 | 支持 paper/live 配置切换 | ✅ 完成 |
-| 2.9 | Paper/Live 模式自动检测 | 从配置文件读取 env 字段，自动适配 | ✅ 完成 |
-| 2.10 | **newswire_sources 预留选项机制** | 新闻数据源可配置、可切换、可降级（Brave Search + web_fetch + Yahoo Finance） | 🔨 进行中 |
-| 2.11 | **newswire_sources 配置模板** | JSON 配置文件支持多组 source，按优先级顺序尝试 | 🔨 进行中 |
-
-## Phase 3：Agent 体系搭建
-
-目标：建立完整的美股 Agent 协作体系
-
-### Agent 模型选择规则
+### A.2 Agent 模型选择规则
 
 | 模型 | 别名 | 定位 | 适用场景 |
 |------|------|------|---------|
@@ -112,42 +151,16 @@ Yahoo Finance─┘         ↓
 - 涉及深度推理、复杂逻辑、关键决策 → 用 **pro**（4 倍成本，非必要不用）
 - 图像/浏览器/多模态 → **omni**
 
-| # | Agent | 模型 | 任务 | 调度方式 | 状态 |
-|---|-------|------|------|----------|------|
-| 3.1 | tiger-watcher | mimo-v2-omni | 系统健康监控：engine 心跳、Docker 状态、API 权限 | 每 15min 定时 | ⬜ 未开始 |
-| 3.2 | tiger-newswire | mimo-v2-omni | 美股新闻/催化扫描，输出结构化情报 | US 盘前 + 盘中 15min | ⬜ 未开始 |
-| 3.3 | tiger-strategist | mimo-v2-pro | 基于美股信号+新闻+宏观产生交易建议（复杂推理） | 信号触发或定时 | ⬜ 未开始 |
-| 3.4 | tiger-executor | mimo-v2-omni | 美股执行检查单：参数校验、preview 确认 | 策略完成后触发 | ⬜ 未开始 |
-| 3.5 | tiger-scout | mimo-v2-omni | 美股候选标的扫描、异常波动检测 | 按需或定时 | ⬜ 未开始 |
-| 3.6 | tiger-closer | mimo-v2-omni | 美股收盘总结：行情+新闻+执行+次日关注 | US 收盘后 | ⬜ 未开始 |
-| 3.7 | **newswire_sources 设计解释** | — | 三层数据源架构：Brave Search + web_fetch + Yahoo Finance | — | ✅ 完成 |
+**Agent 模型分配：**
 
-## Phase 4：美股自动化调度
-
-目标：Engine + Agent 全自动运转（美股）
-
-| # | 任务 | 说明 | 状态 |
-|---|------|------|------|
-| 4.1 | Engine cron 调度 | 每 30min 自动跑 `run_dry_run_cycle`（美股盘中） | ⬜ 未开始 |
-| 4.2 | Agent 定时任务 | OpenClaw cron 配置各 agent 的美股时段触发 | ⬜ 未开始 |
-| 4.3 | 信号触发链 | Engine 输出信号 → yuuka 读取 → 决定是否激活 strategist | ⬜ 未开始 |
-| 4.4 | A2A 通知链 | 美股交易发生 → yuuka → Telegram 通知 | ⬜ 未开始 |
-| 4.5 | 异常恢复 | Engine 异常 → watcher 检测 → yuuka 处理 | ⬜ 未开始 |
-| 4.6 | Dashboard 记录 | 所有事件写入 dashboard 日志 | ⬜ 未开始 |
-
-## Phase 5：港股扩展 + Live 过渡
-
-美股稳定运行后再推进
-
-| # | 任务 | 说明 | 状态 |
-|---|------|------|------|
-| 5.1 | 启用港股开关 | 打开 HK market toggle，watchlist 加入港股标的 | ⬜ 未开始 |
-| 5.2 | 港股行情接入 | kline + quote 数据源适配港股 | ⬜ 未开始 |
-| 5.3 | 港股交易时段适配 | entry_window、lunch_break 等时段逻辑 | ⬜ 未开始 |
-| 5.4 | 港股 Agent 调度 | newswire/closer 适配港股盘前盘后时段 | ⬜ 未开始 |
-| 5.5 | Paper/Live 配置差异适配 | API 端点、下单参数、权限差异处理 | ⬜ 未开始 |
-| 5.6 | Live 安全机制 | 更严格的 preview、人工确认、限速 | ⬜ 未开始 |
-| 5.7 | Dashboard live 模式切换 | UI 明确区分 paper/live 状态 | ⬜ 未开始 |
+| Agent | 模型 | 说明 |
+|-------|------|------|
+| tiger-watcher | mimo-v2-omni | 系统健康监控（通用任务） |
+| tiger-newswire | mimo-v2-omni | 新闻扫描（通用任务） |
+| tiger-strategist | mimo-v2-pro | 交易建议（复杂推理） |
+| tiger-executor | mimo-v2-omni | 执行检查（通用任务） |
+| tiger-scout | mimo-v2-omni | 标的扫描（通用任务） |
+| tiger-closer | mimo-v2-omni | 收盘总结（通用任务） |
 
 ---
 

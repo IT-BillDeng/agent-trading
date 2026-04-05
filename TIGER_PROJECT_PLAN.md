@@ -1,6 +1,6 @@
 # Tiger Trading 项目任务清单
 
-> 更新时间：2026-04-06 04:10
+> 更新时间：2026-04-06 04:12
 > 架构原则：Engine 做机械的，Agent 做判断的。决策权永远在 Agent 层。
 
 ## 架构概览
@@ -114,10 +114,10 @@ Yahoo Finance─┘         ↓
 
 | # | Agent | 模型 | 任务 | 调度方式 | 状态 |
 |---|-------|------|------|----------|------|
-| 3.1 | tiger-watcher | mimo-v2-pro | 系统健康监控：engine 心跳、Docker 状态、API 权限 | 每 15min 定时 | ⬜ 未开始 |
+| 3.1 | tiger-watcher | mimo-v2-omni | 系统健康监控：engine 心跳、Docker 状态、API 权限 | 每 15min 定时 | ⬜ 未开始 |
 | 3.2 | tiger-newswire | mimo-v2-omni | 美股新闻/催化扫描，输出结构化情报 | US 盘前 + 盘中 15min | ⬜ 未开始 |
 | 3.3 | tiger-strategist | mimo-v2-pro | 基于美股信号+新闻+宏观产生交易建议（复杂推理） | 信号触发或定时 | ⬜ 未开始 |
-| 3.4 | tiger-executor | mimo-v2-pro | 美股执行检查单：参数校验、preview 确认 | 策略完成后触发 | ⬜ 未开始 |
+| 3.4 | tiger-executor | mimo-v2-omni | 美股执行检查单：参数校验、preview 确认 | 策略完成后触发 | ⬜ 未开始 |
 | 3.5 | tiger-scout | mimo-v2-omni | 美股候选标的扫描、异常波动检测 | 按需或定时 | ⬜ 未开始 |
 | 3.6 | tiger-closer | mimo-v2-omni | 美股收盘总结：行情+新闻+执行+次日关注 | US 收盘后 | ⬜ 未开始 |
 | 3.7 | **newswire_sources 设计解释** | — | 三层数据源架构：Brave Search + web_fetch + Yahoo Finance | — | ✅ 完成 |
@@ -163,7 +163,7 @@ Yahoo Finance─┘         ↓
 | 2026-04-05 | Dashboard 合并进 Engine 服务，作为前端展示+控制面板 |
 | 2026-04-05 | **Phase 1-4 仅实现美股，港股通过 market toggle 预留接口** |
 | 2026-04-06 | **newswire_sources 预留选项机制**：新闻数据源可配置、可切换、可降级 |
-| 2026-04-06 | **Agent 模型选择规则**：默认 omni，复杂推理用 pro，4x成本控制 |
+| 2026-04-06 | **Agent 模型选择规则**：tiger-watcher/tiger-executor 用 omni，tiger-strategist 用 pro（复杂推理） |
 
 ---
 

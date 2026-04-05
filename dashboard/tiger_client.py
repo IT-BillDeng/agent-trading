@@ -27,6 +27,30 @@ class TigerClient:
     def account(self) -> str:
         return self._client_config.account
 
+    def get_account_type(self) -> dict:
+        """Detect paper/live mode via get_managed_accounts()."""
+        try:
+            accounts = self._trade_client.get_managed_accounts()
+            if not accounts:
+                return {"mode": "paper", "reason": "no accounts returned"}
+            for a in accounts:
+                atype = getattr(a, "account_type", "") or ""
+                atype = str(atype).upper()
+                if atype == "PAPER":
+                    return {"mode": "paper", "account_type": atype, "account": getattr(a, "account", "")}
+                if atype in ("GLOBAL", "STANDARD"):
+                    return {"mode": "live", "account_type": atype, "account": getattr(a, "account", "")}
+            # Fallback: first account
+            first = accounts[0]
+            return {
+                "mode": "paper",
+                "account_type": str(getattr(first, "account_type", "unknown")),
+                "account": getattr(first, "account", ""),
+                "reason": "unrecognized account_type",
+            }
+        except Exception as e:
+            return {"mode": "paper", "error": str(e)}
+
     def get_account_info(self) -> dict:
         """Get account assets and buying power."""
         try:

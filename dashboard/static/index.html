@@ -203,11 +203,12 @@
                 </div>
             </div>
             <!-- Upload -->
-            <div class="mt-4 flex gap-2 items-start">
-                <div class="flex-1">
-                    <textarea id="tiger-config-input" placeholder="粘贴 tiger_openapi_config.properties 内容..." rows="4" class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-2 text-xs font-mono focus:outline-none focus:border-tiger-500 resize-y"></textarea>
-                </div>
-                <button onclick="uploadTigerConfig()" class="bg-tiger-600 hover:bg-tiger-700 text-white px-3 py-2 rounded text-sm font-medium transition whitespace-nowrap">📤 上传配置</button>
+            <div class="mt-4 flex gap-2 items-center">
+                <label class="bg-tiger-600 hover:bg-tiger-700 text-white px-3 py-2 rounded text-sm font-medium transition cursor-pointer">
+                    📤 选择配置文件
+                    <input id="tiger-config-file" type="file" accept=".properties,.txt,.cfg,.conf" class="hidden" onchange="uploadTigerConfig()">
+                </label>
+                <span id="tiger-config-filename" class="text-xs text-gray-500">未选择文件</span>
             </div>
             <div id="tc-upload-msg" class="text-xs mt-1 hidden"></div>
         </section>
@@ -686,11 +687,14 @@
                     return;
                 }
                 const f = data.fields || {};
-                document.getElementById('tc-env').textContent = (data.env || '--') + ' (' + (data.mode || 'paper') + ')';
-                document.getElementById('tc-account').textContent = f.account || '--';
+                const det = data.detection || {};
+                const mode = data.mode || 'paper';
+                const accountType = det.account_type || '--';
+                document.getElementById('tc-env').textContent = accountType + ' → ' + mode.toUpperCase();
+                document.getElementById('tc-account').textContent = f.account || det.account || '--';
                 document.getElementById('tc-tiger-id').textContent = f.tiger_id || '--';
                 document.getElementById('tc-license').textContent = f.license || '--';
-                updateModeButtons(data.mode || 'paper');
+                updateModeButtons(mode);
             } catch (e) {
                 console.error('tiger-config fetch error:', e);
             }
@@ -741,19 +745,23 @@
         }
 
         async function uploadTigerConfig() {
-            const content = document.getElementById('tiger-config-input').value.trim();
-            if (!content) { showTcMsg('请粘贴配置内容', true); return; }
+            const fileInput = document.getElementById('tiger-config-file');
+            const file = fileInput.files[0];
+            if (!file) { showTcMsg('请先选择文件', true); return; }
+            document.getElementById('tiger-config-filename').textContent = file.name;
             try {
                 const formData = new FormData();
-                formData.append('content', content);
+                formData.append('file', file);
                 const res = await fetch(API_BASE + '/api/tiger-config/upload', {
                     method: 'POST',
                     body: formData,
                 });
                 const data = await res.json();
                 if (data.error) { showTcMsg(data.error, true); return; }
-                showTcMsg('上传成功! 环境: ' + data.env + ' → 模式: ' + data.detected_mode, false);
-                document.getElementById('tiger-config-input').value = '';
+                const mode = data.detected_mode || 'paper';
+                showTcMsg('上传成功! account_type: ' + (data.detection?.account_type || '?') + ' → ' + mode.toUpperCase(), false);
+                fileInput.value = '';
+                document.getElementById('tiger-config-filename').textContent = '未选择文件';
                 fetchTigerConfig();
                 fetchConfig();
             } catch (e) { showTcMsg('上传失败', true); }

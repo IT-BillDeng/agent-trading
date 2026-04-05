@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Form
+from fastapi import FastAPI, Form, UploadFile, File
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -349,14 +349,6 @@ async def api_refresh(config: RefreshConfig):
 
 TIGER_PROPS_FILE = CONFIG_DIR_PATH / "tiger_openapi_config.properties"
 
-# env field in .properties → mode mapping
-ENV_TO_MODE = {
-    "PROD": "live",
-    "SIMULATE": "paper",
-    "TEST": "paper",
-}
-
-
 def _parse_properties(text: str) -> dict:
     """Parse a .properties file into a dict."""
     result = {}
@@ -377,14 +369,22 @@ def _mask_value(val: str, visible: int = 6) -> str:
     return "*" * (len(val) - visible) + val[-visible:]
 
 
+def _detect_mode_via_api(config_dir: str) -> dict:
+    """Detect paper/live by calling get_managed_accounts()."""
+    try:
+        from .tiger_client import TigerClient
+        client = TigerClient(config_dir=config_dir)
+        return client.get_account_type()
+    except Exception as e:
+        return {"mode": "paper", "error": str(e)}
+
+
 @app.get("/api/tiger-config")
 async def api_tiger_config_get():
-    """Get current Tiger API config (sensitive fields masked)."""
+    """Get current Tiger API config (sensitive fields masked) + detected mode."""
     if not TIGER_PROPS_FILE.exists():
-        return {"exists": False, "env": None, "mode": "paper", "fields": {}}
+        return {"exists": False, "mode": "paper", "fields": {}, "detection": None}
     props = _parse_properties(TIGER_PROPS_FILE.read_text())
-    env = props.get("env", "SIMULATE")
-    mode = ENV_TO_MODE.get(env, "paper")
     masked = {}
     sensitive = {"private_key_pk1", "private_key_pk8", "secret_key"}
     for k, v in props.items():
@@ -392,14 +392,20 @@ async def api_tiger_config_get():
             masked[k] = _mask_value(v)
         else:
             masked[k] = v
-    return {"exists": True, "env": env, "mode": mode, "fields": masked}
+    # Detect mode via API
+    detection = _detect_mode_via_api(str(CONFIG_DIR_PATH))
+    detected_mode = detection.get("mode", "paper")
+    return {"exists": True, "mode": detected_mode, "fields": masked, "detection": detection}
 
 
 @app.post("/api/tiger-config/upload")
-async def api_tiger_config_upload_file(content: str = Form(None)):
-    """Upload Tiger config (form field 'content' with plain text)."""
-    if not content:
-        return JSONResponse({"error": "no file content provided"}, status_code=400)
+async def api_tiger_config_upload_file(file: UploadFile = File(...)):
+    """Upload Tiger config file (multipart file upload)."""
+    content_bytes = await file.read()
+    try:
+        content = content_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        return JSONResponse({"error": "file must be UTF-8 text"}, status_code=400)
 
     props = _parse_properties(content)
     if "tiger_id" not in props or "account" not in props:
@@ -412,23 +418,21 @@ async def api_tiger_config_upload_file(content: str = Form(None)):
 
     TIGER_PROPS_FILE.write_text(content)
 
-    # Auto-detect mode from env
-    env = props.get("env", "SIMULATE")
-    detected_mode = ENV_TO_MODE.get(env, "paper")
+    # Detect mode via API after upload
+    detection = _detect_mode_via_api(str(CONFIG_DIR_PATH))
+    detected_mode = detection.get("mode", "paper")
 
-    # Update app_config mode if changed
+    # Update app_config mode
     config_file = CONFIG_DIR_PATH / "app_config.docker.json"
     if config_file.exists():
         app_config = json.loads(config_file.read_text())
-        old_mode = app_config.get("mode", "paper")
-        if old_mode != detected_mode:
-            app_config["mode"] = detected_mode
-            config_file.write_text(json.dumps(app_config, indent=2, ensure_ascii=False))
+        app_config["mode"] = detected_mode
+        config_file.write_text(json.dumps(app_config, indent=2, ensure_ascii=False))
 
     return {
         "status": "ok",
-        "env": env,
         "detected_mode": detected_mode,
+        "detection": detection,
         "tiger_id": props.get("tiger_id"),
         "account": props.get("account"),
     }

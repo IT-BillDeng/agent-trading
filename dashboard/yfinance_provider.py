@@ -60,8 +60,13 @@ class YFinanceQuoteProvider(QuoteProvider):
                         change = change if change is not None else round(price - prev, 4)
                         change_rate = change_rate if change_rate is not None else round((price - prev) / prev * 100, 4)
 
-                    # Clamp absurd values (daily change should be within ±50%)
-                    if change_rate is not None and abs(change_rate) > 50:
+                    # Normalize: change_rate should be in ratio form (0.01 = 1%)
+                    # Yahoo returns percentage (1.1073), convert to ratio
+                    if change_rate is not None and abs(change_rate) > 5:
+                        change_rate = change_rate / 100
+
+                    # Sanity clamp (daily change within ±50%)
+                    if change_rate is not None and abs(change_rate) > 0.5:
                         change = None
                         change_rate = None
 

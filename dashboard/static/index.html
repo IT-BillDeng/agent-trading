@@ -19,8 +19,18 @@
     </script>
     <style>
         body { font-family: 'Inter', -apple-system, sans-serif; }
-        .card { @apply bg-dark-700 rounded-xl p-4 border border-gray-700/50; }
-        .card-title { @apply text-sm font-medium text-gray-400 mb-2; }
+        .card {
+            background-color: #2a2a3c;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            border: 1px solid rgba(107, 114, 128, 0.5);
+        }
+        .card-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #9ca3af;
+            margin-bottom: 0.5rem;
+        }
         .positive { color: #22c55e; }
         .negative { color: #ef4444; }
         .neutral { color: #a1a1aa; }
@@ -30,7 +40,7 @@
 </head>
 <body class="bg-dark-900 text-gray-100 min-h-screen">
     <!-- Header -->
-    <header class="border-b border-gray-700/50 px-6 py-3 flex items-center justify-between">
+    <header class="border-b border-gray-700/50 px-6 py-3 flex items-center justify-between" style="background-color: #11111b;">
         <div class="flex items-center gap-3">
             <span class="text-2xl">🐯</span>
             <h1 class="text-lg font-semibold">Tiger Trading Dashboard</h1>
@@ -165,6 +175,41 @@
                 <summary class="cursor-pointer hover:text-gray-300">查看原始数据</summary>
                 <pre id="engine-raw" class="mt-2 bg-dark-900 rounded p-3 overflow-auto max-h-64 text-gray-400">--</pre>
             </details>
+        </section>
+
+        <!-- Tiger Config -->
+        <section class="mt-6 card">
+            <div class="card-title">🔑 Tiger API 配置</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Current Config -->
+                <div>
+                    <div class="text-xs text-gray-500 mb-2">当前配置</div>
+                    <div id="tiger-config-info" class="text-sm space-y-1">
+                        <div>环境: <span id="tc-env">--</span></div>
+                        <div>账户: <span id="tc-account">--</span></div>
+                        <div>Tiger ID: <span id="tc-tiger-id">--</span></div>
+                        <div>License: <span id="tc-license">--</span></div>
+                    </div>
+                </div>
+                <!-- Mode Switch -->
+                <div>
+                    <div class="text-xs text-gray-500 mb-2">交易模式</div>
+                    <div class="flex items-center gap-3">
+                        <button id="btn-paper" onclick="setMode('paper')" class="px-3 py-1.5 rounded text-sm font-medium border transition bg-green-600/20 text-green-400 border-green-600/30">📄 Paper</button>
+                        <button id="btn-live" onclick="setMode('live')" class="px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400 hover:border-red-400 hover:text-red-400">🔴 Live</button>
+                    </div>
+                    <div id="mode-msg" class="text-xs mt-1 hidden"></div>
+                    <div class="text-xs text-gray-500 mt-2">上传新配置文件自动检测模式</div>
+                </div>
+            </div>
+            <!-- Upload -->
+            <div class="mt-4 flex gap-2 items-start">
+                <div class="flex-1">
+                    <textarea id="tiger-config-input" placeholder="粘贴 tiger_openapi_config.properties 内容..." rows="4" class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-2 text-xs font-mono focus:outline-none focus:border-tiger-500 resize-y"></textarea>
+                </div>
+                <button onclick="uploadTigerConfig()" class="bg-tiger-600 hover:bg-tiger-700 text-white px-3 py-2 rounded text-sm font-medium transition whitespace-nowrap">📤 上传配置</button>
+            </div>
+            <div id="tc-upload-msg" class="text-xs mt-1 hidden"></div>
         </section>
 
         <!-- Control Panel -->
@@ -591,10 +636,96 @@
             }
         }
 
+        // --- Tiger Config ---
+        async function fetchTigerConfig() {
+            try {
+                const data = await fetch(API_BASE + '/api/tiger-config').then(r => r.json());
+                if (!data.exists) {
+                    document.getElementById('tc-env').textContent = '未配置';
+                    document.getElementById('tc-account').textContent = '--';
+                    document.getElementById('tc-tiger-id').textContent = '--';
+                    document.getElementById('tc-license').textContent = '--';
+                    return;
+                }
+                const f = data.fields || {};
+                document.getElementById('tc-env').textContent = (data.env || '--') + ' (' + (data.mode || 'paper') + ')';
+                document.getElementById('tc-account').textContent = f.account || '--';
+                document.getElementById('tc-tiger-id').textContent = f.tiger_id || '--';
+                document.getElementById('tc-license').textContent = f.license || '--';
+                updateModeButtons(data.mode || 'paper');
+            } catch (e) {
+                console.error('tiger-config fetch error:', e);
+            }
+        }
+
+        function updateModeButtons(mode) {
+            const paper = document.getElementById('btn-paper');
+            const live = document.getElementById('btn-live');
+            if (mode === 'live') {
+                paper.className = 'px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400 hover:border-green-400 hover:text-green-400';
+                live.className = 'px-3 py-1.5 rounded text-sm font-medium border transition bg-red-600/20 text-red-400 border-red-600/30';
+                document.getElementById('env-badge').textContent = 'LIVE';
+                document.getElementById('env-badge').className = 'text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-medium';
+            } else {
+                paper.className = 'px-3 py-1.5 rounded text-sm font-medium border transition bg-green-600/20 text-green-400 border-green-600/30';
+                live.className = 'px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400 hover:border-red-400 hover:text-red-400';
+                document.getElementById('env-badge').textContent = 'PAPER';
+                document.getElementById('env-badge').className = 'text-xs px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-medium';
+            }
+        }
+
+        async function setMode(mode) {
+            try {
+                const res = await fetch(API_BASE + '/api/config/mode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mode }),
+                });
+                const data = await res.json();
+                if (data.error) { showModeMsg(data.error, true); return; }
+                showModeMsg('已切换到 ' + mode.toUpperCase(), false);
+                updateModeButtons(mode);
+            } catch (e) { showModeMsg('切换失败', true); }
+        }
+
+        function showModeMsg(msg, isError) {
+            const el = document.getElementById('mode-msg');
+            el.textContent = msg;
+            el.className = 'text-xs mt-1 ' + (isError ? 'text-red-400' : 'text-green-400');
+            setTimeout(() => el.className = 'text-xs mt-1 hidden', 3000);
+        }
+
+        function showTcMsg(msg, isError) {
+            const el = document.getElementById('tc-upload-msg');
+            el.textContent = msg;
+            el.className = 'text-xs mt-1 ' + (isError ? 'text-red-400' : 'text-green-400');
+            setTimeout(() => el.className = 'text-xs mt-1 hidden', 5000);
+        }
+
+        async function uploadTigerConfig() {
+            const content = document.getElementById('tiger-config-input').value.trim();
+            if (!content) { showTcMsg('请粘贴配置内容', true); return; }
+            try {
+                const formData = new FormData();
+                formData.append('content', content);
+                const res = await fetch(API_BASE + '/api/tiger-config/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+                const data = await res.json();
+                if (data.error) { showTcMsg(data.error, true); return; }
+                showTcMsg('上传成功! 环境: ' + data.env + ' → 模式: ' + data.detected_mode, false);
+                document.getElementById('tiger-config-input').value = '';
+                fetchTigerConfig();
+                fetchConfig();
+            } catch (e) { showTcMsg('上传失败', true); }
+        }
+
         // --- Init ---
         fetchAll();
         fetchEngine();
         fetchConfig();
+        fetchTigerConfig();
         setInterval(fetchAll, REFRESH_MS);
         setInterval(fetchEngine, 30000);
     </script>

@@ -37,3 +37,6 @@ dashboard/
 | GET /api/watchlist | Shared watchlist |
 | GET /api/agents | Subagent status |
 | GET /api/system | System runtime status |
+| GET /api/tiger-config | Tiger API config (sensitive fields masked) |
+| POST /api/tiger-config/upload | Upload new tiger_openapi_config.properties |
+| POST /api/config/mode | Set paper/live mode manually |

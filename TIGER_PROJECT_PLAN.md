@@ -53,8 +53,8 @@ Tiger Open Platform (Paper → Live)
 | 2.5 | 行情刷新频率调整 | 前端可修改 DataCache 的 refresh_interval | ✅ 完成（/api/refresh） |
 | 2.6 | 审计日志查看 | /api/audit 端点，展示最近 N 条审计记录 | ✅ 完成 |
 | 2.7 | Engine 状态健康检查 | engine 的 last_heartbeat, consecutive_failures 等 | ✅ 完成（/api/health/engine） |
-| 2.8 | Tiger 配置文件上传入口 | 支持 paper/live 配置切换 | ⬜ 未开始 |
-| 2.9 | Paper/Live 模式自动检测 | 从配置文件读取 env 字段，自动适配 | ⬜ 未开始 |
+| 2.8 | Tiger 配置文件上传入口 | 支持 paper/live 配置切换 | ✅ 完成 |
+| 2.9 | Paper/Live 模式自动检测 | 从配置文件读取 env 字段，自动适配 | ✅ 完成 |
 
 ## Phase 3：Agent 体系搭建
 

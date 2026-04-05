@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Form
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -343,6 +343,114 @@ async def api_refresh(config: RefreshConfig):
             return JSONResponse({"error": "minimum interval is 5 seconds"}, status_code=400)
         cache._interval = config.interval
     return {"status": "ok", "interval": cache._interval}
+
+
+# --- Tiger config management ---
+
+TIGER_PROPS_FILE = CONFIG_DIR_PATH / "tiger_openapi_config.properties"
+
+# env field in .properties → mode mapping
+ENV_TO_MODE = {
+    "PROD": "live",
+    "SIMULATE": "paper",
+    "TEST": "paper",
+}
+
+
+def _parse_properties(text: str) -> dict:
+    """Parse a .properties file into a dict."""
+    result = {}
+    for line in text.strip().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" in line:
+            key, _, val = line.partition("=")
+            result[key.strip()] = val.strip()
+    return result
+
+
+def _mask_value(val: str, visible: int = 6) -> str:
+    """Mask a sensitive value, showing only the last N chars."""
+    if not val or len(val) <= visible:
+        return "****"
+    return "*" * (len(val) - visible) + val[-visible:]
+
+
+@app.get("/api/tiger-config")
+async def api_tiger_config_get():
+    """Get current Tiger API config (sensitive fields masked)."""
+    if not TIGER_PROPS_FILE.exists():
+        return {"exists": False, "env": None, "mode": "paper", "fields": {}}
+    props = _parse_properties(TIGER_PROPS_FILE.read_text())
+    env = props.get("env", "SIMULATE")
+    mode = ENV_TO_MODE.get(env, "paper")
+    masked = {}
+    sensitive = {"private_key_pk1", "private_key_pk8", "secret_key"}
+    for k, v in props.items():
+        if k in sensitive:
+            masked[k] = _mask_value(v)
+        else:
+            masked[k] = v
+    return {"exists": True, "env": env, "mode": mode, "fields": masked}
+
+
+@app.post("/api/tiger-config/upload")
+async def api_tiger_config_upload_file(content: str = Form(None)):
+    """Upload Tiger config (form field 'content' with plain text)."""
+    if not content:
+        return JSONResponse({"error": "no file content provided"}, status_code=400)
+
+    props = _parse_properties(content)
+    if "tiger_id" not in props or "account" not in props:
+        return JSONResponse({"error": "invalid config: missing tiger_id or account"}, status_code=400)
+
+    # Backup existing
+    if TIGER_PROPS_FILE.exists():
+        backup = TIGER_PROPS_FILE.with_suffix(".properties.bak")
+        backup.write_text(TIGER_PROPS_FILE.read_text())
+
+    TIGER_PROPS_FILE.write_text(content)
+
+    # Auto-detect mode from env
+    env = props.get("env", "SIMULATE")
+    detected_mode = ENV_TO_MODE.get(env, "paper")
+
+    # Update app_config mode if changed
+    config_file = CONFIG_DIR_PATH / "app_config.docker.json"
+    if config_file.exists():
+        app_config = json.loads(config_file.read_text())
+        old_mode = app_config.get("mode", "paper")
+        if old_mode != detected_mode:
+            app_config["mode"] = detected_mode
+            config_file.write_text(json.dumps(app_config, indent=2, ensure_ascii=False))
+
+    return {
+        "status": "ok",
+        "env": env,
+        "detected_mode": detected_mode,
+        "tiger_id": props.get("tiger_id"),
+        "account": props.get("account"),
+    }
+
+
+@app.post("/api/config/mode")
+async def api_config_mode(body: dict):
+    """Manually set paper/live mode."""
+    mode = body.get("mode")
+    if mode not in ("paper", "live"):
+        return JSONResponse({"error": "mode must be paper or live"}, status_code=400)
+    config_file = CONFIG_DIR_PATH / "app_config.docker.json"
+    if not config_file.exists():
+        return JSONResponse({"error": "config not found"}, status_code=404)
+    config = json.loads(config_file.read_text())
+    config["mode"] = mode
+    # Live mode safety: disable live_submit/live_cancel by default
+    if mode == "live":
+        config.setdefault("execution", {})["live_submit"] = False
+        config.setdefault("execution", {})["live_cancel"] = False
+    config_file.write_text(json.dumps(config, indent=2, ensure_ascii=False))
+    return {"status": "ok", "mode": mode}
 
 
 # --- Entry point ---

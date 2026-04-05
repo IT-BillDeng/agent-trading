@@ -633,15 +633,13 @@
         function confirmRemove(symbol, name) {
             const modal = document.createElement('div');
             modal.className = 'fixed inset-0 bg-black/60 flex items-center justify-center z-50';
-            modal.innerHTML = '
-                <div class="bg-gray-900 border border-gray-700 rounded-lg p-6 max-w-sm mx-4">
-                    <h3 class="text-lg font-medium text-white mb-2">确认删除自选项？</h3>
-                    <p class="text-gray-400 mb-4">将从自选列表中移除 <span class="text-white">' + symbol + '</span>' + (name ? '（' + name + '）' : '') + '</p>
-                    <div class="flex justify-end gap-2">
-                        <button id="cancel-remove" class="px-4 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 text-gray-300 transition">取消</button>
-                        <button id="confirm-remove" class="px-4 py-2 rounded text-sm bg-red-900 hover:bg-red-800 text-red-300 transition">确认删除</button>
-                    </div>
-                </div>';
+            modal.innerHTML = '<div class="bg-gray-900 border border-gray-700 rounded-lg p-6 max-w-sm mx-4">' +
+                '<h3 class="text-lg font-medium text-white mb-2">确认删除自选项？</h3>' +
+                '<p class="text-gray-400 mb-4">将从自选列表中移除 <span class="text-white">' + symbol + '</span>' + (name ? '（' + name + '）' : '') + '</p>' +
+                '<div class="flex justify-end gap-2">' +
+                '<button id="cancel-remove" class="px-4 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 text-gray-300 transition">取消</button>' +
+                '<button id="confirm-remove" class="px-4 py-2 rounded text-sm bg-red-900 hover:bg-red-800 text-red-300 transition">确认删除</button>' +
+                '</div></div>';
             document.body.appendChild(modal);
             
             modal.querySelector('#cancel-remove').onclick = () => modal.remove();

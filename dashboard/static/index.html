@@ -492,28 +492,31 @@
                 return;
             }
             el.innerHTML = symbols.map(s => {
+                const statusBadge = s.enabled
+                    ? '<span class="text-xs px-1.5 py-0.5 rounded bg-green-600/20 text-green-400">启用</span>'
+                    : '<span class="text-xs px-1.5 py-0.5 rounded bg-gray-600/20 text-gray-400">禁用</span>';
                 const prioBadge = s.priority === 'high'
-                    ? '<span class="text-xs px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400">高</span>'
-                    : '';
+                    ? '<span class="text-xs px-1.5 py-0.5 rounded bg-yellow-600/20 text-yellow-400">高优</span>'
+                    : '<span class="text-xs px-1.5 py-0.5 rounded bg-gray-600/20 text-gray-400">普通</span>';
                 const enabledCls = s.enabled ? '' : 'opacity-40';
-                const nextPrio = s.priority === 'high' ? 'normal' : 'high';
                 return '<div class="flex items-center justify-between py-1.5 border-b border-gray-700/30 ' + enabledCls + '">' +
                     '<div class="flex items-center gap-2">' +
                         '<span class="font-medium">' + s.symbol + '</span>' +
                         '<span class="text-xs text-gray-500">' + (s.name || '') + '</span>' +
                         '<span class="text-xs text-gray-600">' + s.market + '</span>' +
+                        statusBadge +
                         prioBadge +
-                        (s.lot_size ? '<span class="text-xs text-gray-600">lot=' + s.lot_size + '</span>' : '') +
+                        (s.lot_size ? '<span class="text-xs px-1.5 py-0.5 rounded bg-gray-600/20 text-gray-400">lot=' + s.lot_size + '</span>' : '') +
                     '</div>' +
                     '<div class="flex items-center gap-1">' +
                         '<button onclick="toggleEnabled(\'' + s.symbol + '\', ' + !s.enabled + ')" class="text-xs px-2 py-0.5 rounded border border-gray-600 hover:border-gray-400 transition" title="' + (s.enabled ? '禁用' : '启用') + '">' +
-                            (s.enabled ? '👁️' : '🚫') +
+                            '切换' +
                         '</button>' +
-                        '<button onclick="togglePriority(\'' + s.symbol + '\', \'' + nextPrio + '\')" class="text-xs px-2 py-0.5 rounded border border-gray-600 hover:border-gray-400 transition" title="切换优先级">' +
-                            (s.priority === 'high' ? '⭐' : '☆') +
+                        '<button onclick="togglePriority(\'' + s.symbol + '\', \'' + (s.priority === 'high' ? 'normal' : 'high') + '\')" class="text-xs px-2 py-0.5 rounded border border-gray-600 hover:border-gray-400 transition" title="切换优先级">' +
+                            '切换' +
                         '</button>' +
                         '<button onclick="removeSymbol(\'' + s.symbol + '\')" class="text-xs px-2 py-0.5 rounded border border-gray-600 hover:border-red-400 hover:text-red-400 transition" title="删除">' +
-                            '✕' +
+                            '删除' +
                         '</button>' +
                     '</div>' +
                 '</div>';

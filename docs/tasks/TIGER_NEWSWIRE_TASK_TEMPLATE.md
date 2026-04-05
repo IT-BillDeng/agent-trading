@@ -7,8 +7,8 @@
 目标：为共享股票清单提供一轮新闻与催化扫描。
 
 输入：
-- `./shared/tiger_shared_watchlist.json`
-- `./shared/tiger_newswire_sources_v1.json`
+- `./data/tiger_shared_watchlist.json`
+- `./config/tiger_newswire_sources_v1.json`
 - （可选）最新 watcher / strategist 输出
 
 信息源要求：

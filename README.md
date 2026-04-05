@@ -109,14 +109,14 @@ tiger-trading/
 
 ### 4.1 共享输入
 
-- `shared/tiger_shared_watchlist.json`
+- `data/tiger_shared_watchlist.json`
   - 共享股票池
   - 各岗位优先读取
 
-- `shared/tiger_shared_market_context.json`
+- `runtime/tiger_engine/tiger_shared_market_context.json`
   - 共享市场上下文
 
-- `shared/tiger_newswire_sources_v1.json`
+- `config/tiger_newswire_sources_v1.json`
   - newswire 的信息源配置
 
 ### 4.2 岗位说明 / SOP

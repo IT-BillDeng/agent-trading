@@ -71,7 +71,7 @@ Operator 汇总给用户
 - 后续是否提频，取决于 API 权限与稳定性
 
 ### 输入
-- `shared/tiger_shared_watchlist.json`
+- `data/tiger_shared_watchlist.json`
 - `runtime/tiger_engine/.last_execution_cycle.json`
 - `runtime/tiger_engine/logs/dispatch_queue.jsonl`
 - `runtime/tiger_engine/logs/execution.jsonl`
@@ -102,8 +102,8 @@ Operator 汇总给用户
 - 盘前：保留 HK / US 各一班
 
 ### 输入
-- `shared/tiger_shared_watchlist.json`
-- `shared/tiger_newswire_sources_v1.json`
+- `data/tiger_shared_watchlist.json`
+- `config/tiger_newswire_sources_v1.json`
 - role brief / task template
 
 ### 输出

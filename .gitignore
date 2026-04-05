@@ -17,8 +17,8 @@ config/tiger_openapi_config.properties
 config/tiger_openapi_config.properties.bak*
 
 # Runtime user data (modified by dashboard)
-shared/tiger_shared_watchlist.json
-shared/tiger_shared_market_context.json
+data/tiger_shared_watchlist.json
+runtime/tiger_engine/tiger_shared_market_context.json
 config/app_config*.json
 config/secrets*
 *.env

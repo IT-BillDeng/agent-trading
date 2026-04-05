@@ -122,7 +122,7 @@ tiger-trading/
 |------|-----------|------|
 | `app_config.docker.json` | `/app/config/app_config.docker.json` | 已适配容器路径的配置 |
 | `tiger.properties` | `/app/config/tiger.properties` | API 凭证 |
-| `tiger_shared_watchlist.json` | `/app/shared/tiger_shared_watchlist.json` | 共享标的清单 |
+| `tiger_shared_watchlist.json` | `/app/data/tiger_shared_watchlist.json` | 共享标的清单 |
 
 ### 6. 注意事项
 

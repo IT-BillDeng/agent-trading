@@ -14,7 +14,7 @@
 - HK（港股）
 
 ## 默认输入顺序
-1. `./shared/tiger_shared_watchlist.json`
+1. `./data/tiger_shared_watchlist.json`
 2. `./runtime/tiger_engine/.last_execution_cycle.json`
 3. `./runtime/tiger_engine/logs/execution.jsonl`
 4. `./runtime/tiger_engine/logs/notifications.jsonl`

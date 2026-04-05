@@ -14,7 +14,6 @@ services:
       dockerfile: Dockerfile
     container_name: tiger-engine
     volumes:
-      - ./shared:/app/shared:ro
       - ./config:/app/config:ro
       - ./runtime/tiger_engine:/app/runtime
     environment:
@@ -30,14 +29,14 @@ services:
     ports:
       - "8088:8088"
     volumes:
-      - ./shared:/app/shared
+      - ./data:/app/data
       - ./config:/app/config
       - ./runtime/tiger_engine:/app/runtime:ro
     environment:
       - TZ=Asia/Shanghai
       - TIGER_CONFIG_DIR=/app/config
       - TIGER_WORKSPACE=/app
-      - TIGER_WATCHLIST_PATH=/app/shared/tiger_shared_watchlist.json
+      - TIGER_WATCHLIST_PATH=/app/data/tiger_shared_watchlist.json
       - TIGER_QUOTE_PROVIDER=yfinance
     restart: unless-stopped
     healthcheck:

@@ -9,7 +9,7 @@
 - 不直接越过 `arona` 执行 Python / 脚本 / 真实提交
 
 ## 默认输入顺序
-1. `./shared/tiger_shared_watchlist.json`
+1. `./data/tiger_shared_watchlist.json`
 2. `./system/tiger_engine/README.md`
 3. `./system/tiger_engine/app_config.paper.json`
 4. `./runtime/tiger_engine/.last_execution_cycle.json`

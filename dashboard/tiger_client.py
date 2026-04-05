@@ -28,19 +28,31 @@ class TigerClient:
         return self._client_config.account
 
     def get_account_type(self) -> dict:
-        """Get account info from Tiger API (reference only)."""
+        """Get account info for the configured account.
+        
+        Filters get_managed_accounts() to match the account in config.
+        Returns account_type: PAPER / STANDARD / GLOBAL.
+        """
         try:
+            target = self._client_config.account
             accounts = self._trade_client.get_managed_accounts()
             if not accounts:
                 return {"error": "no accounts returned"}
-            results = []
+            # Find matching account
             for a in accounts:
-                results.append({
-                    "account": getattr(a, "account", ""),
-                    "account_type": str(getattr(a, "account_type", "unknown")),
-                    "capability": str(getattr(a, "capability", "")),
-                })
-            return results[0] if len(results) == 1 else {"accounts": results}
+                if str(getattr(a, "account", "")) == str(target):
+                    return {
+                        "account": getattr(a, "account", ""),
+                        "account_type": str(getattr(a, "account_type", "unknown")),
+                        "capability": str(getattr(a, "capability", "")),
+                        "status": str(getattr(a, "status", "")),
+                    }
+            # No match — return all for debugging
+            all_info = [{
+                "account": str(getattr(a, "account", "")),
+                "account_type": str(getattr(a, "account_type", "unknown")),
+            } for a in accounts]
+            return {"error": f"account {target} not found in managed accounts", "all": all_info}
         except Exception as e:
             return {"error": str(e)}
 

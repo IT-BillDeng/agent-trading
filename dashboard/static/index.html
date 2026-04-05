@@ -692,7 +692,7 @@
                 document.getElementById('tc-account').textContent = f.account || info.account || '--';
                 document.getElementById('tc-tiger-id').textContent = f.tiger_id || '--';
                 document.getElementById('tc-license').textContent = f.license || '--';
-                document.getElementById('tc-account-type').textContent = info.account_type || (info.error ? '获取失败' : '--');
+                document.getElementById('tc-account-type').textContent = (info.account_type || '--') + (info.account_type ? ' → ' + mode.toUpperCase() : '');
                 updateModeButtons(mode);
             } catch (e) {
                 console.error('tiger-config fetch error:', e);

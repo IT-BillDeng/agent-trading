@@ -349,7 +349,7 @@ async def api_refresh(config: RefreshConfig):
 
 def main():
     import uvicorn
-    port = int(os.environ.get("DASHBOARD_PORT", 8080))
+    port = int(os.environ.get("DASHBOARD_PORT", 8088))
     host = os.environ.get("DASHBOARD_HOST", "0.0.0.0")
     uvicorn.run(app, host=host, port=port)
 

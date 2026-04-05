@@ -28,7 +28,7 @@ services:
       dockerfile: dashboard/Dockerfile
     container_name: tiger-dashboard
     ports:
-      - "8080:8080"
+      - "8088:8088"
     volumes:
       - ./shared:/app/shared:ro
       - ./config:/app/config:ro
@@ -41,7 +41,7 @@ services:
       - TIGER_QUOTE_PROVIDER=yfinance
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8088/health')"]
       interval: 30s
       timeout: 5s
       retries: 3

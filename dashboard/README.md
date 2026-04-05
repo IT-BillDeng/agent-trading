@@ -10,7 +10,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-Access at: http://0.0.0.0:8080
+Access at: http://0.0.0.0:8088
 
 ## Architecture
 

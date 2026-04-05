@@ -20,6 +20,6 @@ COPY dashboard/ /app/dashboard/
 # 静态文件
 COPY dashboard/static/ /app/dashboard/static/
 
-EXPOSE 8080
+EXPOSE 8088
 
-CMD ["uvicorn", "dashboard.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "dashboard.main:app", "--host", "0.0.0.0", "--port", "8088"]

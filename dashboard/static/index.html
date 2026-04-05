@@ -327,7 +327,13 @@
                 groups[mkt].push({ sym, ...q });
             });
             const marketLabel = { US: '🇺🇸 美股', HK: '🇭🇰 港股' };
-            let html = '';
+            // Show fetch timestamp
+            const fetchedAt = data._fetched_at;
+            if (fetchedAt) {
+                const d = new Date(fetchedAt);
+                const timeStr = d.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
+                html += `<div class="text-xs text-gray-600 mb-1">行情时间: ${timeStr}</div>`;
+            }
             ['US', 'HK'].forEach(mkt => {
                 const items = groups[mkt];
                 if (!items || items.length === 0) return;

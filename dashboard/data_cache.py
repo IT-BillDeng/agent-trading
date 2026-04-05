@@ -68,7 +68,9 @@ class DataCache:
 
     def get_quotes(self) -> dict:
         with self._lock:
-            return dict(self._data["quotes"])
+            data = dict(self._data["quotes"])
+            data["_fetched_at"] = self._data.get("last_updated")
+            return data
 
     def get_watchlist(self) -> dict:
         with self._lock:

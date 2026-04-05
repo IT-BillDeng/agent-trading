@@ -14,6 +14,7 @@ system/tiger_engine/__pycache__/
 config/credentials.json
 config/tiger_openapi_config
 config/tiger_openapi_config.properties
+config/tiger_openapi_config.properties.bak*
 config/app_config*.json
 config/secrets*
 *.env

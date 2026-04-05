@@ -234,6 +234,13 @@
                     </div>
                 </div>
                 <div>
+                    <div class="text-xs text-gray-500 mb-2">数据源</div>
+                    <select id="quote-provider" class="bg-dark-900 border border-gray-600 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-tiger-500" onchange="setQuoteProvider(this.value)">
+                        <option value="yfinance">Yahoo Finance</option>
+                        <option value="tiger">Tiger API</option>
+                    </select>
+                </div>
+                <div>
                     <div class="text-xs text-gray-500 mb-2">风控参数</div>
                     <div id="risk-display" class="text-sm space-y-1">
                         <div>单笔上限: <span id="risk-max-order">--</span></div>
@@ -690,6 +697,36 @@
             }
         }
 
+        async function fetchQuoteProviders() {
+            try {
+                const data = await fetch(API_BASE + '/api/quote-providers').then(r => r.json());
+                const select = document.getElementById('quote-provider');
+                if (data.current) {
+                    select.value = data.current;
+                }
+            } catch (e) {
+                console.error('fetch quote providers error:', e);
+            }
+        }
+
+        async function setQuoteProvider(provider) {
+            try {
+                const res = await fetch(API_BASE + '/api/quote-provider', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ provider }),
+                });
+                const data = await res.json();
+                if (data.error) {
+                    alert('切换失败: ' + data.error);
+                } else {
+                    alert('已切换到 ' + data.name);
+                }
+            } catch (e) {
+                alert('切换失败: ' + e.message);
+            }
+        }
+
         // --- Tiger Config ---
         async function fetchTigerConfig() {
             try {
@@ -785,6 +822,7 @@
         fetchEngine();
         fetchConfig();
         fetchTigerConfig();
+        fetchQuoteProviders();
         setInterval(fetchAll, REFRESH_MS);
         setInterval(fetchEngine, 30000);
     </script>

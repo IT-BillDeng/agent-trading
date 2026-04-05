@@ -355,6 +355,34 @@ async def api_refresh(config: RefreshConfig):
     return {"status": "ok", "interval": cache._interval}
 
 
+@app.get("/api/quote-providers")
+async def api_quote_providers():
+    """List available quote providers."""
+    return {
+        "providers": [
+            {"id": "yfinance", "name": "Yahoo Finance", "desc": "免费，有延迟"},
+            {"id": "tiger", "name": "Tiger API", "desc": "需要行情权限"},
+        ],
+        "current": cache._quote_provider.name if cache else None,
+    }
+
+
+@app.post("/api/quote-provider")
+async def api_quote_provider(body: dict):
+    """Switch quote provider."""
+    provider = body.get("provider")
+    if provider not in ("yfinance", "tiger"):
+        return JSONResponse({"error": "invalid provider"}, status_code=400)
+    if not cache:
+        return JSONResponse({"error": "not ready"}, status_code=503)
+    try:
+        new_provider = get_quote_provider(provider, config_dir=str(CONFIG_DIR_PATH))
+        cache._quote_provider = new_provider
+        return {"status": "ok", "provider": provider, "name": new_provider.name}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 # --- Tiger config management ---
 
 TIGER_PROPS_FILE = CONFIG_DIR_PATH / "tiger_openapi_config.properties"

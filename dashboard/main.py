@@ -432,24 +432,50 @@ async def api_tiger_config_get():
 
 @app.post("/api/tiger-config/upload")
 async def api_tiger_config_upload_file(file: UploadFile = File(...)):
-    """Upload Tiger config file (multipart file upload)."""
+    """Upload Tiger config file.
+    
+    Validates content, renames to tiger_openapi_config.properties,
+    replaces existing file, then detects trading mode via API.
+    """
+    # Read file
     content_bytes = await file.read()
+    
+    # Size check (max 64KB — a properties file should be tiny)
+    if len(content_bytes) > 64 * 1024:
+        return JSONResponse({"error": "file too large (max 64KB)"}, status_code=400)
+    
     try:
         content = content_bytes.decode("utf-8")
     except UnicodeDecodeError:
         return JSONResponse({"error": "file must be UTF-8 text"}, status_code=400)
-
+    
+    # Parse and validate
     props = _parse_properties(content)
-    if "tiger_id" not in props or "account" not in props:
-        return JSONResponse({"error": "invalid config: missing tiger_id or account"}, status_code=400)
-
-    # Backup existing
+    required = {"tiger_id", "account"}
+    missing = required - set(props.keys())
+    if missing:
+        return JSONResponse({"error": f"missing required fields: {', '.join(missing)}"}, status_code=400)
+    
+    # Validate field values are non-empty
+    for key in required:
+        if not props[key].strip():
+            return JSONResponse({"error": f"{key} must not be empty"}, status_code=400)
+    
+    # Validate private key exists (PKCS8 preferred)
+    has_key = "private_key_pk8" in props or "private_key_pk1" in props
+    if not has_key:
+        return JSONResponse({"error": "missing private key (private_key_pk8 or private_key_pk1)"}, status_code=400)
+    
+    # Backup existing file
     if TIGER_PROPS_FILE.exists():
-        backup = TIGER_PROPS_FILE.with_suffix(".properties.bak")
+        from datetime import datetime
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup = CONFIG_DIR_PATH / f"tiger_openapi_config.properties.bak.{ts}"
         backup.write_text(TIGER_PROPS_FILE.read_text())
-
+    
+    # Write new config (always as tiger_openapi_config.properties)
     TIGER_PROPS_FILE.write_text(content)
-
+    
     # Detect mode from API (filters by config account)
     account_info = _get_api_account_info(str(CONFIG_DIR_PATH))
     detected = _account_type_to_mode(account_info.get("account_type", ""))
@@ -462,13 +488,15 @@ async def api_tiger_config_upload_file(file: UploadFile = File(...)):
                 config_file.write_text(json.dumps(app_config, indent=2, ensure_ascii=False))
             except Exception:
                 pass
-
+    
     return {
         "status": "ok",
-        "account_info": account_info,
-        "detected_mode": detected,
+        "filename": TIGER_PROPS_FILE.name,
         "tiger_id": props.get("tiger_id"),
         "account": props.get("account"),
+        "has_private_key": has_key,
+        "account_info": account_info,
+        "detected_mode": detected,
     }
 
 

@@ -320,12 +320,13 @@
                 return;
             }
             let html = '';
-            // Show fetch timestamp
-            const fetchedAt = data._fetched_at;
-            if (fetchedAt) {
-                const d = new Date(fetchedAt);
+            // Show data source timestamp (from first quote)
+            const firstSym = symbols[0];
+            if (firstSym && data[firstSym] && data[firstSym].market_time) {
+                const mt = data[firstSym].market_time;
+                const d = new Date(mt * 1000);
                 const timeStr = d.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
-                html += `<div class="text-xs text-gray-600 mb-1">行情时间: ${timeStr}</div>`;
+                html += `<div class="text-xs text-gray-600 mb-1">数据源时间: ${timeStr}</div>`;
             }
             // Group by market
             const groups = { US: [], HK: [] };

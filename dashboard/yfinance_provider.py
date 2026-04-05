@@ -76,6 +76,13 @@ class YFinanceQuoteProvider(QuoteProvider):
                         change = None
                         change_rate = None
 
+                    # Get market time from data source
+                    market_time = info.get("regularMarketTime") or info.get("regularMarketTimestamp")
+                    if market_time and isinstance(market_time, (int, float)):
+                        market_time = int(market_time)
+                    else:
+                        market_time = None
+
                     quotes.append({
                         "symbol": orig_sym,
                         "name": name,
@@ -90,6 +97,7 @@ class YFinanceQuoteProvider(QuoteProvider):
                         "bid_price": info.get("bid"),
                         "ask_price": info.get("ask"),
                         "market_status": "regular",
+                        "market_time": market_time,
                     })
                 except Exception:
                     continue

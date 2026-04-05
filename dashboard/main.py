@@ -29,18 +29,28 @@ async def lifespan(app: FastAPI):
         str(Path(__file__).parent.parent / "config"),
     )
 
-    tiger_client = TigerClient(config_dir=config_dir)
+    # TigerClient may fail if credentials are invalid — don't crash the app
+    try:
+        tiger_client = TigerClient(config_dir=config_dir)
+    except Exception as e:
+        tiger_client = None
+        print(f"[dashboard] TigerClient init failed: {e}")
 
     # Quote provider: TIGER_QUOTE_PROVIDER env var (default: yfinance)
     provider_name = os.environ.get("TIGER_QUOTE_PROVIDER", "yfinance")
     quote_provider = get_quote_provider(provider_name, config_dir=config_dir)
 
-    cache = DataCache(tiger_client, quote_provider, refresh_interval=30)
-    cache.start()
+    if tiger_client:
+        cache = DataCache(tiger_client, quote_provider, refresh_interval=30)
+        cache.start()
+    else:
+        cache = None
+        print("[dashboard] DataCache not started (no TigerClient)")
 
     yield
 
-    cache.stop()
+    if cache:
+        cache.stop()
 
 
 app = FastAPI(
@@ -402,31 +412,31 @@ async def api_tiger_config_get():
             masked[k] = _mask_value(v)
         else:
             masked[k] = v
-    # Get API account info (filters by config account)
-    account_info = _get_api_account_info(str(CONFIG_DIR_PATH))
-    # Determine mode: API account_type is source of truth
-    detected = _account_type_to_mode(account_info.get("account_type", ""))
-    if detected:
-        mode = detected
-        # Sync app_config if needed
-        config_file = CONFIG_DIR_PATH / "app_config.docker.json"
-        if config_file.exists():
-            try:
-                app_config = json.loads(config_file.read_text())
-                if app_config.get("mode") != mode:
-                    app_config["mode"] = mode
-                    config_file.write_text(json.dumps(app_config, indent=2, ensure_ascii=False))
-            except Exception:
-                pass
-    else:
-        # Fallback to app_config
-        config_file = CONFIG_DIR_PATH / "app_config.docker.json"
-        mode = "paper"
-        if config_file.exists():
-            try:
-                mode = json.loads(config_file.read_text()).get("mode", "paper")
-            except Exception:
-                pass
+    # Read mode from app_config (fallback)
+    config_file = CONFIG_DIR_PATH / "app_config.docker.json"
+    mode = "paper"
+    if config_file.exists():
+        try:
+            mode = json.loads(config_file.read_text()).get("mode", "paper")
+        except Exception:
+            pass
+    # Try API detection (non-fatal if fails)
+    account_info = None
+    try:
+        account_info = _get_api_account_info(str(CONFIG_DIR_PATH))
+        detected = _account_type_to_mode(account_info.get("account_type", ""))
+        if detected:
+            mode = detected
+            if config_file.exists():
+                try:
+                    app_config = json.loads(config_file.read_text())
+                    if app_config.get("mode") != mode:
+                        app_config["mode"] = mode
+                        config_file.write_text(json.dumps(app_config, indent=2, ensure_ascii=False))
+                except Exception:
+                    pass
+    except Exception as e:
+        account_info = {"error": str(e)}
     return {"exists": True, "mode": mode, "fields": masked, "account_info": account_info}
 
 
@@ -476,18 +486,20 @@ async def api_tiger_config_upload_file(file: UploadFile = File(...)):
     # Write new config (always as tiger_openapi_config.properties)
     TIGER_PROPS_FILE.write_text(content)
     
-    # Detect mode from API (filters by config account)
-    account_info = _get_api_account_info(str(CONFIG_DIR_PATH))
-    detected = _account_type_to_mode(account_info.get("account_type", ""))
-    if detected:
-        config_file = CONFIG_DIR_PATH / "app_config.docker.json"
-        if config_file.exists():
-            try:
+    # Detect mode from API (non-fatal)
+    account_info = None
+    detected = None
+    try:
+        account_info = _get_api_account_info(str(CONFIG_DIR_PATH))
+        detected = _account_type_to_mode(account_info.get("account_type", ""))
+        if detected:
+            config_file = CONFIG_DIR_PATH / "app_config.docker.json"
+            if config_file.exists():
                 app_config = json.loads(config_file.read_text())
                 app_config["mode"] = detected
                 config_file.write_text(json.dumps(app_config, indent=2, ensure_ascii=False))
-            except Exception:
-                pass
+    except Exception as e:
+        account_info = {"error": str(e)}
     
     return {
         "status": "ok",

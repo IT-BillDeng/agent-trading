@@ -313,10 +313,19 @@
 
         function renderQuotes(data) {
             const list = document.getElementById('quotes-list');
-            const symbols = Object.keys(data);
+            // Filter out internal fields (like _fetched_at)
+            const symbols = Object.keys(data).filter(k => !k.startsWith('_'));
             if (symbols.length === 0) {
                 list.innerHTML = '<div class="text-gray-500 text-sm">无行情数据</div>';
                 return;
+            }
+            let html = '';
+            // Show fetch timestamp
+            const fetchedAt = data._fetched_at;
+            if (fetchedAt) {
+                const d = new Date(fetchedAt);
+                const timeStr = d.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
+                html += `<div class="text-xs text-gray-600 mb-1">行情时间: ${timeStr}</div>`;
             }
             // Group by market
             const groups = { US: [], HK: [] };

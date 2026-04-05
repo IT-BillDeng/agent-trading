@@ -49,40 +49,46 @@ class YFinanceQuoteProvider(QuoteProvider):
                         pass
 
                     price = fast.get("lastPrice") or fast.get("last_price") or info.get("regularMarketPrice")
-                    prev = fast.get("previousClose") or fast.get("previous_close") or info.get("regularMarketPreviousClose")
+                    name = info.get("shortName") or info.get("longName") or fast.get("shortName") or orig_sym
 
-                    # Use Yahoo's pre-calculated daily change if available
-                    change = info.get("regularMarketChange")
-                    change_rate = info.get("regularMarketChangePercent")
+                    # Get previous close: try info first, then history
+                    prev = info.get("regularMarketPreviousClose") or fast.get("previousClose") or fast.get("previous_close")
+                    hist_prev = None
+                    try:
+                        hist = t.history(period="5d")
+                        if hist is not None and len(hist) >= 2:
+                            hist_prev = round(float(hist["Close"].iloc[-2]), 4)
+                    except Exception:
+                        pass
 
-                    # Fallback: calculate from price and prev_close
-                    if (change is None or change_rate is None) and price is not None and prev is not None and prev != 0:
-                        change = change if change is not None else round(price - prev, 4)
-                        change_rate = change_rate if change_rate is not None else round((price - prev) / prev * 100, 4)
+                    if hist_prev is not None and hist_prev > 0:
+                        prev = hist_prev
 
-                    # Normalize: change_rate should be in ratio form (0.01 = 1%)
-                    # Yahoo returns percentage (1.1073), convert to ratio
-                    if change_rate is not None and abs(change_rate) > 5:
-                        change_rate = change_rate / 100
+                    # Calculate change
+                    change = None
+                    change_rate = None
+                    if price is not None and prev is not None and prev > 0:
+                        change = round(price - prev, 4)
+                        change_rate = round(change / prev, 4)  # ratio, e.g. 0.011 = 1.1%
 
-                    # Sanity clamp (daily change within ±50%)
-                    if change_rate is not None and abs(change_rate) > 0.5:
+                    # Sanity: daily change within ±30%
+                    if change_rate is not None and abs(change_rate) > 0.3:
                         change = None
                         change_rate = None
 
                     quotes.append({
                         "symbol": orig_sym,
-                        "name": info.get("shortName") or fast.get("shortName") or fast.get("short_name") or orig_sym,
+                        "name": name,
                         "latest_price": price,
                         "prev_close": prev,
-                        "open": info.get("open") or info.get("regularMarketOpen") or fast.get("open") or fast.get("openPrice"),
-                        "high": info.get("dayHigh") or info.get("regularMarketDayHigh") or fast.get("dayHigh") or fast.get("day_high"),
-                        "low": info.get("dayLow") or info.get("regularMarketDayLow") or fast.get("dayLow") or fast.get("day_low"),
-                        "volume": info.get("regularMarketVolume") or fast.get("lastVolume") or fast.get("last_volume"),
+                        "open": info.get("open") or info.get("regularMarketOpen") or fast.get("open"),
+                        "high": info.get("dayHigh") or info.get("regularMarketDayHigh") or fast.get("dayHigh"),
+                        "low": info.get("dayLow") or info.get("regularMarketDayLow") or fast.get("dayLow"),
+                        "volume": info.get("regularMarketVolume") or fast.get("lastVolume"),
                         "change": change,
                         "change_rate": change_rate,
-                        "bid_price": info.get("bid") or fast.get("bid"),
-                        "ask_price": info.get("ask") or fast.get("ask"),
+                        "bid_price": info.get("bid"),
+                        "ask_price": info.get("ask"),
                         "market_status": "regular",
                     })
                 except Exception:

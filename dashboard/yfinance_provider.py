@@ -41,29 +41,43 @@ class YFinanceQuoteProvider(QuoteProvider):
                     if t is None:
                         continue
 
-                    info = t.fast_info
-                    price = info.get("lastPrice") or info.get("last_price")
-                    prev = info.get("previousClose") or info.get("previous_close")
+                    fast = t.fast_info
+                    info = {}
+                    try:
+                        info = t.info or {}
+                    except Exception:
+                        pass
 
-                    change = None
-                    change_rate = None
-                    if price is not None and prev is not None and prev != 0:
-                        change = round(price - prev, 4)
-                        change_rate = round((price - prev) / prev * 100, 4)
+                    price = fast.get("lastPrice") or fast.get("last_price") or info.get("regularMarketPrice")
+                    prev = fast.get("previousClose") or fast.get("previous_close") or info.get("regularMarketPreviousClose")
+
+                    # Use Yahoo's pre-calculated daily change if available
+                    change = info.get("regularMarketChange")
+                    change_rate = info.get("regularMarketChangePercent")
+
+                    # Fallback: calculate from price and prev_close
+                    if (change is None or change_rate is None) and price is not None and prev is not None and prev != 0:
+                        change = change if change is not None else round(price - prev, 4)
+                        change_rate = change_rate if change_rate is not None else round((price - prev) / prev * 100, 4)
+
+                    # Clamp absurd values (daily change should be within ±50%)
+                    if change_rate is not None and abs(change_rate) > 50:
+                        change = None
+                        change_rate = None
 
                     quotes.append({
                         "symbol": orig_sym,
-                        "name": info.get("shortName") or info.get("short_name") or orig_sym,
+                        "name": info.get("shortName") or fast.get("shortName") or fast.get("short_name") or orig_sym,
                         "latest_price": price,
                         "prev_close": prev,
-                        "open": info.get("open") or info.get("openPrice"),
-                        "high": info.get("dayHigh") or info.get("day_high"),
-                        "low": info.get("dayLow") or info.get("day_low"),
-                        "volume": info.get("lastVolume") or info.get("last_volume"),
+                        "open": info.get("open") or info.get("regularMarketOpen") or fast.get("open") or fast.get("openPrice"),
+                        "high": info.get("dayHigh") or info.get("regularMarketDayHigh") or fast.get("dayHigh") or fast.get("day_high"),
+                        "low": info.get("dayLow") or info.get("regularMarketDayLow") or fast.get("dayLow") or fast.get("day_low"),
+                        "volume": info.get("regularMarketVolume") or fast.get("lastVolume") or fast.get("last_volume"),
                         "change": change,
                         "change_rate": change_rate,
-                        "bid_price": info.get("bid"),
-                        "ask_price": info.get("ask"),
+                        "bid_price": info.get("bid") or fast.get("bid"),
+                        "ask_price": info.get("ask") or fast.get("ask"),
                         "market_status": "regular",
                     })
                 except Exception:

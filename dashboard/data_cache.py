@@ -186,7 +186,7 @@ class DataCache:
             orders = []
             errors.append(f"orders: {e}")
 
-        # Quotes (from watchlist)
+        # Quotes (from watchlist) — rebuild each cycle so deleted symbols disappear
         quotes = {}
         try:
             watchlist = self._load_watchlist()

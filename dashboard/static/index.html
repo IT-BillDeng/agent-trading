@@ -185,10 +185,10 @@
                 <div>
                     <div class="text-xs text-gray-500 mb-2">当前配置</div>
                     <div id="tiger-config-info" class="text-sm space-y-1">
-                        <div>环境: <span id="tc-env">--</span></div>
                         <div>账户: <span id="tc-account">--</span></div>
                         <div>Tiger ID: <span id="tc-tiger-id">--</span></div>
                         <div>License: <span id="tc-license">--</span></div>
+                        <div>API 类型: <span id="tc-account-type" class="text-gray-500">--</span></div>
                     </div>
                 </div>
                 <!-- Mode Switch -->
@@ -680,20 +680,19 @@
             try {
                 const data = await fetch(API_BASE + '/api/tiger-config').then(r => r.json());
                 if (!data.exists) {
-                    document.getElementById('tc-env').textContent = '未配置';
-                    document.getElementById('tc-account').textContent = '--';
+                    document.getElementById('tc-account').textContent = '未配置';
                     document.getElementById('tc-tiger-id').textContent = '--';
                     document.getElementById('tc-license').textContent = '--';
+                    document.getElementById('tc-account-type').textContent = '--';
                     return;
                 }
                 const f = data.fields || {};
-                const det = data.detection || {};
+                const info = data.account_info || {};
                 const mode = data.mode || 'paper';
-                const accountType = det.account_type || '--';
-                document.getElementById('tc-env').textContent = accountType + ' → ' + mode.toUpperCase();
-                document.getElementById('tc-account').textContent = f.account || det.account || '--';
+                document.getElementById('tc-account').textContent = f.account || info.account || '--';
                 document.getElementById('tc-tiger-id').textContent = f.tiger_id || '--';
                 document.getElementById('tc-license').textContent = f.license || '--';
+                document.getElementById('tc-account-type').textContent = info.account_type || (info.error ? '获取失败' : '--');
                 updateModeButtons(mode);
             } catch (e) {
                 console.error('tiger-config fetch error:', e);
@@ -758,8 +757,7 @@
                 });
                 const data = await res.json();
                 if (data.error) { showTcMsg(data.error, true); return; }
-                const mode = data.detected_mode || 'paper';
-                showTcMsg('上传成功! account_type: ' + (data.detection?.account_type || '?') + ' → ' + mode.toUpperCase(), false);
+                showTcMsg('配置上传成功，请通过 Paper/Live 按钮设置交易模式', false);
                 fileInput.value = '';
                 document.getElementById('tiger-config-filename').textContent = '未选择文件';
                 fetchTigerConfig();

@@ -369,21 +369,21 @@ def _mask_value(val: str, visible: int = 6) -> str:
     return "*" * (len(val) - visible) + val[-visible:]
 
 
-def _detect_mode_via_api(config_dir: str) -> dict:
-    """Detect paper/live by calling get_managed_accounts()."""
+def _get_api_account_info(config_dir: str) -> dict:
+    """Get account info from Tiger API (reference only, not mode source)."""
     try:
         from .tiger_client import TigerClient
         client = TigerClient(config_dir=config_dir)
         return client.get_account_type()
     except Exception as e:
-        return {"mode": "paper", "error": str(e)}
+        return {"error": str(e)}
 
 
 @app.get("/api/tiger-config")
 async def api_tiger_config_get():
-    """Get current Tiger API config (sensitive fields masked) + detected mode."""
+    """Get current Tiger API config (sensitive fields masked)."""
     if not TIGER_PROPS_FILE.exists():
-        return {"exists": False, "mode": "paper", "fields": {}, "detection": None}
+        return {"exists": False, "mode": "paper", "fields": {}, "account_info": None}
     props = _parse_properties(TIGER_PROPS_FILE.read_text())
     masked = {}
     sensitive = {"private_key_pk1", "private_key_pk8", "secret_key"}
@@ -392,10 +392,17 @@ async def api_tiger_config_get():
             masked[k] = _mask_value(v)
         else:
             masked[k] = v
-    # Detect mode via API
-    detection = _detect_mode_via_api(str(CONFIG_DIR_PATH))
-    detected_mode = detection.get("mode", "paper")
-    return {"exists": True, "mode": detected_mode, "fields": masked, "detection": detection}
+    # Read mode from app_config (source of truth)
+    config_file = CONFIG_DIR_PATH / "app_config.docker.json"
+    mode = "paper"
+    if config_file.exists():
+        try:
+            mode = json.loads(config_file.read_text()).get("mode", "paper")
+        except Exception:
+            pass
+    # API account info (reference only)
+    account_info = _get_api_account_info(str(CONFIG_DIR_PATH))
+    return {"exists": True, "mode": mode, "fields": masked, "account_info": account_info}
 
 
 @app.post("/api/tiger-config/upload")
@@ -418,21 +425,12 @@ async def api_tiger_config_upload_file(file: UploadFile = File(...)):
 
     TIGER_PROPS_FILE.write_text(content)
 
-    # Detect mode via API after upload
-    detection = _detect_mode_via_api(str(CONFIG_DIR_PATH))
-    detected_mode = detection.get("mode", "paper")
-
-    # Update app_config mode
-    config_file = CONFIG_DIR_PATH / "app_config.docker.json"
-    if config_file.exists():
-        app_config = json.loads(config_file.read_text())
-        app_config["mode"] = detected_mode
-        config_file.write_text(json.dumps(app_config, indent=2, ensure_ascii=False))
+    # Get API account info (reference only, does NOT set mode)
+    account_info = _get_api_account_info(str(CONFIG_DIR_PATH))
 
     return {
         "status": "ok",
-        "detected_mode": detected_mode,
-        "detection": detection,
+        "account_info": account_info,
         "tiger_id": props.get("tiger_id"),
         "account": props.get("account"),
     }

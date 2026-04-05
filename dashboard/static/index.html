@@ -325,7 +325,12 @@
             if (firstSym && data[firstSym] && data[firstSym].market_time) {
                 const mt = data[firstSym].market_time;
                 const d = new Date(mt * 1000);
-                const timeStr = d.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
+                // Format with timezone
+                const timeStr = d.toLocaleString('zh-CN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZoneName: 'short'
+                });
                 html += `<div class="text-xs text-gray-600 mb-1">数据源时间: ${timeStr}</div>`;
             }
             // Group by market

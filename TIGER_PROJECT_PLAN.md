@@ -1,7 +1,7 @@
 # Tiger Trading 项目任务清单
 
-> 更新时间：2026-04-06 21:36
-> 更新内容：完成 Phase 3 subagent 配置准备，交由 arona 部署
+> 更新时间：2026-04-07 00:00
+> 更新内容：同步 watchlist/config，添加 02097 蜜雪集团
 > 架构原则：Engine 做机械的，Agent 做判断的。决策权永远在 Agent 层。
 
 ## 架构概览
@@ -76,12 +76,12 @@ Tiger Open Platform (Paper → Live)
 
 | # | 任务 | 说明 | 阻塞点 | 状态 |
 |---|------|------|---|---|
-| 3.1 | tiger-watcher 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 配置完成 |
-| 3.2 | tiger-newswire 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 配置完成 |
-| 3.3 | tiger-strategist 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 配置完成 |
-| 3.4 | tiger-executor 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 配置完成 |
-| 3.5 | tiger-scout 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 配置完成 |
-| 3.6 | tiger-closer 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 配置完成 |
+| 3.1 | tiger-watcher 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 已完成 |
+| 3.2 | tiger-newswire 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 已完成 |
+| 3.3 | tiger-strategist 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 已完成 |
+| 3.4 | tiger-executor 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 已完成 |
+| 3.5 | tiger-scout 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 已完成 |
+| 3.6 | tiger-closer 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 已完成 |
 | 3.7 | 交由 arona 部署 | arona 在 host 上执行部署脚本，启动所有 agent | 无 | ⬜ 待 arona 部署 |
 
 > **说明**：Phase 3 的 6 个 agent 配置文件已准备完成，存放在 `/workspace/tiger-trading/agents/` 目录。
@@ -165,8 +165,8 @@ Yahoo Finance─┘         ↓
 
 | 模型 | 别名 | 定位 | 适用场景 |
 |------|------|------|---------|
-| `xiaomi-tp/mimo-v2-pro` | pro | 高性能（4x成本） | 复杂推理、策略分析、多步规划、代码审查 |
-| `xiaomi-tp/mimo-v2-omni` | omni | 多模态（低成本） | 截图分析、图像理解、浏览器交互、通用任务 |
+| `xiaomi/mimo-v2-pro` | pro | 高性能（4x成本） | 复杂推理、策略分析、多步规划、代码审查 |
+| `xiaomi/mimo-v2-omni` | omni | 多模态（低成本） | 截图分析、图像理解、浏览器交互、通用任务 |
 
 **Agent 模型分配：**
 

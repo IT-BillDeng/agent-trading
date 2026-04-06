@@ -15,11 +15,13 @@
 
 ## 部署方式
 
-### 一键部署所有 agent
+### 一键部署所有 agent（yuuka 主会话执行）
+
+在 yuuka 主会话中执行以下命令：
 
 ```bash
 cd /workspace/tiger-trading/agents
-./deploy_tiger_agents.sh
+./deploy_tiger_agents_yuuka.sh
 ```
 
 ### 停止所有 agent
@@ -34,6 +36,17 @@ cd /workspace/tiger-trading/agents
 ```bash
 subagents action=list
 ```
+
+### 部署到 host（arona 执行）
+
+如果需要在 host 上部署，arona 需要执行：
+
+```bash
+cd /Users/openclaw/.openclaw/workspace-yuuka/tiger-trading/agents
+./deploy_tiger_agents.sh
+```
+
+注意：host 上的部署脚本仅显示命令说明，实际部署需在 yuuka 主会话中执行。
 
 ## 配置文件说明
 

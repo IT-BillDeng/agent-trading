@@ -11,7 +11,7 @@ sessions_spawn \
   label="tiger-watcher" \
   runtime="subagent" \
   agentId="tiger-watcher" \
-  model="xiaomi-tp/mimo-v2-omni" \
+  model="xiaomi/mimo-v2-omni" \
   mode="session" \
   thread=true \
   cwd="/workspace/tiger-trading"
@@ -23,7 +23,7 @@ sessions_spawn \
   label="tiger-newswire" \
   runtime="subagent" \
   agentId="tiger-newswire" \
-  model="xiaomi-tp/mimo-v2-omni" \
+  model="xiaomi/mimo-v2-omni" \
   mode="session" \
   thread=true \
   cwd="/workspace/tiger-trading"
@@ -35,7 +35,7 @@ sessions_spawn \
   label="tiger-strategist" \
   runtime="subagent" \
   agentId="tiger-strategist" \
-  model="xiaomi-tp/mimo-v2-pro" \
+  model="xiaomi/mimo-v2-pro" \
   mode="session" \
   thread=true \
   cwd="/workspace/tiger-trading"
@@ -47,7 +47,7 @@ sessions_spawn \
   label="tiger-executor" \
   runtime="subagent" \
   agentId="tiger-executor" \
-  model="xiaomi-tp/mimo-v2-omni" \
+  model="xiaomi/mimo-v2-omni" \
   mode="session" \
   thread=true \
   cwd="/workspace/tiger-trading"
@@ -59,7 +59,7 @@ sessions_spawn \
   label="tiger-scout" \
   runtime="subagent" \
   agentId="tiger-scout" \
-  model="xiaomi-tp/mimo-v2-omni" \
+  model="xiaomi/mimo-v2-omni" \
   mode="session" \
   thread=true \
   cwd="/workspace/tiger-trading"
@@ -71,7 +71,7 @@ sessions_spawn \
   label="tiger-closer" \
   runtime="subagent" \
   agentId="tiger-closer" \
-  model="xiaomi-tp/mimo-v2-omni" \
+  model="xiaomi/mimo-v2-omni" \
   mode="session" \
   thread=true \
   cwd="/workspace/tiger-trading"

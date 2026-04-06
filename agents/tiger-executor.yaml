@@ -3,7 +3,7 @@
 # 频率：策略完成后触发
 
 agent_id: tiger-executor
-model: xiaomi-tp/mimo-v2-omni
+model: xiaomi/mimo-v2-omni
 description: "执行检查单/参数校验：把计划转成可执行检查单"
 frequency: "策略完成后触发"
 

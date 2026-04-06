@@ -171,12 +171,12 @@ Yahoo Finance─┘         ↓
 
 | Agent | 模型 | 说明 |
 |-------|------|------|
-| tiger-watcher | mimo-v2-omni | 系统健康监控（通用任务） |
-| tiger-newswire | mimo-v2-omni | 新闻扫描（通用任务） |
-| tiger-strategist | mimo-v2-pro | 交易建议（复杂推理） |
-| tiger-executor | mimo-v2-omni | 执行检查（通用任务） |
-| tiger-scout | mimo-v2-omni | 标的扫描（通用任务） |
-| tiger-closer | mimo-v2-omni | 收盘总结（通用任务） |
+| tiger-watcher | xiaomi/mimo-v2-omni | 系统健康监控（通用任务） |
+| tiger-newswire | xiaomi/mimo-v2-omni | 新闻扫描（通用任务） |
+| tiger-strategist | xiaomi/mimo-v2-pro | 交易建议（复杂推理） |
+| tiger-executor | xiaomi/mimo-v2-omni | 执行检查（通用任务） |
+| tiger-scout | xiaomi/mimo-v2-omni | 标的扫描（通用任务） |
+| tiger-closer | xiaomi/mimo-v2-omni | 收盘总结（通用任务） |
 
 **选择原则：**
 - **默认用 omni**（成本更低，覆盖面广）

@@ -3,7 +3,7 @@
 # 频率：US 盘前 + US 盘中 15min
 
 agent_id: tiger-newswire
-model: xiaomi-tp/mimo-v2-omni
+model: xiaomi/mimo-v2-omni
 description: "新闻/催化扫描：美股新闻、事件时间线整理"
 frequency: "US 盘前 + US 盘中 15min"
 

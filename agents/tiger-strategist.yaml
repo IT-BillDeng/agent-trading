@@ -3,7 +3,7 @@
 # 频率：信号触发或定时
 
 agent_id: tiger-strategist
-model: xiaomi-tp/mimo-v2-pro
+model: xiaomi/mimo-v2-pro
 description: "交易计划草案：基于信号+新闻+宏观产生交易建议"
 frequency: "信号触发或定时"
 

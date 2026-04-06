@@ -367,6 +367,51 @@ async def api_quote_providers():
     }
 
 
+@app.get("/api/market-status")
+async def api_market_status():
+    """Get market open/close status for US and HK markets."""
+    import datetime
+    import pytz
+    
+    # Get current time in market timezones
+    now = datetime.datetime.now(pytz.UTC)
+    
+    # US market (Eastern Time)
+    us_tz = pytz.timezone("America/New_York")
+    us_now = now.astimezone(us_tz)
+    us_hour = us_now.hour + us_now.minute / 60
+    us_weekday = us_now.weekday()  # 0=Monday, 4=Friday
+    
+    # US market hours: 9:30 - 16:00 ET (9.5 - 16.0)
+    us_open = us_weekday < 5 and 9.5 <= us_hour < 16.0
+    us_pre_market = us_weekday < 5 and 4.0 <= us_hour < 9.5
+    us_post_market = us_weekday < 5 and 16.0 <= us_hour < 20.0
+    
+    # HK market (Hong Kong Time)
+    hk_tz = pytz.timezone("Asia/Hong_Kong")
+    hk_now = now.astimezone(hk_tz)
+    hk_hour = hk_now.hour + hk_now.minute / 60
+    hk_weekday = hk_now.weekday()
+    
+    # HK market hours: 9:30 - 16:00 HK time (9.5 - 16.0), lunch 12:00-13:00
+    hk_open = hk_weekday < 5 and 9.5 <= hk_hour < 16.0 and not (12.0 <= hk_hour < 13.0)
+    
+    return {
+        "US": {
+            "open": us_open,
+            "pre_market": us_pre_market,
+            "post_market": us_post_market,
+            "local_time": us_now.strftime("%Y-%m-%d %H:%M:%S %Z"),
+            "status": "open" if us_open else ("pre-market" if us_pre_market else ("post-market" if us_post_market else "closed")),
+        },
+        "HK": {
+            "open": hk_open,
+            "local_time": hk_now.strftime("%Y-%m-%d %H:%M:%S %Z"),
+            "status": "open" if hk_open else "closed",
+        },
+    }
+
+
 @app.post("/api/quote-provider")
 async def api_quote_provider(body: dict):
     """Switch quote provider."""

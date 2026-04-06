@@ -47,6 +47,17 @@
             <h1 class="text-lg font-semibold">Tiger Trading Dashboard</h1>
             <span id="env-badge" class="text-xs px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-medium">PAPER</span>
         </div>
+        <!-- Market Status -->
+        <div class="flex items-center gap-4 text-sm">
+            <span id="market-status-us" class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-gray-500"></span>
+                <span class="text-gray-400">美股: --</span>
+            </span>
+            <span id="market-status-hk" class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-gray-500"></span>
+                <span class="text-gray-400">港股: --</span>
+            </span>
+        </div>
         <div class="flex items-center gap-4 text-sm">
             <span id="refresh-status" class="flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></span>
@@ -731,10 +742,51 @@
             } catch (e) { showWlToast('删除失败', 'error'); }
         }
 
+        // --- Market Status ---
+        function renderMarketStatus(data) {
+            // US Market
+            const usEl = document.getElementById('market-status-us');
+            const us = data.US;
+            let usColor = 'bg-gray-500';
+            let usText = '美股: --';
+            if (us) {
+                if (us.open) {
+                    usColor = 'bg-green-500';
+                    usText = '美股: 开盘中';
+                } else if (us.pre_market) {
+                    usColor = 'bg-yellow-500';
+                    usText = '美股: 盘前';
+                } else if (us.post_market) {
+                    usColor = 'bg-orange-500';
+                    usText = '美股: 盘后';
+                } else {
+                    usColor = 'bg-gray-500';
+                    usText = '美股: 已收盘';
+                }
+            }
+            usEl.innerHTML = `<span class="w-2 h-2 rounded-full ${usColor}"></span><span class="text-gray-400">${usText}</span>`;
+
+            // HK Market
+            const hkEl = document.getElementById('market-status-hk');
+            const hk = data.HK;
+            let hkColor = 'bg-gray-500';
+            let hkText = '港股: --';
+            if (hk) {
+                if (hk.open) {
+                    hkColor = 'bg-green-500';
+                    hkText = '港股: 开盘中';
+                } else {
+                    hkColor = 'bg-gray-500';
+                    hkText = '港股: 已收盘';
+                }
+            }
+            hkEl.innerHTML = `<span class="w-2 h-2 rounded-full ${hkColor}"></span><span class="text-gray-400">${hkText}</span>`;
+        }
+
         // --- Fetch & Render ---
         async function fetchAll() {
             try {
-                const [account, positions, quotes, orders, pnl, agents, system] = await Promise.all([
+                const [account, positions, quotes, orders, pnl, agents, system, marketStatus] = await Promise.all([
                     fetch(API_BASE + '/api/account').then(r => r.json()),
                     fetch(API_BASE + '/api/positions').then(r => r.json()),
                     fetch(API_BASE + '/api/quotes').then(r => r.json()),
@@ -742,6 +794,7 @@
                     fetch(API_BASE + '/api/pnl').then(r => r.json()),
                     fetch(API_BASE + '/api/agents').then(r => r.json()),
                     fetch(API_BASE + '/api/system').then(r => r.json()),
+                    fetch(API_BASE + '/api/market-status').then(r => r.json()),
                 ]);
 
                 renderAccount(account);
@@ -751,6 +804,7 @@
                 renderPnl(pnl);
                 renderAgents(agents);
                 renderSystem(system);
+                renderMarketStatus(marketStatus);
                 fetchWatchlist();
             } catch (e) {
                 console.error('Fetch error:', e);

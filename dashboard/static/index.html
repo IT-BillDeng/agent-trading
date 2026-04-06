@@ -45,7 +45,7 @@
         <div class="flex items-center gap-3">
             <span class="text-2xl">🐯</span>
             <h1 class="text-lg font-semibold">Tiger Trading Dashboard</h1>
-            <span id="env-badge" class="text-xs px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-medium">PAPER</span>
+            <span id="env-badge" class="text-xs px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-medium">📄 Paper</span>
         </div>
         <!-- Market Status -->
         <div class="flex items-center gap-4 text-sm">
@@ -59,8 +59,14 @@
             </span>
         </div>
         <div class="flex items-center gap-4 text-sm">
-            <span id="trading-mode-badge" class="text-xs px-2 py-0.5 rounded bg-gray-600/30 text-gray-400 font-medium">--</span>
-            <span id="scheduler-status" class="text-xs text-gray-500">调度器: --</span>
+            <div class="relative">
+                <button id="trading-mode-badge" onclick="document.getElementById('mode-dropdown').classList.toggle('hidden')" class="text-xs px-2 py-0.5 rounded bg-gray-600/30 text-gray-400 font-medium cursor-pointer hover:opacity-80">-- ▾</button>
+                <div id="mode-dropdown" class="hidden absolute right-0 top-full mt-1 bg-gray-800 border border-gray-600 rounded shadow-lg z-50 min-w-[100px]">
+                    <button onclick="setTradingMode('off'); document.getElementById('mode-dropdown').classList.add('hidden')" class="block w-full text-left px-3 py-1.5 text-xs hover:bg-gray-700 text-gray-300">⏹ 停止</button>
+                    <button onclick="setTradingMode('signals'); document.getElementById('mode-dropdown').classList.add('hidden')" class="block w-full text-left px-3 py-1.5 text-xs hover:bg-gray-700 text-blue-400">📡 信号</button>
+                    <button onclick="setTradingMode('trade'); document.getElementById('mode-dropdown').classList.add('hidden')" class="block w-full text-left px-3 py-1.5 text-xs hover:bg-gray-700 text-green-400">⚡ 交易</button>
+                </div>
+            </div>
             <span id="refresh-status" class="flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></span>
                 <span class="text-gray-400">更新中</span>
@@ -285,13 +291,11 @@
                 </div>
                 <!-- Mode Switch -->
                 <div>
-                    <div class="text-xs text-gray-500 mb-2">交易模式</div>
-                    <div class="flex items-center gap-3">
-                        <button id="btn-paper" onclick="setMode('paper')" class="px-3 py-1.5 rounded text-sm font-medium border transition bg-green-600/20 text-green-400 border-green-600/30">📄 Paper</button>
-                        <button id="btn-live" onclick="setMode('live')" class="px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400 hover:border-red-400 hover:text-red-400">🔴 Live</button>
+                    <div class="text-xs text-gray-500 mb-2">账户类型</div>
+                    <div class="flex items-center gap-2">
+                        <span id="account-type-badge" class="text-sm text-gray-300">--</span>
                     </div>
-                    <div id="mode-msg" class="text-xs mt-1 hidden"></div>
-                    <div class="text-xs text-gray-500 mt-2">上传新配置文件自动检测模式</div>
+                    <div class="text-xs text-gray-500 mt-2">由 Tiger 配置文件决定</div>
                 </div>
             </div>
             <!-- Upload -->
@@ -309,15 +313,6 @@
         <section class="mt-6 card">
             <div class="card-title">🎛️ 控制面板</div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <div class="text-xs text-gray-500 mb-2">交易模式</div>
-                    <div class="flex gap-2 flex-wrap">
-                        <button id="mode-off" onclick="setTradingMode('off')" class="mode-btn px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400">⏹ 停止</button>
-                        <button id="mode-signals" onclick="setTradingMode('signals')" class="mode-btn px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400">📡 信号</button>
-                        <button id="mode-trade" onclick="setTradingMode('trade')" class="mode-btn px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400">⚡ 交易</button>
-                    </div>
-                    <div id="mode-msg" class="text-xs mt-1 hidden"></div>
-                </div>
                 <div>
                     <div class="text-xs text-gray-500 mb-2">系统锁定</div>
                     <div class="flex gap-2">
@@ -995,17 +990,9 @@
                     trade: { label: '⚡ 交易', cls: 'bg-green-600/20 text-green-400' },
                 };
                 const m = modeMap[mode.mode] || modeMap.off;
-                badge.textContent = m.label;
+                badge.textContent = m.label + ' ▾';
                 badge.className = 'text-xs px-2 py-0.5 rounded font-medium ' + m.cls;
-                // Scheduler status
-                const schedEl = document.getElementById('scheduler-status');
-                if (sched.running) {
-                    schedEl.textContent = '调度器: ' + (sched.cycle_count || 0) + '次';
-                    schedEl.className = 'text-xs text-green-400';
-                } else {
-                    schedEl.textContent = '调度器: 已停止';
-                    schedEl.className = 'text-xs text-red-400';
-                }
+
                 // Update mode buttons
                 if (typeof updateModeButtons === 'function') updateModeButtons(mode.mode);
             } catch (e) { /* ignore */ }
@@ -1223,7 +1210,8 @@
                 document.getElementById('tc-account').textContent = f.account || info.account || '--';
                 document.getElementById('tc-tiger-id').textContent = f.tiger_id || '--';
                 document.getElementById('tc-license').textContent = f.license || '--';
-                document.getElementById('tc-account-type').textContent = (info.account_type || '--') + (info.account_type ? ' → ' + mode.toUpperCase() : '');
+                document.getElementById('tc-account-type').textContent = info.account_type || '--';
+                document.getElementById('account-type-badge').textContent = (info.account_type || '').includes('paper') ? '📄 Paper 模拟盘' : (info.account_type || '').includes('live') ? '🔴 Live 实盘' : '--';
                 updateModeButtons(mode);
             } catch (e) {
                 console.error('tiger-config fetch error:', e);
@@ -1304,6 +1292,14 @@
         fetchQuoteProviders();
         fetchNewSections();
         fetchHeaderStatus();
+        // Close mode dropdown on outside click
+        document.addEventListener('click', function(e) {
+            const dd = document.getElementById('mode-dropdown');
+            const btn = document.getElementById('trading-mode-badge');
+            if (dd && btn && !btn.contains(e.target) && !dd.contains(e.target)) {
+                dd.classList.add('hidden');
+            }
+        });
         setInterval(fetchAll, REFRESH_MS);
         setInterval(fetchEngine, 30000);
         setInterval(fetchNewSections, 30000);

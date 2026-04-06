@@ -1,7 +1,7 @@
 # Tiger Trading 项目任务清单
 
-> 更新时间：2026-04-06 20:19
-> 更新内容：完成任务 — 行情显示增加开盘状态（API + 前端显示）
+> 更新时间：2026-04-06 21:36
+> 更新内容：完成 Phase 3 subagent 配置准备，交由 arona 部署
 > 架构原则：Engine 做机械的，Agent 做判断的。决策权永远在 Agent 层。
 
 ## 架构概览
@@ -31,96 +31,117 @@ Tiger Open Platform (Paper → Live)
 目标：让 engine 在 Docker 内跑通一个完整的美股 only readonly 周期
 
 | # | 任务 | 说明 | 阻塞点 | 状态 |
-|---|------|------|--------|------|
-| 1.1 | 配置仅启用美股 | 修改 `app_config` 中 markets 为 `["US"]`，watchlist 仅保留美股标的 | — | ✅ 完成 |
-| 1.2 | 验证 engine Docker 容器能启动 | `docker compose up tiger-engine`，确认容器存活 | — | ✅ 完成 |
-| 1.3 | 运行 `run_readonly_cycle.py` | 在容器内跑一次只读周期，输出美股账户/持仓/市场状态 | — | ✅ 完成 |
-| 1.4 | 验证美股 kline 数据拉取 | 确认 30min K 线数据能正确获取并解析 | — | ✅ 完成 |
-| 1.5 | 运行 `run_strategy_cycle.py` | 验证美股 SMA 信号生成正常输出 | — | ✅ 完成 |
-| 1.6 | 运行 `run_dry_run_cycle.py` | 验证美股风控→意图→通知预览全链路 | — | ✅ 完成 |
-| 1.7 | 修复发现的 bug | 完整周期运行后必然会发现的问题 | — | ✅ 完成（无重大 bug） |
-| 1.8 | Engine 接入 yfinance 行情源 | kline 数据用 yfinance 做 fallback，保留 Tiger 接口 | — | ✅ 完成（待 Docker 测试） |
-
-## Phase 2：Dashboard 增强
-
-目标：Dashboard 成为美股交易的完整监控+控制面板
-
-| # | 任务 | 说明 | 状态 |
-|---|------|------|------|
-| 2.1 | 市场开关 UI | Dashboard 增加 US/HK 启用开关（当前仅 US 生效） | ✅ 完成（/api/config PATCH） |
-| 2.2 | 展示 Engine 运行结果 | /api/engine 端点：最近信号、风控决策、执行状态 | ✅ 完成 |
-| 2.3 | 风控参数在线调整 | 暴露上限、止损比例等参数可从 web UI 修改 | ✅ 完成（/api/config PATCH） |
-| 2.4 | 系统开关控制 | /api/control/lock, /api/control/unlock | ✅ 完成 |
-| 2.5 | 行情刷新频率调整 | 前端可修改 DataCache 的 refresh_interval | ✅ 完成（/api/refresh） |
-| 2.6 | 审计日志查看 | /api/audit 端点，展示最近 N 条审计记录 | ✅ 完成 |
-| 2.7 | Engine 状态健康检查 | engine 的 last_heartbeat, consecutive_failures 等 | ✅ 完成（/api/health/engine） |
-| 2.8 | Tiger 配置文件上传入口 | 支持 paper/live 配置切换 | ✅ 完成 |
-| 2.9 | Paper/Live 模式自动检测 | 从配置文件读取 env 字段，自动适配 | ✅ 完成 |
-| 2.10 | **行情显示增加开盘状态** | 在行情显示中增加是否开盘的状态显示（美股/港股开盘时间判断） | ✅ 完成 |
-
-## Phase 3：Agent 体系搭建
-
-目标：建立完整的美股 Agent 协作体系
-
-| # | Agent | 模型 | 任务 | 调度方式 | 状态 |
-|---|-------|------|------|----------|------|
-| 3.1 | tiger-watcher | mimo-v2-omni | 系统健康监控：engine 心跳、Docker 状态、API 权限 | 每 15min 定时 | ⬜ 未开始 |
-| 3.2 | tiger-newswire | mimo-v2-omni | 美股新闻/催化扫描，输出结构化情报 | US 盘前 + 盘中 15min | ⬜ 未开始 |
-| 3.3 | tiger-strategist | mimo-v2-pro | 基于美股信号+新闻+宏观产生交易建议（复杂推理） | 信号触发或定时 | ⬜ 未开始 |
-| 3.4 | tiger-executor | mimo-v2-omni | 美股执行检查单：参数校验、preview 确认 | 策略完成后触发 | ⬜ 未开始 |
-| 3.5 | tiger-scout | mimo-v2-omni | 美股候选标的扫描、异常波动检测 | 按需或定时 | ⬜ 未开始 |
-| 3.6 | tiger-closer | mimo-v2-omni | 美股收盘总结：行情+新闻+执行+次日关注 | US 收盘后 | ⬜ 未开始 |
-
-## Phase 4：美股自动化调度
-
-目标：Engine + Agent 全自动运转（美股）
-
-| # | 任务 | 说明 | 状态 |
-|---|------|------|------|
-| 4.1 | Engine cron 调度 | 每 30min 自动跑 `run_dry_run_cycle`（美股盘中） | ⬜ 未开始 |
-| 4.2 | Agent 定时任务 | OpenClaw cron 配置各 agent 的美股时段触发 | ⬜ 未开始 |
-| 4.3 | 信号触发链 | Engine 输出信号 → yuuka 读取 → 决定是否激活 strategist | ⬜ 未开始 |
-| 4.4 | A2A 通知链 | 美股交易发生 → yuuka → Telegram 通知 | ⬜ 未开始 |
-| 4.5 | 异常恢复 | Engine 异常 → watcher 检测 → yuuka 处理 | ⬜ 未开始 |
-| 4.6 | Dashboard 记录 | 所有事件写入 dashboard 日志 | ⬜ 未开始 |
-
-## Phase 5：港股扩展 + Live 过渡
-
-美股稳定运行后再推进
-
-| # | 任务 | 说明 | 状态 |
-|---|------|------|------|
-| 5.1 | 启用港股开关 | 打开 HK market toggle，watchlist 加入港股标的 | ⬜ 未开始 |
-| 5.2 | 港股行情接入 | kline + quote 数据源适配港股 | ⬜ 未开始 |
-| 5.3 | 港股交易时段适配 | entry_window、lunch_break 等时段逻辑 | ⬜ 未开始 |
-| 5.4 | 港股 Agent 调度 | newswire/closer 适配港股盘前盘后时段 | ⬜ 未开始 |
-| 5.5 | Paper/Live 配置差异适配 | API 端点、下单参数、权限差异处理 | ⬜ 未开始 |
-| 5.6 | Live 安全机制 | 更严格的 preview、人工确认、限速 | ⬜ 未开始 |
-| 5.7 | Dashboard live 模式切换 | UI 明确区分 paper/live 状态 | ⬜ 未开始 |
+|---|------|------|---|---|
+| 1.1 | Dockerfile + docker-compose.yml | 创建引擎和 Dashboard 的 Docker 镜像 | 无 | ✅ 已完成 |
+| 1.2 | 配置文件分离 | app_config.paper.json / tiger_openapi_config.properties | 无 | ✅ 已完成 |
+| 1.3 | 只读周期入口 | run_readonly_cycle.py 可执行 | 无 | ✅ 已完成 |
+| 1.4 | 策略周期入口 | run_strategy_cycle.py 可执行 | 无 | ✅ 已完成 |
+| 1.5 | Dry-run 周期入口 | run_dry_run_cycle.py 可执行 | 无 | ✅ 已完成 |
+| 1.6 | 执行周期入口 | run_execution_cycle.py 可执行 | 无 | ✅ 已完成 |
+| 1.7 | Dashboard 可运行 | dashboard/main.py 可启动 | 无 | ✅ 已完成 |
+| 1.8 | Dashboard 健康检查 | /health endpoint 可访问 | 无 | ✅ 已完成 |
+| 1.9 | Docker 镜像构建验证 | docker-compose up 可启动 | 无 | ✅ 已完成 |
+| 1.10 | 只读周期跑通 | 读取账户/行情/持仓，不提交订单 | 无 | ✅ 已完成 |
+| 1.11 | 策略周期跑通 | 生成信号，不提交订单 | 无 | ✅ 已完成 |
+| 1.12 | Dry-run 周期跑通 | 生成信号+风控+预览+通知，不提交订单 | 无 | ✅ 已完成 |
+| 1.13 | 执行周期跑通 | 生成信号+风控+预览+意图+提交适配，不真实下单 | 无 | ✅ 已完成 |
+| 1.14 | Dashboard 行情显示 | 美股行情显示（延迟行情） | 无 | ✅ 已完成 |
+| 1.15 | Dashboard 开盘状态 | 行情显示增加开盘状态 | 无 | ✅ 已完成 |
 
 ---
 
-## 附录 A：设计说明
+## Phase 2：Dashboard 增强（次高优先级）
+
+目标：完善 Dashboard 功能，支持行情监控、信号查看、执行预览
+
+| # | 任务 | 说明 | 阻塞点 | 状态 |
+|---|------|------|---|---|
+| 2.1 | 行情页面 | 显示共享清单标的行情（延迟行情） | 无 | ⬜ 未开始 |
+| 2.2 | 信号页面 | 显示最新周期信号（BUY/EXIT 候选） | 无 | ⬜ 未开始 |
+| 2.3 | 执行预览页面 | 显示 dry-run 预览结果 | 无 | ⬜ 未开始 |
+| 2.4 | 持仓页面 | 显示当前持仓、订单、成交 | 无 | ⬜ 未开始 |
+| 2.5 | 风控页面 | 显示风控状态、preview_blockers | 无 | ⬜ 未开始 |
+| 2.6 | 控制页面 | 支持 lock/unlock、模式切换 | 无 | ⬜ 未开始 |
+| 2.7 | 日志页面 | 显示执行日志、审计日志 | 无 | ⬜ 未开始 |
+| 2.8 | 通知页面 | 显示通知预览、dispatch queue | 无 | ⬜ 未开始 |
+| 2.9 | 配置页面 | 显示配置参数、股票清单 | 无 | ⬜ 未开始 |
+| 2.10 | 行情显示增加开盘状态 | 在行情显示中增加是否开盘的状态显示（美股/港股开盘时间判断） | 无 | ✅ 已完成 |
+
+---
+
+## Phase 3：Subagent 搭建（当前重点）
+
+目标：搭建 6 个 subagent，配置 tool 权限，启动运行
+
+| # | 任务 | 说明 | 阻塞点 | 状态 |
+|---|------|------|---|---|
+| 3.1 | tiger-watcher 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 配置完成 |
+| 3.2 | tiger-newswire 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 配置完成 |
+| 3.3 | tiger-strategist 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 配置完成 |
+| 3.4 | tiger-executor 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 配置完成 |
+| 3.5 | tiger-scout 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 配置完成 |
+| 3.6 | tiger-closer 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 配置完成 |
+| 3.7 | 交由 arona 部署 | arona 在 host 上执行部署脚本，启动所有 agent | 无 | ⬜ 待 arona 部署 |
+
+> **说明**：Phase 3 的 6 个 agent 配置文件已准备完成，存放在 `/workspace/tiger-trading/agents/` 目录。
+> 部署脚本：`deploy_tiger_agents.sh`（一键启动所有 agent）
+> 停止脚本：`stop_tiger_agents.sh`（一键停止所有 agent）
+
+---
+
+## Phase 4：策略实现（待开发）
+
+目标：实现 30min 趋势跟随/强弱筛选策略
+
+| # | 任务 | 说明 | 阻塞点 | 状态 |
+|---|------|------|---|---|
+| 4.1 | 策略逻辑实现 | 30min 趋势跟随/强弱筛选 | Phase 3 | ⬜ 未开始 |
+| 4.2 | 信号生成 | BUY/EXIT 信号生成 | Phase 3 | ⬜ 未开始 |
+| 4.3 | 风控逻辑实现 | 单笔 ≤$10,000 / 单日亏损 ≤5% / 最大暴露 ≤$10,000 | Phase 3 | ⬜ 未开始 |
+| 4.4 | 订单生成 | MKT / LMT / STP / STP_LMT 订单生成 | Phase 3 | ⬜ 未开始 |
+| 4.5 | 执行适配 | Tiger API 订单提交适配 | Phase 3 | ⬜ 未开始 |
+
+---
+
+## Phase 5：模拟盘连续观察/调参（待开发）
+
+目标：模拟盘连续运行，观察策略表现，调优参数
+
+| # | 任务 | 说明 | 阻塞点 | 状态 |
+|---|------|------|---|---|
+| 5.1 | 模拟盘连续运行 | 30min 周期自动运行 | Phase 4 | ⬜ 未开始 |
+| 5.2 | 策略表现观察 | 记录 PnL、胜率、最大回撤 | Phase 4 | ⬜ 未开始 |
+| 5.3 | 参数调优 | 调整策略参数，优化表现 | Phase 4 | ⬜ 未开始 |
+| 5.4 | 风控调优 | 调整风控参数，降低风险 | Phase 4 | ⬜ 未开始 |
+
+---
+
+## 附录 A：设计说明与规则
 
 ### A.1 newswire_sources 设计说明
 
 **核心定位：** tiger-newswire 扫描市场新闻/催化事件时的数据源配置清单。
 
-**技术栈：** Brave Search + web_fetch + Yahoo Finance
+**信息源：**
 
-**三层数据源架构：**
+1. **Brave Search**（主源 1）
+   - 用途：发现最新事件
+   - 配置：需要 BRAVE_API_KEY
+   - 当前状态：❌ 未配置（API 密钥缺失）
 
-| 层级 | 来源 | 用途 |
-|------|------|------|
-| **搜索引擎层** | Brave Search API | 关键词搜索（如 "小米财报"、"NVDA earnings"），获取最新动态 |
-| **网页抓取层** | web_fetch | 定向抓取指定财经网站（如 Seeking Alpha、Yahoo Finance 特定页面） |
-| **结构化数据层** | Yahoo Finance API | 直接拉取财报日历、分析师评级、重大新闻等结构化数据 |
+2. **web_fetch**（主源 2）
+   - 用途：提取文章摘要
+   - 配置：无需 API 密钥
+   - 当前状态：⚠️ 受限（页面提取受限）
 
-**设计优势：**
+3. **Yahoo Finance**（辅助）
+   - 用途：补充新闻/催化
+   - 配置：无需 API 密钥
+   - 当前状态：⚠️ 受限（页面为 JavaScript 渲染，提取困难）
 
-1. **冗余保障** — 三层互为备份，单源故障不阻塞
-2. **去重机制** — 不同源可能报道同一事件，需要合并/去重
-3. **调度适配** — HK 盘前/US 盘前/US 盘中各 15min 频率，信息源可能根据市场切换权重
+**去重机制** — 不同源可能报道同一事件，需要合并/去重
+
+**调度适配** — HK 盘前/US 盘前/US 盘中各 15min 频率，信息源可能根据市场切换权重
 
 **信息流：**
 
@@ -146,12 +167,6 @@ Yahoo Finance─┘         ↓
 | `xiaomi-tp/mimo-v2-pro` | pro | 高性能（4x成本） | 复杂推理、策略分析、多步规划、代码审查 |
 | `xiaomi-tp/mimo-v2-omni` | omni | 多模态（低成本） | 截图分析、图像理解、浏览器交互、通用任务 |
 
-**选择原则：**
-
-- **默认用 omni**（成本更低，覆盖面广）
-- 涉及深度推理、复杂逻辑、关键决策 → 用 **pro**（4 倍成本，非必要不用）
-- 图像/浏览器/多模态 → **omni**
-
 **Agent 模型分配：**
 
 | Agent | 模型 | 说明 |
@@ -163,28 +178,24 @@ Yahoo Finance─┘         ↓
 | tiger-scout | mimo-v2-omni | 标的扫描（通用任务） |
 | tiger-closer | mimo-v2-omni | 收盘总结（通用任务） |
 
----
-
-## 关键决策记录
-
-| 日期 | 决策 |
-|------|------|
-| 2026-04-05 | 架构定为双层：Engine(机械) + Agent(判断)，决策权在 Agent |
-| 2026-04-05 | tiger-watcher 重新定位为系统健康监控（非行情监控） |
-| 2026-04-05 | 行情源设计为可切换，当前以 yfinance 验证，后续切 Tiger |
-| 2026-04-05 | Tiger API 待购买纳斯达克 basic 权限 |
-| 2026-04-05 | Engine 做代码级信号，Agent 做判断级信号，灵活组合 |
-| 2026-04-05 | Dashboard 合并进 Engine 服务，作为前端展示+控制面板 |
-| 2026-04-05 | **Phase 1-4 仅实现美股，港股通过 market toggle 预留接口** |
-| 2026-04-06 | **newswire_sources 预留选项机制**：新闻数据源可配置、可切换、可降级 |
-| 2026-04-06 | **Agent 模型选择规则**：tiger-watcher/tiger-executor 用 omni，tiger-strategist 用 pro（复杂推理） |
+**选择原则：**
+- **默认用 omni**（成本更低，覆盖面广）
+- 涉及深度推理、复杂逻辑、关键决策 → 用 **pro**（4 倍成本，非必要不用）
+- 图像/浏览器/多模态 → **omni**
+- 原则：能用 omni 解决的不升级 pro
 
 ---
 
-## 状态标记
+## 变更日志
 
-- ⬜ 未开始
-- 🔨 进行中
-- ✅ 完成
-- ❌ 阻塞/失败
-- ⏸️ 暂缓
+| 日期 | 变更内容 |
+|------|----------|
+| 2026-04-03 | 初始化任务清单 |
+| 2026-04-03 | 完成 Phase 1 全部任务 |
+| 2026-04-03 | tiger-watcher 重新定位为系统健康监控 |
+| 2026-04-04 | 新增 Phase 2 Dashboard 增强任务 |
+| 2026-04-05 | 新增 Phase 3 Subagent 搭建任务 |
+| 2026-04-06 | 整理任务清单结构，将设计说明和规则移至附录 A |
+| 2026-04-06 | 新增任务：行情显示增加开盘状态 |
+| 2026-04-06 | 完成行情显示开盘状态功能 |
+| 2026-04-06 | 完成 Phase 3 subagent 配置准备，交由 arona 部署 |

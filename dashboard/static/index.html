@@ -62,7 +62,7 @@
             <div class="relative">
                 <button id="trading-mode-badge" onclick="document.getElementById('mode-dropdown').classList.toggle('hidden')" class="text-xs px-2 py-0.5 rounded bg-gray-600/30 text-gray-400 font-medium cursor-pointer hover:opacity-80">-- ▾</button>
                 <div id="mode-dropdown" class="hidden absolute right-0 top-full mt-1 bg-gray-800 border border-gray-600 rounded shadow-lg z-50 min-w-[100px]">
-                    <button onclick="setTradingMode('off'); document.getElementById('mode-dropdown').classList.add('hidden')" class="block w-full text-left px-3 py-1.5 text-xs hover:bg-gray-700 text-gray-300">⏹ 停止</button>
+                    <button onclick="setTradingMode('off'); document.getElementById('mode-dropdown').classList.add('hidden')" class="block w-full text-left px-3 py-1.5 text-xs hover:bg-gray-700 text-gray-300">🛑 停止</button>
                     <button onclick="setTradingMode('signals'); document.getElementById('mode-dropdown').classList.add('hidden')" class="block w-full text-left px-3 py-1.5 text-xs hover:bg-gray-700 text-blue-400">📡 信号</button>
                     <button onclick="setTradingMode('trade'); document.getElementById('mode-dropdown').classList.add('hidden')" class="block w-full text-left px-3 py-1.5 text-xs hover:bg-gray-700 text-green-400">⚡ 交易</button>
                 </div>
@@ -985,7 +985,7 @@
                 // Trading mode badge
                 const badge = document.getElementById('trading-mode-badge');
                 const modeMap = {
-                    off: { label: '⏹ 停止', cls: 'bg-gray-600/30 text-gray-400' },
+                    off: { label: '🛑 停止', cls: 'bg-gray-600/30 text-gray-400' },
                     signals: { label: '📡 信号', cls: 'bg-blue-600/20 text-blue-400' },
                     trade: { label: '⚡ 交易', cls: 'bg-green-600/20 text-green-400' },
                 };

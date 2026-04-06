@@ -1,0 +1,30 @@
+# Tiger Strategist Agent Configuration
+# 职责：交易计划草案（基于信号+新闻+宏观产生交易建议）
+# 频率：信号触发或定时
+
+agent_id: tiger-strategist
+model: xiaomi-tp/mimo-v2-pro
+description: "交易计划草案：基于信号+新闻+宏观产生交易建议"
+frequency: "信号触发或定时"
+
+# Tool 权限配置
+tools:
+  - read
+  - write
+  - sessions_send
+
+# 输入文件
+input_files:
+  - /workspace/tiger-trading/data/watchlist.json
+  - /workspace/tiger-trading/specs/tiger-trading-spec-v1-30min.md
+  - /workspace/tiger-trading/system/tiger_engine/app_config.paper.json
+  - /workspace/tiger-trading/runtime/tiger_engine/.last_execution_cycle.json
+  - /workspace/tiger-trading/runtime/tiger_engine/market_context.json
+
+# 输出文件
+output_files:
+  - /workspace/tiger-trading/runtime/tiger_engine/strategy_plan_latest.json
+  - /workspace/tiger-trading/runtime/tiger_engine/strategy_plan_history.jsonl
+
+# 汇报目标
+report_to: agent:yuuka:main

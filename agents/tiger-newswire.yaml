@@ -1,0 +1,37 @@
+# Tiger Newswire Agent Configuration
+# 职责：新闻/催化扫描（美股新闻、事件时间线整理）
+# 频率：US 盘前 + US 盘中 15min
+
+agent_id: tiger-newswire
+model: xiaomi-tp/mimo-v2-omni
+description: "新闻/催化扫描：美股新闻、事件时间线整理"
+frequency: "US 盘前 + US 盘中 15min"
+
+# Tool 权限配置
+tools:
+  - read
+  - write
+  - browser
+  - web_search
+  - web_fetch
+  - sessions_send
+
+# 输入文件
+input_files:
+  - /workspace/tiger-trading/data/watchlist.json
+  - /workspace/tiger-trading/config/newswire_sources.json
+
+# 输出文件
+output_files:
+  - /workspace/tiger-trading/runtime/tiger_engine/newswire/latest.json
+  - /workspace/tiger-trading/runtime/tiger_engine/newswire/history.jsonl
+  - /workspace/tiger-trading/runtime/tiger_engine/market_context.json
+
+# 信息源配置
+news_sources:
+  - brave_search
+  - web_fetch
+  - yahoo_finance
+
+# 汇报目标
+report_to: agent:yuuka:main

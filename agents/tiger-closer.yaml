@@ -1,0 +1,31 @@
+# Tiger Closer Agent Configuration
+# 职责：收盘总结/复盘/明日关注（每个市场收盘后输出总结）
+# 频率：每市场收盘后
+
+agent_id: tiger-closer
+model: xiaomi-tp/mimo-v2-omni
+description: "收盘总结/复盘/明日关注：每个市场收盘后输出总结"
+frequency: "每市场收盘后"
+
+# Tool 权限配置
+tools:
+  - read
+  - write
+  - sessions_send
+
+# 输入文件
+input_files:
+  - /workspace/tiger-trading/data/watchlist.json
+  - /workspace/tiger-trading/runtime/tiger_engine/.last_execution_cycle.json
+  - /workspace/tiger-trading/runtime/tiger_engine/logs/execution.jsonl
+  - /workspace/tiger-trading/runtime/tiger_engine/logs/dispatch_queue.jsonl
+  - /workspace/tiger-trading/runtime/tiger_engine/state/control_state.json
+
+# 输出文件
+output_files:
+  - /workspace/tiger-trading/runtime/outbox/tiger_closer_outbox.json
+  - /workspace/tiger-trading/runtime/tiger_engine/closer_summary_latest.json
+  - /workspace/tiger-trading/runtime/tiger_engine/closer_summary_history.jsonl
+
+# 汇报目标
+report_to: agent:yuuka:main

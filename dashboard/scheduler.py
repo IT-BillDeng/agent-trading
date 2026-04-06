@@ -158,7 +158,9 @@ class SignalScheduler:
             summary = build_strategy_summary(raw, app)
         elif mode == "trade":
             # Full pipeline: signals + risk + order build + submit
-            app.raw.setdefault("execution", {})["live_submit"] = True
+            app.raw.setdefault("execution", {})
+            app.raw["execution"]["live_submit"] = True
+            app.raw["execution"]["submit_mode"] = "live"
             summary = build_execution_summary(raw, app)
             self._submit_orders(summary, app)
         else:

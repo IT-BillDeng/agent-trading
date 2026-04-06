@@ -498,6 +498,213 @@ async def api_audit(limit: int = 50):
     return {"entries": result[:limit], "count": len(result)}
 
 
+# --- Rules API ---
+
+RULES_FILE = CONFIG_DIR_PATH / "rules.json"
+
+
+@app.get("/api/rules")
+async def api_rules_get():
+    """Get current rules configuration."""
+    if not RULES_FILE.exists():
+        return {"rules": [], "global_settings": {}}
+    import json
+    try:
+        return json.loads(RULES_FILE.read_text())
+    except Exception as e:
+        return JSONResponse({"error": f"Failed to load rules: {e}"}, status_code=500)
+
+
+class RuleItem(BaseModel):
+    rule_id: str
+    name: str
+    description: str | None = None
+    enabled: bool = True
+    priority: int = 1
+    timeframe: str = "30min"
+    symbols: list[str] = ["*"]
+    markets: list[str] = ["US", "HK"]
+    entry: dict[str, Any] | None = None
+    exit: dict[str, Any] | None = None
+
+
+@app.put("/api/rules")
+async def api_rules_update(rules_data: dict):
+    """Update rules configuration."""
+    import json
+    import shutil
+    from datetime import datetime
+    
+    # Validate structure
+    if "rules" not in rules_data:
+        return JSONResponse({"error": "Missing 'rules' field"}, status_code=400)
+    
+    # Backup existing rules
+    if RULES_FILE.exists():
+        backup_dir = CONFIG_DIR_PATH / "rules_backup"
+        backup_dir.mkdir(exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_file = backup_dir / f"rules_{timestamp}.json"
+        shutil.copy2(RULES_FILE, backup_file)
+    
+    # Add metadata
+    rules_data["updated_at"] = datetime.now().isoformat()
+    if "version" not in rules_data:
+        rules_data["version"] = "1.0"
+    
+    # Write new rules
+    RULES_FILE.write_text(json.dumps(rules_data, indent=2, ensure_ascii=False))
+    
+    return {"status": "ok", "message": "Rules updated", "backup_created": RULES_FILE.exists()}
+
+
+@app.post("/api/rules/validate")
+async def api_rules_validate(rules_data: dict):
+    """Validate rules configuration format."""
+    errors = []
+    
+    if "rules" not in rules_data:
+        errors.append("Missing 'rules' field")
+        return {"valid": False, "errors": errors}
+    
+    for i, rule in enumerate(rules_data["rules"]):
+        if "rule_id" not in rule:
+            errors.append(f"Rule {i}: missing 'rule_id'")
+        if "name" not in rule:
+            errors.append(f"Rule {i}: missing 'name'")
+        
+        # Validate entry conditions
+        entry = rule.get("entry", {})
+        if entry:
+            conditions = entry.get("conditions", {})
+            if not conditions:
+                errors.append(f"Rule {rule.get('rule_id', i)}: entry missing conditions")
+        
+        # Validate exit conditions
+        exit_config = rule.get("exit", {})
+        if exit_config:
+            conditions = exit_config.get("conditions", {})
+            if not conditions:
+                errors.append(f"Rule {rule.get('rule_id', i)}: exit missing conditions")
+    
+    return {"valid": len(errors) == 0, "errors": errors}
+
+
+@app.post("/api/rules/test")
+async def api_rules_test(body: dict):
+    """Test a rule against historical data."""
+    # Import backtest module
+    import sys
+    backtest_src = str(Path(__file__).parent.parent / "system" / "tiger_engine" / "src")
+    if backtest_src not in sys.path:
+        sys.path.insert(0, backtest_src)
+    
+    from tiger_engine.backtest import BacktestConfig, run_backtest
+    
+    rule_id = body.get("rule_id")
+    symbol = body.get("symbol", "AAPL")
+    start_date = body.get("start_date", "2026-01-01")
+    end_date = body.get("end_date", "2026-04-01")
+    
+    # Create backtest config
+    config = BacktestConfig(
+        symbols=[symbol],
+        start_date=start_date,
+        end_date=end_date,
+        timeframe="30min",
+        initial_capital=100000.0
+    )
+    
+    # Run backtest
+    rules_file = CONFIG_DIR_PATH / "rules.json"
+    result = run_backtest(config, rules_file)
+    
+    return {
+        "status": "ok",
+        "result": result.to_dict()
+    }
+
+
+@app.post("/api/backtest")
+async def api_backtest(body: dict):
+    """Run a full backtest."""
+    import sys
+    backtest_src = str(Path(__file__).parent.parent / "system" / "tiger_engine" / "src")
+    if backtest_src not in sys.path:
+        sys.path.insert(0, backtest_src)
+    
+    from tiger_engine.backtest import BacktestConfig, run_backtest
+    
+    symbols = body.get("symbols", ["AAPL"])
+    start_date = body.get("start_date", "2026-01-01")
+    end_date = body.get("end_date", "2026-04-01")
+    timeframe = body.get("timeframe", "30min")
+    initial_capital = body.get("initial_capital", 100000.0)
+    
+    config = BacktestConfig(
+        symbols=symbols,
+        start_date=start_date,
+        end_date=end_date,
+        timeframe=timeframe,
+        initial_capital=initial_capital
+    )
+    
+    rules_file = CONFIG_DIR_PATH / "rules.json"
+    result = run_backtest(config, rules_file)
+    
+    return {
+        "status": "ok",
+        "result": result.to_dict()
+    }
+
+
+@app.get("/api/backtest/results")
+async def api_backtest_results():
+    """Get recent backtest results."""
+    import json
+    results_dir = RUNTIME_DIR / "backtest_results"
+    if not results_dir.exists():
+        return {"results": []}
+    
+    results = []
+    for result_file in sorted(results_dir.glob("*.json"), reverse=True)[:10]:
+        try:
+            content = json.loads(result_file.read_text())
+            results.append({
+                "filename": result_file.name,
+                "symbols": content.get("config", {}).get("symbols"),
+                "return_pct": content.get("total_return_pct"),
+                "total_trades": content.get("total_trades")
+            })
+        except Exception:
+            continue
+    
+    return {"results": results}
+
+
+@app.get("/api/rules/history")
+async def api_rules_history():
+    """Get rules change history."""
+    import json
+    backup_dir = CONFIG_DIR_PATH / "rules_backup"
+    if not backup_dir.exists():
+        return {"history": []}
+    
+    history = []
+    for backup_file in sorted(backup_dir.glob("rules_*.json"), reverse=True)[:10]:
+        try:
+            content = json.loads(backup_file.read_text())
+            history.append({
+                "filename": backup_file.name,
+                "updated_at": content.get("updated_at"),
+                "rule_count": len(content.get("rules", []))
+            })
+        except Exception:
+            continue
+    
+    return {"history": history}
+
+
 @app.get("/api/health/engine")
 async def api_engine_health():
     """Check engine health from runtime files."""

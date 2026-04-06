@@ -59,6 +59,8 @@
             </span>
         </div>
         <div class="flex items-center gap-4 text-sm">
+            <span id="trading-mode-badge" class="text-xs px-2 py-0.5 rounded bg-gray-600/30 text-gray-400 font-medium">--</span>
+            <span id="scheduler-status" class="text-xs text-gray-500">调度器: --</span>
             <span id="refresh-status" class="flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></span>
                 <span class="text-gray-400">更新中</span>
@@ -228,54 +230,34 @@
             </details>
         </section>
 
-        <!-- Signals -->
+        <!-- Signals & Orders -->
         <section class="mt-6 card">
-            <div class="card-title">📡 交易信号</div>
+            <div class="card-title">📡 信号 & 订单</div>
             <div id="signals-list" class="text-sm">
                 <div class="text-gray-500 py-2">加载中...</div>
+            </div>
+            <div id="signals-orders" class="mt-2 border-t border-gray-700/30 pt-2 hidden">
+                <div class="text-xs text-gray-500 mb-1">订单预览</div>
+                <div id="preview-orders-inline" class="text-sm"></div>
             </div>
             <div id="signals-meta" class="text-xs text-gray-600 mt-2"></div>
         </section>
 
         <!-- Risk -->
         <section class="mt-6 card">
-            <div class="card-title">🛡️ 风控状态</div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="card-title">🛡️ 风控</div>
+            <div class="flex items-center gap-6">
                 <div>
-                    <div class="text-xs text-gray-500 mb-1">决策通过率</div>
-                    <div id="risk-rate" class="text-2xl font-bold">--</div>
+                    <span class="text-xs text-gray-500">阻塞: </span>
+                    <span id="risk-blockers-count" class="font-bold">--</span>
                 </div>
                 <div>
-                    <div class="text-xs text-gray-500 mb-1">预览阻塞数</div>
-                    <div id="risk-blockers-count" class="text-2xl font-bold">--</div>
-                </div>
-                <div>
-                    <div class="text-xs text-gray-500 mb-1">决策详情</div>
-                    <div id="risk-decisions" class="text-sm">--</div>
+                    <span class="text-xs text-gray-500">通过: </span>
+                    <span id="risk-rate" class="font-bold">--</span>
                 </div>
             </div>
-            <div id="risk-blockers" class="mt-3"></div>
-            <div id="risk-meta" class="text-xs text-gray-600 mt-2"></div>
-        </section>
-
-        <!-- Execution Preview -->
-        <section class="mt-6 card">
-            <div class="card-title">🧮 执行预览</div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <div class="text-xs text-gray-500 mb-2">订单预览</div>
-                    <div id="preview-orders" class="text-sm">
-                        <div class="text-gray-500">加载中...</div>
-                    </div>
-                </div>
-                <div>
-                    <div class="text-xs text-gray-500 mb-2">订单意向</div>
-                    <div id="preview-intents" class="text-sm">
-                        <div class="text-gray-500">加载中...</div>
-                    </div>
-                </div>
-            </div>
-            <div id="preview-meta" class="text-xs text-gray-600 mt-2"></div>
+            <div id="risk-blockers" class="mt-2"></div>
+            <div id="risk-meta" class="text-xs text-gray-600 mt-1"></div>
         </section>
 
         <!-- Notifications -->
@@ -590,19 +572,22 @@
             } else {
                 el.innerHTML = signals.map(s => {
                     const actionCls = s.action === 'BUY' ? 'text-green-400' : s.action === 'EXIT' ? 'text-red-400' : 'text-gray-400';
-                    const confidenceBar = s.confidence != null
-                        ? `<div class="w-16 bg-gray-700 rounded-full h-1.5 mt-1"><div class="bg-tiger-500 h-1.5 rounded-full" style="width:${Math.round(s.confidence * 100)}%"></div></div>`
-                        : '';
-                    return `<div class="flex items-center justify-between py-2 border-b border-gray-700/30">
-                        <div>
-                            <span class="${actionCls} font-bold">${s.action || '--'}</span>
-                            <span class="ml-2 font-medium">${s.symbol || '--'}</span>
-                            <span class="ml-2 text-xs text-gray-500">${s.reason || ''}</span>
+                    const conf = s.confidence != null ? Math.round(s.confidence * 100) + '%' : '';
+                    const extra = [];
+                    if (s.last_close) extra.push('$' + fmt(s.last_close));
+                    if (s.stop_loss) extra.push('止损$' + fmt(s.stop_loss));
+                    if (s.take_profit) extra.push('止盈$' + fmt(s.take_profit));
+                    const extraStr = extra.length ? '<div class="text-xs text-gray-500 mt-0.5">' + extra.join(' | ') + '</div>' : '';
+                    return `<div class="py-2 border-b border-gray-700/30">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="${actionCls} font-bold">${s.action || '--'}</span>
+                                <span class="ml-2 font-medium">${s.symbol || '--'}</span>
+                                <span class="ml-1 text-xs text-gray-500">${s.reason || ''}</span>
+                            </div>
+                            <span class="text-xs text-gray-500">${conf}</span>
                         </div>
-                        <div class="text-right">
-                            ${s.confidence != null ? '<span class="text-xs text-gray-500">' + Math.round(s.confidence * 100) + '%</span>' : ''}
-                            ${confidenceBar}
-                        </div>
+                        ${extraStr}
                     </div>`;
                 }).join('');
             }
@@ -654,35 +639,22 @@
 
         function renderPreview(data) {
             const preview = data.preview;
-            const intents = data.intents;
-            // Orders
-            const ordersEl = document.getElementById('preview-orders');
+            const container = document.getElementById('signals-orders');
+            const ordersEl = document.getElementById('preview-orders-inline');
             if (!preview || !preview.orders || preview.orders.length === 0) {
-                ordersEl.innerHTML = '<div class="text-gray-500">无预览数据</div>';
-            } else {
-                ordersEl.innerHTML = preview.orders.map(o => {
-                    const actionCls = o.action === 'BUY' ? 'text-green-400' : 'text-red-400';
-                    return `<div class="flex justify-between py-1 border-b border-gray-700/30">
-                        <div><span class="${actionCls}">${o.action || '--'}</span> <span class="ml-1">${o.symbol || '--'}</span></div>
-                        <div class="text-gray-400">${o.quantity || ''} @ ${o.order_type || '--'}</div>
-                    </div>`;
-                }).join('');
+                container.classList.add('hidden');
+                return;
             }
-            // Intents
-            const intentsEl = document.getElementById('preview-intents');
-            if (!intents || !intents.items || intents.items.length === 0) {
-                intentsEl.innerHTML = '<div class="text-gray-500">无订单意向</div>';
-            } else {
-                intentsEl.innerHTML = intents.items.map(i => {
-                    const actionCls = i.action === 'BUY' ? 'text-green-400' : 'text-red-400';
-                    return `<div class="flex justify-between py-1 border-b border-gray-700/30">
-                        <div><span class="${actionCls}">${i.action || '--'}</span> <span class="ml-1">${i.symbol || '--'}</span></div>
-                        <div class="text-gray-400">${i.quantity || ''} ${i.order_type || ''} ${i.limit_price ? '@ ' + i.limit_price : ''}</div>
-                    </div>`;
-                }).join('');
-            }
-            const meta = document.getElementById('preview-meta');
-            meta.textContent = preview ? `mode: ${preview.mode || '--'} | count: ${preview.count || 0}` : '';
+            container.classList.remove('hidden');
+            ordersEl.innerHTML = preview.orders.map(o => {
+                const actionCls = o.side === 'BUY' ? 'text-green-400' : 'text-red-400';
+                const priceStr = o.limit_price ? 'LMT @ $' + fmt(o.limit_price) : (o.order_type || '--');
+                const stopStr = o.stop_loss || o.stop_price ? ' 止损$' + fmt(o.stop_loss || o.stop_price) : '';
+                return `<div class="flex justify-between py-1 border-b border-gray-700/30">
+                    <div><span class="${actionCls} font-medium">${o.side || '--'}</span> <span class="ml-1">${o.symbol || '--'}</span> <span class="text-gray-400">${o.quantity || ''}股</span></div>
+                    <div class="text-gray-400 text-xs">${priceStr}${stopStr}</div>
+                </div>`;
+            }).join('');
         }
 
         function renderNotifications(data) {
@@ -1001,11 +973,42 @@
                 renderMarketStatus(marketStatus);
                 fetchWatchlist();
                 fetchNewSections();
+                fetchHeaderStatus();
             } catch (e) {
                 console.error('Fetch error:', e);
                 document.getElementById('refresh-status').innerHTML =
                     '<span class="w-2 h-2 rounded-full bg-red-500"></span><span class="text-red-400">连接失败</span>';
             }
+        }
+
+        async function fetchHeaderStatus() {
+            try {
+                const [mode, sched] = await Promise.all([
+                    fetch(API_BASE + '/api/trading/mode').then(r => r.json()),
+                    fetch(API_BASE + '/api/scheduler').then(r => r.json()),
+                ]);
+                // Trading mode badge
+                const badge = document.getElementById('trading-mode-badge');
+                const modeMap = {
+                    off: { label: '⏹ 停止', cls: 'bg-gray-600/30 text-gray-400' },
+                    signals: { label: '📡 信号', cls: 'bg-blue-600/20 text-blue-400' },
+                    trade: { label: '⚡ 交易', cls: 'bg-green-600/20 text-green-400' },
+                };
+                const m = modeMap[mode.mode] || modeMap.off;
+                badge.textContent = m.label;
+                badge.className = 'text-xs px-2 py-0.5 rounded font-medium ' + m.cls;
+                // Scheduler status
+                const schedEl = document.getElementById('scheduler-status');
+                if (sched.running) {
+                    schedEl.textContent = '调度器: ' + (sched.cycle_count || 0) + '次';
+                    schedEl.className = 'text-xs text-green-400';
+                } else {
+                    schedEl.textContent = '调度器: 已停止';
+                    schedEl.className = 'text-xs text-red-400';
+                }
+                // Update mode buttons
+                if (typeof updateModeButtons === 'function') updateModeButtons(mode.mode);
+            } catch (e) { /* ignore */ }
         }
 
         async function fetchNewSections() {
@@ -1300,7 +1303,7 @@
         fetchTigerConfig();
         fetchQuoteProviders();
         fetchNewSections();
-        fetchTradingMode();
+        fetchHeaderStatus();
         setInterval(fetchAll, REFRESH_MS);
         setInterval(fetchEngine, 30000);
         setInterval(fetchNewSections, 30000);

@@ -88,8 +88,30 @@ class SignalScheduler:
                         self._state["errors"] = self._state["errors"][-20:]
             self._stop_event.wait(self._interval)
 
+    def _check_trading_mode(self) -> bool:
+        """Check if signal generation is enabled."""
+        state_file = self._runtime_dir / "state" / "control_state.json"
+        if state_file.exists():
+            try:
+                state = json.loads(state_file.read_text())
+                mode = state.get("trading_mode", "off")
+                if mode == "off":
+                    return False
+                if state.get("locked", False):
+                    return False
+                return True
+            except Exception:
+                pass
+        # Default: allow signals if no control state exists
+        return True
+
     def _run_cycle(self):
         """Execute one engine cycle."""
+        # Check trading mode
+        if not self._check_trading_mode():
+            logger.debug("Trading mode is off or locked, skipping cycle")
+            return
+
         # Lazy imports to avoid circular dependencies
         import sys
         engine_src = str(Path(__file__).parent.parent / "system" / "tiger_engine" / "src")

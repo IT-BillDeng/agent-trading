@@ -397,24 +397,89 @@ async def api_config_update(update: dict):
     return {"status": "ok", "config": config}
 
 
-@app.post("/api/control/{action}")
-async def api_control(action: str):
-    """Lock or unlock the engine control plane."""
+def _read_control_state() -> dict:
+    """Read control state from runtime."""
+    import json
+    state_file = RUNTIME_DIR / "state" / "control_state.json"
+    if state_file.exists():
+        try:
+            return json.loads(state_file.read_text())
+        except Exception:
+            pass
+    return {"locked": False, "trading_mode": "off"}
+
+
+def _write_control_state(state: dict):
+    """Write control state to runtime."""
     import json
     state_dir = RUNTIME_DIR / "state"
     state_dir.mkdir(parents=True, exist_ok=True)
     state_file = state_dir / "control_state.json"
+    state_file.write_text(json.dumps(state, indent=2, ensure_ascii=False))
+
+
+@app.post("/api/control/{action}")
+async def api_control(action: str):
+    """Lock or unlock the engine control plane."""
+    state = _read_control_state()
 
     if action == "lock":
-        state = {"locked": True, "reason": "manual_lock", "updated_by": "dashboard"}
-        state_file.write_text(json.dumps(state, indent=2))
+        state["locked"] = True
+        state["reason"] = "manual_lock"
+        state["updated_by"] = "dashboard"
+        _write_control_state(state)
         return {"status": "ok", "action": "locked"}
     elif action == "unlock":
-        state = {"locked": False, "reason": "manual_unlock", "updated_by": "dashboard"}
-        state_file.write_text(json.dumps(state, indent=2))
+        state["locked"] = False
+        state["reason"] = "manual_unlock"
+        state["updated_by"] = "dashboard"
+        _write_control_state(state)
         return {"status": "ok", "action": "unlocked"}
     else:
         return JSONResponse({"error": f"unknown action: {action}"}, status_code=400)
+
+
+VALID_TRADING_MODES = {"off", "signals", "paper", "live"}
+
+
+@app.get("/api/trading/mode")
+async def api_trading_mode_get():
+    """Get current trading mode."""
+    state = _read_control_state()
+    mode = state.get("trading_mode", "off")
+    return {
+        "mode": mode,
+        "locked": state.get("locked", False),
+        "signal_generation": mode != "off",
+        "order_submission": mode in {"paper", "live"},
+    }
+
+
+@app.post("/api/trading/mode")
+async def api_trading_mode_set(body: dict):
+    """Set trading mode: off / signals / paper / live."""
+    mode = body.get("mode")
+    if mode not in VALID_TRADING_MODES:
+        return JSONResponse(
+            {"error": f"mode must be one of: {', '.join(VALID_TRADING_MODES)}"},
+            status_code=400,
+        )
+    # Live mode requires explicit confirmation
+    if mode == "live" and not body.get("confirm_live"):
+        return JSONResponse(
+            {"error": "live mode requires confirm_live=true", "require_confirm": True},
+            status_code=400,
+        )
+    state = _read_control_state()
+    state["trading_mode"] = mode
+    state["updated_by"] = "dashboard"
+    _write_control_state(state)
+    return {
+        "status": "ok",
+        "mode": mode,
+        "signal_generation": mode != "off",
+        "order_submission": mode in {"paper", "live"},
+    }
 
 
 @app.get("/api/audit")

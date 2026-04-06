@@ -328,6 +328,16 @@
             <div class="card-title">🎛️ 控制面板</div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
+                    <div class="text-xs text-gray-500 mb-2">交易模式</div>
+                    <div class="flex gap-2 flex-wrap">
+                        <button id="mode-off" onclick="setTradingMode('off')" class="mode-btn px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400">⏹ 停止</button>
+                        <button id="mode-signals" onclick="setTradingMode('signals')" class="mode-btn px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400">📡 信号</button>
+                        <button id="mode-paper" onclick="setTradingMode('paper')" class="mode-btn px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400">📄 Paper</button>
+                        <button id="mode-live" onclick="confirmLiveMode()" class="mode-btn px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400">🔴 Live</button>
+                    </div>
+                    <div id="mode-msg" class="text-xs mt-1 hidden"></div>
+                </div>
+                <div>
                     <div class="text-xs text-gray-500 mb-2">系统锁定</div>
                     <div class="flex gap-2">
                         <button onclick="controlAction('lock')" class="bg-red-600/20 hover:bg-red-600/40 text-red-400 px-3 py-1.5 rounded text-sm border border-red-600/30 transition">🔒 锁定</button>
@@ -1080,6 +1090,80 @@
             }
         }
 
+        // --- Trading Mode ---
+        const MODE_CONFIG = {
+            off:     { label: '停止', cls: 'bg-gray-600/30 text-gray-300 border-gray-500' },
+            signals: { label: '信号', cls: 'bg-blue-600/20 text-blue-400 border-blue-600/30' },
+            paper:   { label: 'Paper', cls: 'bg-green-600/20 text-green-400 border-green-600/30' },
+            live:    { label: 'Live', cls: 'bg-red-600/20 text-red-400 border-red-600/30' },
+        };
+
+        function updateModeButtons(currentMode) {
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.className = 'mode-btn px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400';
+            });
+            const activeBtn = document.getElementById('mode-' + currentMode);
+            if (activeBtn && MODE_CONFIG[currentMode]) {
+                activeBtn.className = 'mode-btn px-3 py-1.5 rounded text-sm font-medium border transition ' + MODE_CONFIG[currentMode].cls;
+            }
+        }
+
+        function showModeMsg(msg, isError) {
+            const el = document.getElementById('mode-msg');
+            el.textContent = msg;
+            el.className = 'text-xs mt-1 ' + (isError ? 'text-red-400' : 'text-green-400');
+            setTimeout(() => el.className = 'text-xs mt-1 hidden', 3000);
+        }
+
+        async function fetchTradingMode() {
+            try {
+                const data = await fetch(API_BASE + '/api/trading/mode').then(r => r.json());
+                updateModeButtons(data.mode);
+            } catch (e) {
+                console.error('trading mode fetch error:', e);
+            }
+        }
+
+        async function setTradingMode(mode) {
+            try {
+                const res = await fetch(API_BASE + '/api/trading/mode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mode }),
+                });
+                const data = await res.json();
+                if (data.error) {
+                    showModeMsg(data.error, true);
+                    return;
+                }
+                updateModeButtons(mode);
+                const label = MODE_CONFIG[mode]?.label || mode;
+                showModeMsg('已切换到 ' + label + ' 模式', false);
+            } catch (e) {
+                showModeMsg('切换失败', true);
+            }
+        }
+
+        function confirmLiveMode() {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/60 flex items-center justify-center z-50';
+            modal.innerHTML = '<div class="bg-gray-900 border border-red-800 rounded-lg p-6 max-w-sm mx-4">' +
+                '<h3 class="text-lg font-medium text-red-400 mb-2">⚠️ 确认开启实盘交易？</h3>' +
+                '<p class="text-gray-400 mb-4">Live 模式将使用真实资金下单。请确认你了解风险。</p>' +
+                '<div class="flex justify-end gap-2">' +
+                '<button id="cancel-live" class="px-4 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 text-gray-300 transition">取消</button>' +
+                '<button id="confirm-live" class="px-4 py-2 rounded text-sm bg-red-900 hover:bg-red-800 text-red-300 transition">确认开启</button>' +
+                '</div></div>';
+            document.body.appendChild(modal);
+            modal.querySelector('#cancel-live').onclick = () => modal.remove();
+            modal.querySelector('#confirm-live').onclick = () => {
+                setTradingMode('live');
+                modal.remove();
+            };
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+        }
+
+        // --- Control Panel ---
         async function controlAction(action) {
             try {
                 const res = await fetch(API_BASE + '/api/control/' + action, { method: 'POST' });
@@ -1089,6 +1173,7 @@
                 msgEl.className = 'text-xs mt-1 ' + (data.status === 'ok' ? 'text-green-400' : 'text-red-400');
                 setTimeout(() => msgEl.className = 'text-xs mt-1 hidden', 3000);
                 fetchEngine();
+                fetchTradingMode();
             } catch (e) {
                 console.error('control error:', e);
             }
@@ -1234,6 +1319,7 @@
         fetchTigerConfig();
         fetchQuoteProviders();
         fetchNewSections();
+        fetchTradingMode();
         setInterval(fetchAll, REFRESH_MS);
         setInterval(fetchEngine, 30000);
         setInterval(fetchNewSections, 30000);

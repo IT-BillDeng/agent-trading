@@ -1124,9 +1124,14 @@
                     showModeMsg(data.error, true);
                     return;
                 }
+                // Update header badge immediately
+                const badge = document.getElementById('trading-mode-badge');
+                const m = MODE_CONFIG[mode];
+                if (badge && m) {
+                    badge.textContent = m.label + ' ▾';
+                    badge.className = 'text-xs px-2 py-0.5 rounded font-medium cursor-pointer hover:opacity-80 ' + m.cls;
+                }
                 updateModeButtons(mode);
-                const label = MODE_CONFIG[mode]?.label || mode;
-                showModeMsg('已切换到 ' + label + ' 模式', false);
             } catch (e) {
                 showModeMsg('切换失败', true);
             }

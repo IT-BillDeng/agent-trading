@@ -66,6 +66,7 @@ Tiger Open Platform (Paper → Live)
 | 2.8 | 通知页面 | 显示通知预览、dispatch queue | 无 | ⬜ 未开始 |
 | 2.9 | 配置页面 | 显示配置参数、股票清单 | 无 | ⬜ 未开始 |
 | 2.10 | 行情显示增加开盘状态 | 在行情显示中增加是否开盘的状态显示（美股/港股开盘时间判断） | 无 | ✅ 已完成 |
+| 2.11 | 同步 watchlist/config | 解决 watchlist.json 与 app_config.paper.json 标的列表不一致（02097 蜜雪集团） | 无 | ✅ 已完成 |
 
 ---
 
@@ -199,3 +200,4 @@ Yahoo Finance─┘         ↓
 | 2026-04-06 | 新增任务：行情显示增加开盘状态 |
 | 2026-04-06 | 完成行情显示开盘状态功能 |
 | 2026-04-06 | 完成 Phase 3 subagent 配置准备，交由 arona 部署 |
+| 2026-04-07 | 同步 watchlist/config，添加 02097 蜜雪集团 |

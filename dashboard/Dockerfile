@@ -1,24 +1,34 @@
 # ============================================================
-# Tiger Dashboard — Web 看板（FastAPI + tigeropen SDK）
+# Tiger Dashboard — Web 看板 + 内置信号调度器
 # ============================================================
 
 FROM python:3.11-slim
 
 LABEL maintainer="yuuka"
-LABEL description="Tiger Trading Dashboard (FastAPI)"
+LABEL description="Tiger Trading Dashboard (FastAPI + Signal Scheduler)"
 
 ENV TZ=Asia/Shanghai
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 WORKDIR /app
 
-# 构建上下文是项目根目录，所以用 dashboard/ 前缀
+# Dashboard 依赖
 COPY dashboard/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
+# Engine 依赖（调度器需要）
+COPY system/tiger_engine/requirements.txt /app/engine-requirements.txt
+RUN pip install --no-cache-dir -r /app/engine-requirements.txt
+
+# Dashboard 代码 + 静态文件
 COPY dashboard/ /app/dashboard/
-# 静态文件
 COPY dashboard/static/ /app/dashboard/static/
+
+# Engine 源码（调度器导入使用）
+COPY system/tiger_engine/src/ /app/system/tiger_engine/src/
+
+# Runtime 目录
+RUN mkdir -p /app/runtime/logs /app/runtime/state
 
 EXPOSE 8088
 

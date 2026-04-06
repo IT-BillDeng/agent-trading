@@ -1,26 +1,12 @@
 # ============================================================
 # Tiger Trading — Docker 编排
 # ============================================================
-# 两个服务：
-#   tiger-engine  — 按需执行（cron 触发），不常驻
-#   dashboard     — Web 看板，可常驻
+# 主服务：dashboard（Web 看板 + 内置信号调度器）
+# 辅助服务：tiger-engine（按需执行，用于手动触发完整执行周期）
 # ============================================================
 
 services:
-  # ---------- 核心执行引擎（按需） ----------
-  tiger-engine:
-    build:
-      context: ./system/tiger_engine
-      dockerfile: Dockerfile
-    container_name: tiger-engine
-    volumes:
-      - ./config:/app/config:ro
-      - ./runtime/tiger_engine:/app/runtime
-    environment:
-      - TZ=Asia/Shanghai
-    restart: "no"
-
-  # ---------- Web 看板（可常驻） ----------
+  # ---------- 主服务：Dashboard + 内置调度器 ----------
   dashboard:
     build:
       context: .
@@ -31,13 +17,18 @@ services:
     volumes:
       - ./data:/app/data
       - ./config:/app/config
-      - ./runtime/tiger_engine:/app/runtime:ro
+      - ./runtime/tiger_engine:/app/runtime
     environment:
       - TZ=Asia/Shanghai
       - TIGER_CONFIG_DIR=/app/config
       - TIGER_WORKSPACE=/app
       - TIGER_WATCHLIST_PATH=/app/data/watchlist.json
       - TIGER_QUOTE_PROVIDER=yfinance
+      - TIGER_RUNTIME_DIR=/app/runtime
+      - TIGER_APP_CONFIG=/app/config/app_config.docker.json
+      # 调度器配置
+      - TIGER_SCHEDULER_PROVIDER=yfinance
+      - TIGER_SCHEDULER_INTERVAL=60
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8088/health')"]
@@ -45,3 +36,18 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  # ---------- 辅助服务：按需执行完整周期（含下单） ----------
+  tiger-engine:
+    build:
+      context: ./system/tiger_engine
+      dockerfile: Dockerfile
+    container_name: tiger-engine
+    profiles:
+      - manual
+    volumes:
+      - ./config:/app/config:ro
+      - ./runtime/tiger_engine:/app/runtime
+    environment:
+      - TZ=Asia/Shanghai
+    restart: "no"

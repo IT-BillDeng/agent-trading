@@ -12,11 +12,13 @@ from pydantic import BaseModel
 from .tiger_client import TigerClient
 from .data_cache import DataCache
 from .quote_provider import get_quote_provider
+from .scheduler import SignalScheduler
 
 # --- App lifecycle ---
 
 tiger_client: TigerClient | None = None
 cache: DataCache | None = None
+scheduler: SignalScheduler | None = None
 
 
 @asynccontextmanager
@@ -47,8 +49,35 @@ async def lifespan(app: FastAPI):
         cache = None
         print("[dashboard] DataCache not started (no TigerClient)")
 
+    # Start signal scheduler
+    global scheduler
+    app_config = os.environ.get(
+        "TIGER_APP_CONFIG",
+        str(Path(config_dir) / "app_config.docker.json"),
+    )
+    runtime_dir = os.environ.get(
+        "TIGER_RUNTIME_DIR",
+        str(Path(__file__).parent.parent / "runtime" / "tiger_engine"),
+    )
+    scheduler_provider = os.environ.get("TIGER_SCHEDULER_PROVIDER", provider_name)
+    scheduler_interval = int(os.environ.get("TIGER_SCHEDULER_INTERVAL", "60"))
+
+    try:
+        scheduler = SignalScheduler(
+            app_config_path=app_config,
+            runtime_dir=runtime_dir,
+            provider_name=scheduler_provider,
+            interval_seconds=scheduler_interval,
+        )
+        scheduler.start()
+    except Exception as e:
+        scheduler = None
+        print(f"[dashboard] Scheduler init failed: {e}")
+
     yield
 
+    if scheduler:
+        scheduler.stop()
     if cache:
         cache.stop()
 
@@ -306,6 +335,37 @@ async def api_notifications():
         "dispatch_requests": cycle.get("dispatch_requests"),
         "cycle_id": cycle.get("cycle_id"),
     }
+
+
+@app.get("/api/scheduler")
+async def api_scheduler_status():
+    """Get scheduler status."""
+    if not scheduler:
+        return {"running": False, "error": "scheduler not initialized"}
+    return scheduler.get_state()
+
+
+@app.post("/api/scheduler/interval")
+async def api_scheduler_interval(body: dict):
+    """Update scheduler interval (seconds)."""
+    if not scheduler:
+        return JSONResponse({"error": "scheduler not initialized"}, status_code=503)
+    interval = body.get("interval")
+    if not isinstance(interval, int) or interval < 10:
+        return JSONResponse({"error": "interval must be >= 10 seconds"}, status_code=400)
+    scheduler.set_interval(interval)
+    return {"status": "ok", "interval": interval}
+
+
+@app.post("/api/scheduler/run")
+async def api_scheduler_run():
+    """Manually trigger one engine cycle."""
+    if not scheduler:
+        return JSONResponse({"error": "scheduler not initialized"}, status_code=503)
+    import threading
+    t = threading.Thread(target=scheduler._run_cycle, daemon=True)
+    t.start()
+    return {"status": "ok", "message": "cycle triggered"}
 
 
 @app.get("/api/config")

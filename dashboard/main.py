@@ -206,8 +206,8 @@ async def api_watchlist_remove(symbol: str):
 
 # --- Engine results & control ---
 
-RUNTIME_DIR = Path(os.environ.get("TIGER_RUNTIME_DIR", "/app/runtime"))
-CONFIG_DIR_PATH = Path(os.environ.get("TIGER_CONFIG_DIR", "/app/config"))
+RUNTIME_DIR = Path(os.environ.get("TIGER_RUNTIME_DIR", str(Path(__file__).parent.parent / "runtime")))
+CONFIG_DIR_PATH = Path(os.environ.get("TIGER_CONFIG_DIR", str(Path(__file__).parent.parent / "config")))
 
 
 @app.get("/api/engine")
@@ -237,6 +237,75 @@ async def api_engine():
         result["control_state"] = None
 
     return result
+
+
+def _read_cycle() -> dict | None:
+    """Read last execution cycle JSON."""
+    import json
+    cycle_file = RUNTIME_DIR / ".last_execution_cycle.json"
+    if cycle_file.exists():
+        try:
+            return json.loads(cycle_file.read_text())
+        except Exception:
+            pass
+    return None
+
+
+@app.get("/api/signals")
+async def api_signals():
+    """Latest strategy signals (BUY / EXIT / HOLD)."""
+    cycle = _read_cycle()
+    if not cycle:
+        return {"signals": [], "cycle_id": None, "timeframe": None}
+    strategy = cycle.get("strategy", {})
+    return {
+        "signals": strategy.get("signals", []),
+        "cycle_id": cycle.get("cycle_id"),
+        "timeframe": strategy.get("timeframe"),
+    }
+
+
+@app.get("/api/risk")
+async def api_risk():
+    """Risk decisions and preview blockers."""
+    cycle = _read_cycle()
+    if not cycle:
+        return {"decisions": [], "allowed_count": 0, "preview_blockers": [], "cycle_id": None}
+    risk = cycle.get("risk", {})
+    return {
+        "decisions": risk.get("decisions", []),
+        "allowed_count": risk.get("allowed_count", 0),
+        "preview_blockers": risk.get("preview_blockers", []),
+        "cycle_id": cycle.get("cycle_id"),
+    }
+
+
+@app.get("/api/execution-preview")
+async def api_execution_preview():
+    """Execution preview (dry-run orders) and order intents."""
+    cycle = _read_cycle()
+    if not cycle:
+        return {"preview": None, "intents": None, "cycle_id": None}
+    return {
+        "preview": cycle.get("execution_preview"),
+        "intents": cycle.get("order_intents"),
+        "execution_submit": cycle.get("execution_submit"),
+        "execution_preview_check": cycle.get("execution_preview_check"),
+        "cycle_id": cycle.get("cycle_id"),
+    }
+
+
+@app.get("/api/notifications")
+async def api_notifications():
+    """Notification preview and dispatch queue."""
+    cycle = _read_cycle()
+    if not cycle:
+        return {"notifications": None, "cycle_id": None}
+    return {
+        "notifications": cycle.get("notification_preview"),
+        "dispatch_requests": cycle.get("dispatch_requests"),
+        "cycle_id": cycle.get("cycle_id"),
+    }
 
 
 @app.get("/api/config")

@@ -228,6 +228,65 @@
             </details>
         </section>
 
+        <!-- Signals -->
+        <section class="mt-6 card">
+            <div class="card-title">📡 交易信号</div>
+            <div id="signals-list" class="text-sm">
+                <div class="text-gray-500 py-2">加载中...</div>
+            </div>
+            <div id="signals-meta" class="text-xs text-gray-600 mt-2"></div>
+        </section>
+
+        <!-- Risk -->
+        <section class="mt-6 card">
+            <div class="card-title">🛡️ 风控状态</div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">决策通过率</div>
+                    <div id="risk-rate" class="text-2xl font-bold">--</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">预览阻塞数</div>
+                    <div id="risk-blockers-count" class="text-2xl font-bold">--</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">决策详情</div>
+                    <div id="risk-decisions" class="text-sm">--</div>
+                </div>
+            </div>
+            <div id="risk-blockers" class="mt-3"></div>
+            <div id="risk-meta" class="text-xs text-gray-600 mt-2"></div>
+        </section>
+
+        <!-- Execution Preview -->
+        <section class="mt-6 card">
+            <div class="card-title">🧮 执行预览</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <div class="text-xs text-gray-500 mb-2">Dry-run 订单</div>
+                    <div id="preview-orders" class="text-sm">
+                        <div class="text-gray-500">加载中...</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 mb-2">订单意向</div>
+                    <div id="preview-intents" class="text-sm">
+                        <div class="text-gray-500">加载中...</div>
+                    </div>
+                </div>
+            </div>
+            <div id="preview-meta" class="text-xs text-gray-600 mt-2"></div>
+        </section>
+
+        <!-- Notifications -->
+        <section class="mt-6 card">
+            <div class="card-title">🔔 通知预览</div>
+            <div id="notifications-list" class="text-sm">
+                <div class="text-gray-500 py-2">加载中...</div>
+            </div>
+            <div id="notifications-meta" class="text-xs text-gray-600 mt-2"></div>
+        </section>
+
         <!-- Tiger Config -->
         <section class="mt-6 card">
             <div class="card-title">🔑 Tiger API 配置</div>
@@ -510,6 +569,132 @@
                 `账户: ${data.account_id || '--'} | 刷新: ${data.refresh_count || 0}次 | 间隔: ${data.refresh_interval || '--'}s`;
             const updateTime = data.last_updated ? ago(data.last_updated) : '--';
             document.getElementById('last-update').textContent = '上次更新: ' + updateTime;
+        }
+
+        // --- New Sections: Signals / Risk / Preview / Notifications ---
+
+        function renderSignals(data) {
+            const el = document.getElementById('signals-list');
+            const signals = data.signals || [];
+            if (signals.length === 0) {
+                el.innerHTML = '<div class="text-gray-500 py-2">无信号数据（引擎未运行）</div>';
+            } else {
+                el.innerHTML = signals.map(s => {
+                    const actionCls = s.action === 'BUY' ? 'text-green-400' : s.action === 'EXIT' ? 'text-red-400' : 'text-gray-400';
+                    const confidenceBar = s.confidence != null
+                        ? `<div class="w-16 bg-gray-700 rounded-full h-1.5 mt-1"><div class="bg-tiger-500 h-1.5 rounded-full" style="width:${Math.round(s.confidence * 100)}%"></div></div>`
+                        : '';
+                    return `<div class="flex items-center justify-between py-2 border-b border-gray-700/30">
+                        <div>
+                            <span class="${actionCls} font-bold">${s.action || '--'}</span>
+                            <span class="ml-2 font-medium">${s.symbol || '--'}</span>
+                            <span class="ml-2 text-xs text-gray-500">${s.reason || ''}</span>
+                        </div>
+                        <div class="text-right">
+                            ${s.confidence != null ? '<span class="text-xs text-gray-500">' + Math.round(s.confidence * 100) + '%</span>' : ''}
+                            ${confidenceBar}
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+            const meta = document.getElementById('signals-meta');
+            meta.textContent = data.cycle_id ? `cycle: ${data.cycle_id} | timeframe: ${data.timeframe || '--'}` : '';
+        }
+
+        function renderRisk(data) {
+            const decisions = data.decisions || [];
+            const blockers = data.preview_blockers || [];
+            // Rate
+            const total = decisions.length;
+            const allowed = data.allowed_count || 0;
+            const rateEl = document.getElementById('risk-rate');
+            if (total > 0) {
+                rateEl.textContent = `${allowed}/${total}`;
+                rateEl.className = 'text-2xl font-bold ' + (allowed === total ? 'text-green-400' : 'text-yellow-400');
+            } else {
+                rateEl.textContent = '--';
+                rateEl.className = 'text-2xl font-bold';
+            }
+            // Blockers count
+            const bcEl = document.getElementById('risk-blockers-count');
+            bcEl.textContent = blockers.length > 0 ? blockers.length : '0';
+            bcEl.className = 'text-2xl font-bold ' + (blockers.length > 0 ? 'text-red-400' : 'text-green-400');
+            // Decisions detail
+            const decEl = document.getElementById('risk-decisions');
+            if (decisions.length === 0) {
+                decEl.innerHTML = '<span class="text-gray-500">--</span>';
+            } else {
+                decEl.innerHTML = decisions.map(d => {
+                    const cls = d.allowed ? 'text-green-400' : 'text-red-400';
+                    return `<div class="flex justify-between py-0.5"><span>${d.symbol || '--'}</span><span class="${cls}">${d.allowed ? '✅' : '⛔'} ${d.reason || ''}</span></div>`;
+                }).join('');
+            }
+            // Blockers detail
+            const blEl = document.getElementById('risk-blockers');
+            if (blockers.length === 0) {
+                blEl.innerHTML = '';
+            } else {
+                blEl.innerHTML = '<div class="bg-red-900/20 border border-red-800/30 rounded p-3 text-sm">' +
+                    '<div class="text-red-400 font-medium mb-1">⚠️ 预览阻塞</div>' +
+                    blockers.map(b => `<div class="flex justify-between py-0.5"><span>${b.symbol || '(global)'}</span><span class="text-red-300">${b.reason || b.warning_text || ''}</span></div>`).join('') +
+                    '</div>';
+            }
+            const meta = document.getElementById('risk-meta');
+            meta.textContent = data.cycle_id ? `cycle: ${data.cycle_id}` : '';
+        }
+
+        function renderPreview(data) {
+            const preview = data.preview;
+            const intents = data.intents;
+            // Orders
+            const ordersEl = document.getElementById('preview-orders');
+            if (!preview || !preview.orders || preview.orders.length === 0) {
+                ordersEl.innerHTML = '<div class="text-gray-500">无预览数据</div>';
+            } else {
+                ordersEl.innerHTML = preview.orders.map(o => {
+                    const actionCls = o.action === 'BUY' ? 'text-green-400' : 'text-red-400';
+                    return `<div class="flex justify-between py-1 border-b border-gray-700/30">
+                        <div><span class="${actionCls}">${o.action || '--'}</span> <span class="ml-1">${o.symbol || '--'}</span></div>
+                        <div class="text-gray-400">${o.quantity || ''} @ ${o.order_type || '--'}</div>
+                    </div>`;
+                }).join('');
+            }
+            // Intents
+            const intentsEl = document.getElementById('preview-intents');
+            if (!intents || !intents.items || intents.items.length === 0) {
+                intentsEl.innerHTML = '<div class="text-gray-500">无订单意向</div>';
+            } else {
+                intentsEl.innerHTML = intents.items.map(i => {
+                    const actionCls = i.action === 'BUY' ? 'text-green-400' : 'text-red-400';
+                    return `<div class="flex justify-between py-1 border-b border-gray-700/30">
+                        <div><span class="${actionCls}">${i.action || '--'}</span> <span class="ml-1">${i.symbol || '--'}</span></div>
+                        <div class="text-gray-400">${i.quantity || ''} ${i.order_type || ''} ${i.limit_price ? '@ ' + i.limit_price : ''}</div>
+                    </div>`;
+                }).join('');
+            }
+            const meta = document.getElementById('preview-meta');
+            meta.textContent = preview ? `mode: ${preview.mode || '--'} | count: ${preview.count || 0}` : '';
+        }
+
+        function renderNotifications(data) {
+            const el = document.getElementById('notifications-list');
+            const notif = data.notifications;
+            if (!notif || !notif.items || notif.items.length === 0) {
+                el.innerHTML = '<div class="text-gray-500 py-2">无通知数据</div>';
+            } else {
+                el.innerHTML = notif.items.map(n => {
+                    const channelCls = n.channel === 'telegram' ? 'text-blue-400' : 'text-gray-400';
+                    return `<div class="py-1.5 border-b border-gray-700/30">
+                        <div class="flex justify-between">
+                            <span class="${channelCls} text-xs">[${n.channel || '--'}]</span>
+                            <span class="text-xs text-gray-500">${n.urgency || ''}</span>
+                        </div>
+                        <div class="text-gray-300 mt-0.5">${n.text || n.summary || '--'}</div>
+                    </div>`;
+                }).join('');
+            }
+            const meta = document.getElementById('notifications-meta');
+            meta.textContent = notif ? `count: ${notif.count || 0}` : '';
         }
 
         // --- Watchlist Management ---
@@ -806,10 +991,28 @@
                 renderSystem(system);
                 renderMarketStatus(marketStatus);
                 fetchWatchlist();
+                fetchNewSections();
             } catch (e) {
                 console.error('Fetch error:', e);
                 document.getElementById('refresh-status').innerHTML =
                     '<span class="w-2 h-2 rounded-full bg-red-500"></span><span class="text-red-400">连接失败</span>';
+            }
+        }
+
+        async function fetchNewSections() {
+            try {
+                const [signals, risk, preview, notifications] = await Promise.all([
+                    fetch(API_BASE + '/api/signals').then(r => r.json()),
+                    fetch(API_BASE + '/api/risk').then(r => r.json()),
+                    fetch(API_BASE + '/api/execution-preview').then(r => r.json()),
+                    fetch(API_BASE + '/api/notifications').then(r => r.json()),
+                ]);
+                renderSignals(signals);
+                renderRisk(risk);
+                renderPreview(preview);
+                renderNotifications(notifications);
+            } catch (e) {
+                console.error('fetchNewSections error:', e);
             }
         }
 
@@ -1030,8 +1233,10 @@
         fetchConfig();
         fetchTigerConfig();
         fetchQuoteProviders();
+        fetchNewSections();
         setInterval(fetchAll, REFRESH_MS);
         setInterval(fetchEngine, 30000);
+        setInterval(fetchNewSections, 30000);
     </script>
 </body>
 </html>

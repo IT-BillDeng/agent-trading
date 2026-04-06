@@ -82,7 +82,6 @@ Tiger Open Platform (Paper → Live)
 | 3.4 | tiger-executor 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 已完成 |
 | 3.5 | tiger-scout 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 已完成 |
 | 3.6 | tiger-closer 搭建 | 创建独立 agent，配置 tool 权限，启动 subagent | 无 | ✅ 已完成 |
-| 3.7 | 交由 arona 部署 | arona 在 host 上执行部署脚本，启动所有 agent | 无 | ⬜ 待 arona 部署 |
 
 > **说明**：Phase 3 的 6 个 agent 配置文件已准备完成，存放在 `/workspace/tiger-trading/agents/` 目录。
 > 部署脚本：`deploy_tiger_agents.sh`（一键启动所有 agent）

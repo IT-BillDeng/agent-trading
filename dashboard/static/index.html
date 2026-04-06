@@ -263,7 +263,7 @@
             <div class="card-title">🧮 执行预览</div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <div class="text-xs text-gray-500 mb-2">Dry-run 订单</div>
+                    <div class="text-xs text-gray-500 mb-2">订单预览</div>
                     <div id="preview-orders" class="text-sm">
                         <div class="text-gray-500">加载中...</div>
                     </div>
@@ -332,8 +332,7 @@
                     <div class="flex gap-2 flex-wrap">
                         <button id="mode-off" onclick="setTradingMode('off')" class="mode-btn px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400">⏹ 停止</button>
                         <button id="mode-signals" onclick="setTradingMode('signals')" class="mode-btn px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400">📡 信号</button>
-                        <button id="mode-paper" onclick="setTradingMode('paper')" class="mode-btn px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400">📄 Paper</button>
-                        <button id="mode-live" onclick="confirmLiveMode()" class="mode-btn px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400">🔴 Live</button>
+                        <button id="mode-trade" onclick="setTradingMode('trade')" class="mode-btn px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400">⚡ 交易</button>
                     </div>
                     <div id="mode-msg" class="text-xs mt-1 hidden"></div>
                 </div>
@@ -1094,8 +1093,7 @@
         const MODE_CONFIG = {
             off:     { label: '停止', cls: 'bg-gray-600/30 text-gray-300 border-gray-500' },
             signals: { label: '信号', cls: 'bg-blue-600/20 text-blue-400 border-blue-600/30' },
-            paper:   { label: 'Paper', cls: 'bg-green-600/20 text-green-400 border-green-600/30' },
-            live:    { label: 'Live', cls: 'bg-red-600/20 text-red-400 border-red-600/30' },
+            trade:   { label: '交易', cls: 'bg-green-600/20 text-green-400 border-green-600/30' },
         };
 
         function updateModeButtons(currentMode) {
@@ -1144,24 +1142,7 @@
             }
         }
 
-        function confirmLiveMode() {
-            const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 bg-black/60 flex items-center justify-center z-50';
-            modal.innerHTML = '<div class="bg-gray-900 border border-red-800 rounded-lg p-6 max-w-sm mx-4">' +
-                '<h3 class="text-lg font-medium text-red-400 mb-2">⚠️ 确认开启实盘交易？</h3>' +
-                '<p class="text-gray-400 mb-4">Live 模式将使用真实资金下单。请确认你了解风险。</p>' +
-                '<div class="flex justify-end gap-2">' +
-                '<button id="cancel-live" class="px-4 py-2 rounded text-sm bg-gray-700 hover:bg-gray-600 text-gray-300 transition">取消</button>' +
-                '<button id="confirm-live" class="px-4 py-2 rounded text-sm bg-red-900 hover:bg-red-800 text-red-300 transition">确认开启</button>' +
-                '</div></div>';
-            document.body.appendChild(modal);
-            modal.querySelector('#cancel-live').onclick = () => modal.remove();
-            modal.querySelector('#confirm-live').onclick = () => {
-                setTradingMode('live');
-                modal.remove();
-            };
-            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-        }
+
 
         // --- Control Panel ---
         async function controlAction(action) {

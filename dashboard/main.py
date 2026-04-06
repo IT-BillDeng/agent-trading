@@ -311,7 +311,7 @@ async def api_risk():
 
 @app.get("/api/execution-preview")
 async def api_execution_preview():
-    """Execution preview (dry-run orders) and order intents."""
+    """Execution preview and order intents."""
     cycle = _read_cycle()
     if not cycle:
         return {"preview": None, "intents": None, "cycle_id": None}
@@ -439,7 +439,7 @@ async def api_control(action: str):
         return JSONResponse({"error": f"unknown action: {action}"}, status_code=400)
 
 
-VALID_TRADING_MODES = {"off", "signals", "paper", "live"}
+VALID_TRADING_MODES = {"off", "signals", "trade"}
 
 
 @app.get("/api/trading/mode")
@@ -451,23 +451,17 @@ async def api_trading_mode_get():
         "mode": mode,
         "locked": state.get("locked", False),
         "signal_generation": mode != "off",
-        "order_submission": mode in {"paper", "live"},
+        "order_submission": mode == "trade",
     }
 
 
 @app.post("/api/trading/mode")
 async def api_trading_mode_set(body: dict):
-    """Set trading mode: off / signals / paper / live."""
+    """Set trading mode: off / signals / trade."""
     mode = body.get("mode")
     if mode not in VALID_TRADING_MODES:
         return JSONResponse(
             {"error": f"mode must be one of: {', '.join(VALID_TRADING_MODES)}"},
-            status_code=400,
-        )
-    # Live mode requires explicit confirmation
-    if mode == "live" and not body.get("confirm_live"):
-        return JSONResponse(
-            {"error": "live mode requires confirm_live=true", "require_confirm": True},
             status_code=400,
         )
     state = _read_control_state()
@@ -478,7 +472,7 @@ async def api_trading_mode_set(body: dict):
         "status": "ok",
         "mode": mode,
         "signal_generation": mode != "off",
-        "order_submission": mode in {"paper", "live"},
+        "order_submission": mode == "trade",
     }
 
 

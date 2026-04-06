@@ -156,19 +156,13 @@ class SignalScheduler:
         if mode == "signals":
             # Signals only — skip risk/execution
             summary = build_strategy_summary(raw, app)
-        else:
-            # paper/live — full execution pipeline
-            # Dynamically set live_submit based on mode
-            if mode == "paper":
-                app.raw.setdefault("execution", {})["live_submit"] = False
-            elif mode == "live":
-                app.raw.setdefault("execution", {})["live_submit"] = True
-
+        elif mode == "trade":
+            # Full pipeline: signals + risk + order build + submit
+            app.raw.setdefault("execution", {})["live_submit"] = True
             summary = build_execution_summary(raw, app)
-
-            # Submit orders if paper or live mode
-            if mode in ("paper", "live"):
-                self._submit_orders(summary, app)
+            self._submit_orders(summary, app)
+        else:
+            summary = build_strategy_summary(raw, app)
 
         # Add cycle metadata
         summary["cycle_id"] = datetime.now().strftime("%Y%m%d_%H%M%S")

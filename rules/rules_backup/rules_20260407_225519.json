@@ -1,0 +1,275 @@
+{
+  "version": "1.0",
+  "updated_at": "2026-04-07T22:54:37.503316",
+  "rules": [
+    {
+      "rule_id": "trend_follow_30m",
+      "name": "30分钟趋势跟随",
+      "description": "基于SMA的趋势跟随策略，当前硬编码策略的参数化版本",
+      "enabled": true,
+      "priority": 1,
+      "timeframe": "30min",
+      "symbols": [
+        "*"
+      ],
+      "markets": [
+        "US"
+      ],
+      "entry": {
+        "conditions": {
+          "operator": "AND",
+          "items": [
+            {
+              "type": "indicator",
+              "indicator": "sma",
+              "params": {
+                "period": 5
+              },
+              "compare": {
+                "field": "close",
+                "operator": "above"
+              }
+            },
+            {
+              "type": "indicator",
+              "indicator": "sma",
+              "params": {
+                "period": 5
+              },
+              "compare": {
+                "indicator": "sma",
+                "params": {
+                  "period": 10
+                },
+                "operator": "above"
+              }
+            },
+            {
+              "type": "indicator",
+              "indicator": "sma",
+              "params": {
+                "period": 10
+              },
+              "compare": {
+                "indicator": "sma",
+                "params": {
+                  "period": 20
+                },
+                "operator": "above"
+              }
+            },
+            {
+              "type": "indicator",
+              "indicator": "momentum",
+              "params": {
+                "period": 3
+              },
+              "compare": {
+                "operator": "above",
+                "value": 0.003
+              }
+            },
+            {
+              "type": "indicator",
+              "indicator": "bar_range_pct",
+              "compare": {
+                "operator": "below",
+                "value": 0.04
+              }
+            }
+          ]
+        },
+        "action": "BUY",
+        "order_type": "LMT",
+        "stop_loss_pct": 0.03,
+        "take_profit_pct": 0.06
+      },
+      "exit": {
+        "conditions": {
+          "operator": "OR",
+          "items": [
+            {
+              "type": "indicator",
+              "indicator": "sma",
+              "params": {
+                "period": 5
+              },
+              "compare": {
+                "field": "close",
+                "operator": "below"
+              }
+            },
+            {
+              "type": "indicator",
+              "indicator": "sma",
+              "params": {
+                "period": 5
+              },
+              "compare": {
+                "indicator": "sma",
+                "params": {
+                  "period": 10
+                },
+                "operator": "below"
+              }
+            }
+          ]
+        },
+        "action": "EXIT",
+        "order_type": "MKT"
+      }
+    },
+    {
+      "rule_id": "rsi_reversal",
+      "name": "RSI反转策略",
+      "description": "RSI超卖反弹策略，用于捕捉超卖反弹机会",
+      "enabled": true,
+      "priority": 2,
+      "timeframe": "30min",
+      "symbols": [
+        "AAPL",
+        "MSFT",
+        "NVDA"
+      ],
+      "markets": [
+        "US"
+      ],
+      "entry": {
+        "conditions": {
+          "operator": "AND",
+          "items": [
+            {
+              "type": "indicator",
+              "indicator": "rsi",
+              "params": {
+                "period": 14
+              },
+              "compare": {
+                "operator": "below",
+                "value": 30
+              }
+            },
+            {
+              "type": "indicator",
+              "indicator": "rsi",
+              "params": {
+                "period": 14
+              },
+              "compare": {
+                "field": "rsi",
+                "params": {
+                  "period": 14
+                },
+                "operator": "cross_above",
+                "value": 30
+              }
+            }
+          ]
+        },
+        "action": "BUY",
+        "order_type": "LMT",
+        "stop_loss_pct": 0.02,
+        "take_profit_pct": 0.04
+      },
+      "exit": {
+        "conditions": {
+          "operator": "OR",
+          "items": [
+            {
+              "type": "indicator",
+              "indicator": "rsi",
+              "params": {
+                "period": 14
+              },
+              "compare": {
+                "operator": "above",
+                "value": 70
+              }
+            },
+            {
+              "type": "stop_loss",
+              "threshold_pct": 0.02
+            }
+          ]
+        },
+        "action": "EXIT",
+        "order_type": "MKT"
+      }
+    },
+    {
+      "rule_id": "bollinger_breakout",
+      "name": "布林带突破策略",
+      "description": "价格突破布林带上轨的趋势策略",
+      "enabled": false,
+      "priority": 3,
+      "timeframe": "30min",
+      "symbols": [
+        "NVDA",
+        "SMCI"
+      ],
+      "markets": [
+        "US"
+      ],
+      "entry": {
+        "conditions": {
+          "operator": "AND",
+          "items": [
+            {
+              "type": "indicator",
+              "indicator": "bollinger",
+              "params": {
+                "period": 20,
+                "std_dev": 2
+              },
+              "compare": {
+                "field": "close",
+                "operator": "above_upper"
+              }
+            },
+            {
+              "type": "volume",
+              "operator": "above_avg",
+              "ratio": 1.5
+            }
+          ]
+        },
+        "action": "BUY",
+        "order_type": "LMT",
+        "stop_loss_pct": 0.025,
+        "take_profit_pct": 0.05
+      },
+      "exit": {
+        "conditions": {
+          "operator": "OR",
+          "items": [
+            {
+              "type": "indicator",
+              "indicator": "bollinger",
+              "params": {
+                "period": 20,
+                "std_dev": 2
+              },
+              "compare": {
+                "field": "close",
+                "operator": "below_middle"
+              }
+            },
+            {
+              "type": "stop_loss",
+              "threshold_pct": 0.025
+            }
+          ]
+        },
+        "action": "EXIT",
+        "order_type": "MKT"
+      }
+    }
+  ],
+  "global_settings": {
+    "min_score": 4,
+    "max_rules_per_symbol": 3,
+    "conflict_resolution": "highest_priority",
+    "require_all_entry_conditions": true,
+    "exit_on_any_exit_condition": true
+  }
+}

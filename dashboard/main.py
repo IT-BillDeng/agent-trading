@@ -681,6 +681,160 @@ async def api_backtest(body: dict):
     }
 
 
+@app.post("/api/backtest/batch")
+async def api_backtest_batch(body: dict):
+    """Run batch backtest with multiple parameter combinations.
+    
+    Input:
+        symbols: ["AAPL", "NVDA"]
+        start_date: "2026-01-07"
+        end_date: "2026-04-07"
+        timeframe: "30min"
+        param_sets: [
+            {"label": "baseline", "params": {}},
+            {"label": "test1", "params": {"sma_short": 5, "sma_mid": 10, "sma_long": 15}},
+            ...
+        ]
+    Output:
+        results: [{"label", "params", "trades", "return_pct", "win_rate", "sharpe", "max_drawdown_pct"}]
+        best: {label, params, return_pct}
+    """
+    import sys
+    import json
+    backtest_src = str(Path(__file__).parent.parent / "system" / "tiger_engine" / "src")
+    if backtest_src not in sys.path:
+        sys.path.insert(0, backtest_src)
+
+    from tiger_engine.backtest import BacktestConfig, run_backtest
+
+    symbols = body.get("symbols", ["AAPL"])
+    start_date = body.get("start_date", "2026-01-07")
+    end_date = body.get("end_date", "2026-04-07")
+    timeframe = body.get("timeframe", "30min")
+    data_source = body.get("data_source", "tiger")
+    param_sets = body.get("param_sets", [])
+
+    if not param_sets:
+        return JSONResponse({"error": "param_sets is required"}, status_code=400)
+    if len(param_sets) > 50:
+        return JSONResponse({"error": "max 50 param_sets per batch"}, status_code=400)
+
+    results = []
+    for ps in param_sets:
+        label = ps.get("label", f"set_{len(results)}")
+        params = ps.get("params", {})
+        try:
+            # Load base rules and apply param overrides
+            rules_file = RULES_FILE
+            rules = json.loads(rules_file.read_text()) if rules_file.exists() else {"rules": []}
+            if params:
+                _apply_param_overrides(rules, params)
+            # Write temp rules file
+            tmp_rules = RULES_DIR / f"_batch_{label}.json"
+            tmp_rules.write_text(json.dumps(rules, indent=2, ensure_ascii=False))
+
+            config = BacktestConfig(
+                symbols=symbols,
+                start_date=start_date,
+                end_date=end_date,
+                timeframe=timeframe,
+                initial_capital=100000.0,
+                data_source=data_source,
+            )
+            bt_result = run_backtest(config, tmp_rules)
+            bt_dict = _clean_nan_values(bt_result.to_dict())
+
+            results.append({
+                "label": label,
+                "params": params,
+                "trades": bt_dict.get("total_trades", 0),
+                "return_pct": bt_dict.get("total_return_pct", 0),
+                "win_rate": bt_dict.get("win_rate", 0),
+                "sharpe": bt_dict.get("sharpe_ratio"),
+                "max_drawdown_pct": bt_dict.get("max_drawdown_pct"),
+                "winning_trades": bt_dict.get("winning_trades", 0),
+                "losing_trades": bt_dict.get("losing_trades", 0),
+            })
+
+            # Cleanup temp file
+            tmp_rules.unlink(missing_ok=True)
+        except Exception as e:
+            results.append({
+                "label": label,
+                "params": params,
+                "error": str(e),
+            })
+
+    # Find best by return_pct
+    valid = [r for r in results if "error" not in r and r.get("trades", 0) > 0]
+    best = max(valid, key=lambda r: r.get("return_pct", 0)) if valid else None
+
+    # Save iteration results
+    iterations_dir = RUNTIME_DIR / "strategist_iterations"
+    iterations_dir.mkdir(exist_ok=True)
+    from datetime import datetime as dt
+    iter_id = f"iter_{dt.now().strftime('%Y%m%d_%H%M%S')}"
+    iteration = {
+        "iteration_id": iter_id,
+        "timestamp": dt.now().isoformat(),
+        "symbols": symbols,
+        "period": f"{start_date} ~ {end_date}",
+        "results": results,
+        "best": best,
+    }
+    (iterations_dir / f"{iter_id}.json").write_text(json.dumps(iteration, indent=2, ensure_ascii=False))
+
+    return {"status": "ok", "iteration_id": iter_id, "results": results, "best": best}
+
+
+def _apply_param_overrides(rules: dict, params: dict):
+    """Apply parameter overrides to rules dict using dot-path notation.
+    
+    Example params:
+        {"sma_short": 5, "sma_mid": 10, "momentum_threshold": 0.002}
+    
+    Maps to:
+        rules[0].entry.conditions.items[0].params.period = 5
+        rules[0].entry.conditions.items[1].params.period = 10
+        rules[0].entry.conditions.items[3].compare.value = 0.002
+    """
+    # Param name → rule path mapping (for trend_follow_30m)
+    param_map = {
+        "sma_short": (0, "entry", "conditions", "items", 0, "params", "period"),
+        "sma_mid":   (0, "entry", "conditions", "items", 1, "params", "period"),
+        "sma_long":  (0, "entry", "conditions", "items", 2, "params", "period"),
+        "momentum_period": (0, "entry", "conditions", "items", 3, "params", "period"),
+        "momentum_threshold": (0, "entry", "conditions", "items", 3, "compare", "value"),
+        "bar_range_threshold": (0, "entry", "conditions", "items", 4, "compare", "value"),
+    }
+
+    rules_list = rules.get("rules", [])
+    for param_name, value in params.items():
+        if param_name not in param_map:
+            continue
+        path = param_map[param_name]
+        rule_idx = path[0]
+        if rule_idx >= len(rules_list):
+            continue
+        target = rules_list[rule_idx]
+        keys = path[1:]
+        for key in keys[:-1]:
+            if isinstance(key, int):
+                if isinstance(target, list) and key < len(target):
+                    target = target[key]
+                else:
+                    break
+            elif isinstance(target, dict):
+                target = target.get(key, {})
+            else:
+                break
+        last_key = keys[-1]
+        if isinstance(last_key, int) and isinstance(target, list) and last_key < len(target):
+            target[last_key] = value
+        elif isinstance(target, dict):
+            target[last_key] = value
+
+
 @app.get("/api/backtest/results")
 async def api_backtest_results():
     """Get recent backtest results."""

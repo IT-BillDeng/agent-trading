@@ -658,7 +658,7 @@ async def api_backtest(body: dict):
     timeframe = body.get("timeframe", "30min")
     initial_capital = body.get("initial_capital", 100000.0)
     
-    data_source = body.get("data_source", "yfinance")
+    data_source = body.get("data_source", "tiger")
     
     config = BacktestConfig(
         symbols=symbols,

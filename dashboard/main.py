@@ -615,7 +615,8 @@ async def api_rules_test(body: dict):
         start_date=start_date,
         end_date=end_date,
         timeframe="30min",
-        initial_capital=100000.0
+        initial_capital=100000.0,
+        data_source="yfinance"
     )
     
     # Run backtest
@@ -657,13 +658,15 @@ async def api_backtest(body: dict):
     timeframe = body.get("timeframe", "30min")
     initial_capital = body.get("initial_capital", 100000.0)
     
+    data_source = body.get("data_source", "yfinance")
+    
     config = BacktestConfig(
         symbols=symbols,
         start_date=start_date,
         end_date=end_date,
         timeframe=timeframe,
-        initial_capital=initial_capital
-        # data_source 固定为 tiger
+        initial_capital=initial_capital,
+        data_source=data_source
     )
     
     rules_file = RULES_FILE

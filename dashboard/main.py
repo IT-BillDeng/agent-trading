@@ -640,13 +640,15 @@ async def api_backtest(body: dict):
     end_date = body.get("end_date", "2026-04-01")
     timeframe = body.get("timeframe", "30min")
     initial_capital = body.get("initial_capital", 100000.0)
+    data_source = body.get("data_source", "yfinance")  # 'yfinance' 或 'tiger'
     
     config = BacktestConfig(
         symbols=symbols,
         start_date=start_date,
         end_date=end_date,
         timeframe=timeframe,
-        initial_capital=initial_capital
+        initial_capital=initial_capital,
+        data_source=data_source
     )
     
     rules_file = CONFIG_DIR_PATH / "rules.json"

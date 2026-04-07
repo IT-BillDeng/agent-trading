@@ -245,7 +245,7 @@
             <div class="card-title">📈 回测报告</div>
             
             <!-- Backtest Form -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
                 <div>
                     <div class="text-xs text-gray-500 mb-1">标的（逗号分隔）</div>
                     <input id="bt-symbols" type="text" value="AAPL" class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-tiger-500" placeholder="AAPL,MSFT,NVDA">
@@ -261,6 +261,13 @@
                 <div>
                     <div class="text-xs text-gray-500 mb-1">初始资金</div>
                     <input id="bt-capital" type="number" value="100000" class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-tiger-500">
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">数据源</div>
+                    <select id="bt-source" class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-tiger-500">
+                        <option value="yfinance">Yahoo Finance（免费）</option>
+                        <option value="tiger">Tiger API（需要配置）</option>
+                    </select>
                 </div>
             </div>
             <div class="flex gap-2 mb-4">
@@ -1386,6 +1393,7 @@
             resultsEl.classList.add('hidden');
             
             try {
+                const dataSource = document.getElementById('bt-source').value;
                 const res = await fetch(API_BASE + '/api/backtest', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1394,7 +1402,8 @@
                         start_date: startDate,
                         end_date: endDate,
                         initial_capital: capital,
-                        timeframe: '30min'
+                        timeframe: '30min',
+                        data_source: dataSource
                     }),
                 });
                 

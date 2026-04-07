@@ -27,3 +27,4 @@ config/secrets*
 *.env
 .env*
 
+rules/rules_backup/

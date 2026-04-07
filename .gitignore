@@ -29,3 +29,5 @@ config/secrets*
 
 rules/rules_backup/
 rules/rules.json
+learning_log/
+runtime/tiger_engine/strategist_iterations/

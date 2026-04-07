@@ -809,6 +809,10 @@ def _apply_param_overrides(rules: dict, params: dict):
         "bb_period": ("bollinger_breakout", "entry.conditions.items.0.params.period"),
         "bb_std": ("bollinger_breakout", "entry.conditions.items.0.params.std_dev"),
         "volume_ratio": ("bollinger_breakout", "entry.conditions.items.1.ratio"),
+        "rsi_sl": ("rsi_reversal", "entry.stop_loss_pct"),
+        "rsi_tp": ("rsi_reversal", "entry.take_profit_pct"),
+        "bb_sl": ("bollinger_breakout", "entry.stop_loss_pct"),
+        "bb_tp": ("bollinger_breakout", "entry.take_profit_pct"),
     }
 
     rules_list = rules.get("rules", [])

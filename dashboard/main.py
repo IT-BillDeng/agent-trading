@@ -184,7 +184,7 @@ class WatchlistItem(BaseModel):
     name: str = ""
     enabled: bool = True
     priority: str = "normal"
-    notes: str = "
+    notes: str = ""
 
 
 class WatchlistUpdate(BaseModel):
@@ -237,6 +237,9 @@ async def api_watchlist_remove(symbol: str):
 
 RUNTIME_DIR = Path(os.environ.get("TIGER_RUNTIME_DIR", str(Path(__file__).parent.parent / "runtime")))
 CONFIG_DIR_PATH = Path(os.environ.get("TIGER_CONFIG_DIR", str(Path(__file__).parent.parent / "config")))
+RULES_DIR = Path(os.environ.get("TIGER_RULES_DIR", str(Path(__file__).parent.parent / "rules")))
+NEWS_DIR_PATH = Path(os.environ.get("TIGER_NEWS_DIR", str(Path(__file__).parent.parent / "news")))
+PROPERTIES_DIR = Path(os.environ.get("TIGER_PROPERTIES_DIR", str(Path(__file__).parent.parent / "properties")))
 
 
 @app.get("/api/engine")
@@ -500,7 +503,7 @@ async def api_audit(limit: int = 50):
 
 # --- Rules API ---
 
-RULES_FILE = CONFIG_DIR_PATH / "rules.json"
+RULES_FILE = RULES_DIR / "rules.json"
 
 
 @app.get("/api/rules")
@@ -541,7 +544,7 @@ async def api_rules_update(rules_data: dict):
     
     # Backup existing rules
     if RULES_FILE.exists():
-        backup_dir = CONFIG_DIR_PATH / "rules_backup"
+        backup_dir = RULES_DIR / "rules_backup"
         backup_dir.mkdir(exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_file = backup_dir / f"rules_{timestamp}.json"
@@ -616,7 +619,7 @@ async def api_rules_test(body: dict):
     )
     
     # Run backtest
-    rules_file = CONFIG_DIR_PATH / "rules.json"
+    rules_file = RULES_FILE
     result = run_backtest(config, rules_file)
     
     return {
@@ -663,7 +666,7 @@ async def api_backtest(body: dict):
         # data_source 固定为 tiger
     )
     
-    rules_file = CONFIG_DIR_PATH / "rules.json"
+    rules_file = RULES_FILE
     result = run_backtest(config, rules_file)
     
     # 清理 NaN/Inf 值，避免 JSON 序列化错误
@@ -703,7 +706,7 @@ async def api_backtest_results():
 async def api_rules_history():
     """Get rules change history."""
     import json
-    backup_dir = CONFIG_DIR_PATH / "rules_backup"
+    backup_dir = RULES_DIR / "rules_backup"
     if not backup_dir.exists():
         return {"history": []}
     
@@ -828,7 +831,7 @@ async def api_quote_provider(body: dict):
 
 # --- Tiger config management ---
 
-TIGER_PROPS_FILE = CONFIG_DIR_PATH / "tiger_openapi_config.properties"
+TIGER_PROPS_FILE = PROPERTIES_DIR / "tiger_openapi_config.properties"
 
 def _parse_properties(text: str) -> dict:
     """Parse a .properties file into a dict."""
@@ -951,7 +954,7 @@ async def api_tiger_config_upload_file(file: UploadFile = File(...)):
     if TIGER_PROPS_FILE.exists():
         from datetime import datetime
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup = CONFIG_DIR_PATH / f"tiger_openapi_config.properties.bak.{ts}"
+        backup = PROPERTIES_DIR / f"tiger_openapi_config.properties.bak.{ts}"
         backup.write_text(TIGER_PROPS_FILE.read_text())
     
     # Write new config (always as tiger_openapi_config.properties)
@@ -1041,7 +1044,7 @@ async def api_news():
 async def api_news_sources():
     """Get news source configuration (for Dashboard checkboxes)."""
     import json
-    sources_file = CONFIG_DIR_PATH.parent / "news" / "sources.json"
+    sources_file = NEWS_DIR_PATH / "sources.json"
     if not sources_file.exists():
         return {"sources": []}
     try:
@@ -1054,7 +1057,7 @@ async def api_news_sources():
 async def api_news_sources_update(body: dict):
     """Update news source enabled status."""
     import json
-    sources_file = CONFIG_DIR_PATH.parent / "news" / "sources.json"
+    sources_file = NEWS_DIR_PATH / "sources.json"
     if not sources_file.exists():
         return JSONResponse({"error": "sources.json not found"}, status_code=404)
     

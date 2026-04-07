@@ -24,6 +24,9 @@ services:
     environment:
       - TZ=Asia/Shanghai
       - TIGER_CONFIG_DIR=/app/config
+      - TIGER_RULES_DIR=/app/rules
+      - TIGER_NEWS_DIR=/app/news
+      - TIGER_PROPERTIES_DIR=/app/properties
       - TIGER_WORKSPACE=/app
       - TIGER_WATCHLIST_PATH=/app/data/watchlist.json
       - TIGER_QUOTE_PROVIDER=yfinance

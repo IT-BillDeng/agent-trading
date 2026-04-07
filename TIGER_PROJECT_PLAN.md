@@ -86,7 +86,15 @@
 
 ---
 
-## ⏳ Phase 5：Agent 调度与运行
+## Phase 5：Agent 调度与运行
+
+### 5.0 Newswire ✅ 已完成（2026-04-07）
+
+见 Phase 5.0 完整文档：`specs/tiger-newswire-output-schema-v1.md`
+- 数据源：web_search + yfinance + host browser（Dashboard 复选框可开关）
+- 输出：latest.json（15 条，importance/sentiment 标注）
+- Cron：盘前/盘中(q30)/盘后(q2h)，推送到 Telegram
+- Dashboard 面板：/api/news + 数据源筛选
 
 ### 5.1 Watcher（系统健康监护人）✅ 设计完成
 
@@ -106,15 +114,51 @@
 
 **通知抑制：** 同一告警 30 分钟内不重复
 
-### 5.2 其他 Agent（待实现）
+### 5.2 Strategist（策略管理器）🔧 设计中
+
+**定位：** 不产生信号，管理规则。自我迭代——每次策略变更必须回测验证才上线。
+
+**三班职责：**
+
+| 时段 | 职责 | 输出 |
+|------|------|------|
+| **盘前** (09:00 ET) | 复盘昨日信号 + 设定今日参数 | 规则参数调整提案 → 回测 → 验证通过 → 上线 |
+| **盘中** (q15min) | 监控异常波动 → 暂停/恢复风控 | 控制指令（不改参数） |
+| **盘后** (16:30 ET) | 分析今日信号质量 → 调整明日策略 | 策略迭代提案 → 回测 → 存档待明日上线 |
+
+**自我迭代闭环：**
+```
+发现问题 → 提出调整方案 → 回测验证 → 方案优于基线 → 上线
+                                    → 方案不如基线 → 记录原因，继续尝试
+```
+
+**输入源：**
+
+| 来源 | 文件 | 用途 |
+|------|------|------|
+| 新闻情报 | `newswire/latest.json` | 个股/宏观/板块新闻，importance/sentiment |
+| 信号历史 | `.last_execution_cycle.json` | 最近信号、风控决策、执行结果 |
+| 规则配置 | `rules/rules.json` | 当前激活规则及参数（调整目标） |
+| 回测结果 | `backtest_results/` | 历史回测绩效（验证新方案） |
+| 行情数据 | yfinance / web_search | 实时价格、技术指标 |
+| 市场上下文 | `market_context.json` | 大盘状态、板块轮动 |
+| 自选清单 | `data/watchlist.json` | 标的白名单、优先级 |
+
+**硬约束：**
+- 任何规则参数变更必须回测通过才上线
+- 盘中绝不改规则参数，只能暂停/恢复
+- 每次迭代记录到 history.jsonl，形成学习曲线
+- 使用 pro 模型（深度推理）
+
+**触发机制：** Newswire 跑完后自动触发 Strategist
+
+### 5.3 其他 Agent（待实现）
 
 | Agent | 时段 | 频率 | 模型 |
 |-------|------|------|------|
-| tiger-strategist | 盘前 | 09:00 ET | pro |
-| tiger-strategist | 盘中 | 每 15min | pro |
-| tiger-strategist | 盘后 | 16:30 ET | pro |
 | tiger-closer | 盘后 | 收盘后 | omni |
-| tiger-newswire | 盘前/盘中 | 按需 | omni |
+| tiger-executor | 按需 | 信号触发 | omni |
+| tiger-scout | 按需 | 异常触发 | omni |
 
 ---
 

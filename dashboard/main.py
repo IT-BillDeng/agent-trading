@@ -626,6 +626,19 @@ async def api_rules_test(body: dict):
     }
 
 
+def _clean_nan_values(obj):
+    """递归清理 NaN/Inf 值，转换为 None"""
+    import math
+    if isinstance(obj, dict):
+        return {k: _clean_nan_values(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_clean_nan_values(item) for item in obj]
+    elif isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+    return obj
+
+
 @app.post("/api/backtest")
 async def api_backtest(body: dict):
     """Run a full backtest (data source: Tiger API)."""
@@ -654,9 +667,12 @@ async def api_backtest(body: dict):
     rules_file = CONFIG_DIR_PATH / "rules.json"
     result = run_backtest(config, rules_file)
     
+    # 清理 NaN/Inf 值，避免 JSON 序列化错误
+    result_dict = _clean_nan_values(result.to_dict())
+    
     return {
         "status": "ok",
-        "result": result.to_dict()
+        "result": result_dict
     }
 
 

@@ -47,7 +47,18 @@ web_search(query="AI semiconductor tech sector news today", count=5, freshness="
 
 #### 3c. market_overview（大盘 ETF）
 
-用 yfinance 获取 SPY, QQQ, DIA 的当日涨跌幅。
+用 yfinance `yf.download()` 获取 SPY, QQQ, DIA 的当日涨跌幅。
+⚠️ 必须用 `yf.download()` 而非 `Ticker.history()`（v1.2.0 history() 有 bug）：
+```python
+import yfinance as yf
+data = yf.download(['SPY','QQQ','DIA'], period='2d', progress=False)
+for sym in ['SPY','QQQ','DIA']:
+    close = data['Close'][sym].dropna()
+    cur = float(close.iloc[-1])
+    prev = float(close.iloc[-2])
+    chg = (cur - prev) / prev * 100
+    print(f'{sym}: {cur:.2f} ({chg:+.2f}%)')
+```
 写入一条 macro 类别的 item。
 
 ### Step 4: 合并去重

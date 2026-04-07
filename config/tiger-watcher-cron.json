@@ -1,9 +1,9 @@
 {
   "name": "tiger-watcher",
-  "description": "Tiger 系统健康监护人 - 每 15 分钟检查一次",
+  "description": "Tiger 系统健康监护人 - 每 15 分钟通过 API 检查系统状态",
   "schedule": "*/15 * * * *",
   "agent": "yuuka",
-  "task": "执行 Tiger Watcher 健康检查：\n\n1. 运行检查脚本：\n```bash\ncd /Users/openclaw/.openclaw/workspace-yuuka/tiger-trading && python3 system/tiger_engine/run_watcher.py\n```\n\n2. 解析输出的 JSON 报告\n\n3. 根据级别处理：\n   - info: 仅记录，不通知\n   - warning: 记录，如果有新告警则通知先生\n   - critical: 通知先生\n   - emergency: 通知先生 + 自动执行 `/api/control/lock`\n\n4. 通知格式：\n   - 通过当前 session 发送给先生\n   - 包含：级别、检查项、告警信息\n\n注意：同一告警 30 分钟内不重复通知",
+  "task": "执行 Tiger Watcher 健康检查：\n\n1. 运行 API 版本检查脚本：\n```bash\npython3 /workspace/tiger-trading/system/tiger_engine/src/tiger_engine/watcher_api.py\n```\n\n2. 解析输出的 JSON 报告\n\n3. 根据级别处理：\n   - info: 仅记录，不通知\n   - warning: 记录，如果有新告警则通知先生\n   - critical: 通知先生（包含检查详情）\n   - emergency: 通知先生 + 自动调用 `/api/control/lock` 锁定引擎\n\n4. 通知格式：\n   - 通过当前 session 发送给先生\n   - 包含：级别、检查项、告警信息、建议操作\n\n5. 告警抑制：\n   - 同一告警 30 分钟内不重复通知\n   - 状态恢复时通知一次\n\n注意：API 地址为 http://host.docker.internal:8088",
   "enabled": false,
   "timeout": 60
 }

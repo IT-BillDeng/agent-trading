@@ -148,7 +148,7 @@ class TigerClient:
     def get_quote(self, symbols: list[str], market: str = "US") -> list:
         """Get quotes for given symbols."""
         try:
-            market_enum = Market.US if market == "US" else Market.HK
+            market_enum = Market.US
             result = self._quote_client.get_stock_briefs(symbols)
             if result is None or (hasattr(result, 'empty') and result.empty):
                 return []
@@ -182,7 +182,7 @@ class TigerClient:
     def get_market_status(self, market: str = "US") -> dict:
         """Get market status."""
         try:
-            market_enum = Market.US if market == "US" else Market.HK
+            market_enum = Market.US
             result = self._quote_client.get_market_status(market=market_enum)
             return {"market": market, "status": str(result)}
         except Exception as e:

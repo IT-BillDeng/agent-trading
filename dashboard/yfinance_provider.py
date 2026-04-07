@@ -4,12 +4,8 @@ import yfinance as yf
 from .quote_provider import QuoteProvider
 
 
-# HK symbols: Tiger uses "01810", yfinance uses "1810.HK"
 def _to_yf_symbol(symbol: str, market: str) -> str:
     """Convert symbol to yfinance format."""
-    if market == "HK":
-        # "01810" → "1810.HK"
-        return f"{symbol.lstrip('0')}.HK"
     return symbol  # US symbols unchanged
 
 
@@ -110,7 +106,7 @@ class YFinanceQuoteProvider(QuoteProvider):
     def get_market_status(self, market: str = "US") -> dict:
         """Approximate market status from recent quote data."""
         try:
-            spy = yf.Ticker("SPY" if market == "US" else "^HSI")
+            spy = yf.Ticker("SPY")
             hist = spy.history(period="1d")
             if hist.empty:
                 return {"market": market, "status": "closed"}

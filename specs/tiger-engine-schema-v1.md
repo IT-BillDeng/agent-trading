@@ -40,7 +40,6 @@ runtime/tiger_engine/
     latest_result.json
     results.jsonl
   closer/
-    hk_latest.json
     us_latest.json
     history.jsonl
   state/
@@ -373,10 +372,9 @@ runtime/tiger_engine/
 ## 9. closer summary schema
 
 ### 用途
-在 HK / US 收盘后生成总结，再由 Operator 汇总给用户。
+在 US 收盘后生成总结，再由 Operator 汇总给用户。
 
 ### 文件
-- `runtime/tiger_engine/closer/hk_latest.json`
 - `runtime/tiger_engine/closer/us_latest.json`
 - `runtime/tiger_engine/closer/history.jsonl`
 

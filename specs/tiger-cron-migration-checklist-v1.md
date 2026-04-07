@@ -34,9 +34,6 @@
 - 增加结构化输出：`runtime/tiger_engine/watcher/latest.json` / `history.jsonl`
 
 ### newswire preopen
-- `tiger-newswire-hk-preopen`
-- jobId: `052d1e4b-b4c9-41ac-8329-3a09d7c7aa27`
-
 - `tiger-newswire-us-preopen`
 - jobId: `e3957315-a8ea-4f69-a7b2-ec395d48e285`
 
@@ -45,9 +42,6 @@
 - 接入结构化输出：`runtime/tiger_engine/newswire/latest.json` / `history.jsonl`
 
 ### closer
-- `tiger-closer-hk-close-summary`
-- jobId: `54c19f84-09ef-4435-b9e8-30decc7b98eb`
-
 - `tiger-closer-us-close-summary`
 - jobId: `75de7f51-fa69-4ea2-b43f-0e1585420f57`
 

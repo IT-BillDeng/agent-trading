@@ -99,7 +99,7 @@ Operator 汇总给用户
 ### 推荐频率
 - 盘中：每 `30m`
 - 盘后：每 `2h`
-- 盘前：保留 HK / US 各一班
+- 盘前：保留 US 一班
 
 ### 输入
 - `data/watchlist.json`
@@ -204,14 +204,12 @@ Operator 汇总给用户
 - cron 固定班次
 
 ### 推荐频率
-- HK 收盘后 1 次
 - US 收盘后 1 次
 
 ### 输入
 - watcher / newswire / execution / state 全链路结果
 
 ### 输出
-- `runtime/tiger_engine/closer/hk_latest.json`
 - `runtime/tiger_engine/closer/us_latest.json`
 - `runtime/tiger_engine/closer/history.jsonl`
 
@@ -254,7 +252,6 @@ Operator 汇总给用户
 - 建议：仅盘中运行，频率 `5m`
 
 ### newswire
-- `tiger-newswire-hk-preopen`
 - `tiger-newswire-us-preopen`
 - `tiger-newswire-intraday-q30`
 - `tiger-newswire-afterhours-q2h`
@@ -264,7 +261,6 @@ Operator 汇总给用户
 - 另配事件唤醒
 
 ### closer
-- `tiger-closer-hk-close-summary`
 - `tiger-closer-us-close-summary`
 
 ### portfolio-report
@@ -292,10 +288,6 @@ Operator 汇总给用户
 ### `tiger-watcher-market-watch`
 - 保留
 - 但改成：仅盘中运行 + 写结构化 watcher 输出
-
-### `tiger-newswire-hk-preopen`
-- 保留
-- 输出接入 newswire schema
 
 ### `tiger-newswire-us-preopen`
 - 保留

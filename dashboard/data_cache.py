@@ -192,21 +192,12 @@ class DataCache:
             watchlist = self._load_watchlist()
             us_symbols = [s["symbol"] for s in watchlist.get("symbols", [])
                          if s.get("enabled") and s.get("market") == "US"]
-            hk_symbols = [s["symbol"] for s in watchlist.get("symbols", [])
-                         if s.get("enabled") and s.get("market") == "HK"]
 
             if us_symbols:
                 us_quotes = self._quote_provider.get_quote(us_symbols, "US")
                 for q in us_quotes:
                     if q.get("symbol"):
                         q["market"] = "US"
-                        quotes[q["symbol"]] = q
-
-            if hk_symbols:
-                hk_quotes = self._quote_provider.get_quote(hk_symbols, "HK")
-                for q in hk_quotes:
-                    if q.get("symbol"):
-                        q["market"] = "HK"
                         quotes[q["symbol"]] = q
         except Exception as e:
             errors.append(f"quotes: {e}")

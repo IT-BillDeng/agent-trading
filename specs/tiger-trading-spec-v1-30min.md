@@ -2,7 +2,7 @@
 
 ## 1. 目标
 
-构建一套基于 **Tiger Open Platform 模拟盘** 的美股 + 港股自动交易系统 v1。
+构建一套基于 **Tiger Open Platform 模拟盘** 的美股自动交易系统 v1。
 
 设计原则：
 - 低频优先：按 `30min` 级别运行
@@ -17,14 +17,12 @@
 
 ### 2.1 账户与市场
 - 环境：Tiger 模拟盘
-- 市场：美股 + 港股
+- 市场：美股
 - 账户：PAPER account
 - 数据面：Tiger 延迟行情 + Tiger 交易接口
 - 执行面：Tiger Open API
 - 当前已确认：
   - US `quote_delay` 可用
-  - HK `quote_delay/brief` 当前返回权限拒绝
-  - HK `30min K线` 可用，因此 v1 可用 K 线历史驱动港股 30min 策略
 
 ### 2.2 允许与禁止
 - 允许：自动下单
@@ -32,7 +30,6 @@
 - 禁止：杠杆
 - 禁止：期权
 - 禁止：盘前/盘后交易
-- 禁止：港股竞价时段下单
 
 ### 2.3 订单类型白名单
 - 市价单 `MKT`
@@ -54,10 +51,6 @@
 - AMZN
 - SMCI（Super Micro Computer）
 - GOOGL（Alphabet Class A / Google）
-
-#### 港股
-- 01810（小米集团-W，Tiger contract 已确认，lot size=200）
-- 02097（蜜雪集团，Tiger contract 已确认，lot size=100）
 
 ---
 
@@ -81,24 +74,10 @@
 - 15:00
 - 15:30
 
-#### 港股（Asia/Hong_Kong）
-- 10:00
-- 10:30
-- 11:00
-- 11:30
-- 13:30
-- 14:00
-- 14:30
-- 15:00
-- 15:30
-
 ### 3.2 不在以下时间执行新开仓
 - 美股 09:30–10:00
-- 港股 09:30–10:00
-- 港股午休时段
-- 各市场常规时段结束前最后 15 分钟
+- 常规时段结束前最后 15 分钟
 - 非常规时段
-- 港股竞价时段
 
 ### 3.3 运行模式
 - 常驻进程 + 定时调度
@@ -132,7 +111,7 @@
 - 当日相对强度
 - 波动率过滤
 
-> v1 实现建议：以 `KLINE 30min` 历史数据作为主输入；US 可附加 `quote_delay` 作为诊断，HK 暂不依赖 `quote_delay/brief`。
+> v1 实现建议：以 `KLINE 30min` 历史数据作为主输入；可附加 `quote_delay` 作为诊断。
 
 ### 入场参考条件（示意）
 满足以下多数条件才允许开仓：
@@ -161,9 +140,7 @@
 - 不允许超过账户可用资金与购买力约束
 - 单标的默认同时仅允许一个方向持仓
 - 若已有持仓，默认不重复加仓
-- 港股下单数量必须满足 lot size 约束
-  - 01810：200 股/手
-  - 02097：100 股/手
+- 美股下单以股为单位（无 lot size 约束）
 
 ## 5.2 单日亏损控制
 - 基准：账户当日净值变化
@@ -374,7 +351,7 @@
 
 ```yaml
 mode: paper
-markets: [US, HK]
+markets: [US]
 strategy:
   timeframe: 30min
   symbols:
@@ -382,11 +359,8 @@ strategy:
     - { symbol: MSFT, market: US }
     - { symbol: NVDA, market: US }
     - { symbol: AMZN, market: US }
-    - { symbol: '01810', market: HK, name: 小米集团-W, lot_size: 200 }
-    - { symbol: '02097', market: HK, name: 蜜雪集团, lot_size: 100 }
   sessions:
     US: { entry_window_start: "10:00", entry_window_end: "15:15" }
-    HK: { entry_window_start: "10:00", entry_window_end: "15:15", skip_lunch_break: true }
   force_flat_before_close: true
 risk:
   max_order_notional_usd: 10000
@@ -399,7 +373,6 @@ execution:
   allowed_order_types: [MKT, LMT, STP, STP_LMT]
   tif: DAY
   allow_prepost: false
-  allow_hk_auction: false
   dedupe: true
 notify:
   telegram: true

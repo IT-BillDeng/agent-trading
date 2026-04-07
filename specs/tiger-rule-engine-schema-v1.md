@@ -33,7 +33,7 @@
   "priority": 1,
   "timeframe": "30min",
   "symbols": ["*"],  // "*" 表示所有标的，或指定 ["AAPL", "MSFT"]
-  "markets": ["US", "HK"],
+  "markets": ["US"],
   
   "entry": {
     "conditions": {
@@ -227,7 +227,7 @@
       "priority": 1,
       "timeframe": "30min",
       "symbols": ["*"],
-      "markets": ["US", "HK"],
+      "markets": ["US"],
       "entry": {
         "conditions": {
           "operator": "AND",

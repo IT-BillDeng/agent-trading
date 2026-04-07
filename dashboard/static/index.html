@@ -57,10 +57,7 @@
                 <span class="w-2 h-2 rounded-full bg-gray-500"></span>
                 <span class="text-gray-400">美股: --</span>
             </span>
-            <span id="market-status-hk" class="flex items-center gap-1.5">
-                <span class="w-2 h-2 rounded-full bg-gray-500"></span>
-                <span class="text-gray-400">港股: --</span>
-            </span>
+
         </div>
         <div class="flex items-center gap-4 text-sm">
             <div class="relative">
@@ -190,19 +187,17 @@
                 <div class="flex gap-1">
                     <button onclick="setFilter('market', 'all')" class="filter-btn active px-3 py-1.5 rounded text-xs border border-gray-600" data-filter="market" data-value="all">全部</button>
                     <button onclick="setFilter('market', 'US')" class="filter-btn px-3 py-1.5 rounded text-xs border border-gray-600" data-filter="market" data-value="US">US</button>
-                    <button onclick="setFilter('market', 'HK')" class="filter-btn px-3 py-1.5 rounded text-xs border border-gray-600" data-filter="market" data-value="HK">HK</button>
+
                 </div>
             </div>
 
             <!-- Add Form -->
             <div class="flex gap-2 mb-3 items-center">
-                <input id="wl-symbol" type="text" placeholder="股票代码（如 AAPL / 01810）" class="flex-1 min-w-32 bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-tiger-500" onkeypress="if(event.key==='Enter') addWatchlist()">
+                <input id="wl-symbol" type="text" placeholder="股票代码（如 AAPL）" class="flex-1 min-w-32 bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-tiger-500" onkeypress="if(event.key==='Enter') addWatchlist()">
                 <select id="wl-market" class="bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-tiger-500">
                     <option value="US">市场: US</option>
-                    <option value="HK">市场: HK</option>
                 </select>
                 <input id="wl-name" type="text" placeholder="显示名称（可选）" class="flex-1 min-w-32 bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-tiger-500">
-                <input id="wl-lotsize" type="number" placeholder="每手/lot" class="w-24 bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-tiger-500 hidden">
                 <button id="btn-add-watchlist" onclick="addWatchlist()" class="bg-tiger-600 hover:bg-tiger-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium transition whitespace-nowrap">添加到自选</button>
             </div>
 
@@ -213,7 +208,6 @@
                 <div class="col-span-1 text-center">市场</div>
                 <div class="col-span-1 text-center">状态</div>
                 <div class="col-span-1 text-center">优先级</div>
-                <div class="col-span-1 text-center">每手</div>
                 <div class="col-span-3 text-right">操作</div>
             </div>
             <!-- Table Body -->
@@ -515,15 +509,15 @@
                 html += `<div class="text-xs text-gray-600 mb-1">数据源时间: ${timeStr}</div>`;
             }
             // Group by market
-            const groups = { US: [], HK: [] };
+            const groups = { US: [] };
             symbols.forEach(sym => {
                 const q = data[sym];
                 const mkt = q.market || 'US';
                 if (!groups[mkt]) groups[mkt] = [];
                 groups[mkt].push({ sym, ...q });
             });
-            const marketLabel = { US: '🇺🇸 美股', HK: '🇭🇰 港股' };
-            ['US', 'HK'].forEach(mkt => {
+            const marketLabel = { US: '🇺🇸 美股' };
+            ['US'].forEach(mkt => {
                 const items = groups[mkt];
                 if (!items || items.length === 0) return;
                 html += `<div class="text-xs text-gray-500 font-medium mt-2 mb-1">${marketLabel[mkt] || mkt}</div>`;
@@ -532,11 +526,10 @@
                     const change = q.change || 0;
                     const changeRate = q.change_rate || 0;
                     const cls = pnlClass(change);
-                    const isHK = mkt === 'HK';
-                    const priceStr = isHK ? 'HK$' + fmt(price) : '$' + fmt(price);
+                    const priceStr = '$' + fmt(price);
                     const vol = q.volume != null ? fmtVolume(q.volume) : '--';
-                    const high = q.high != null ? (isHK ? 'HK$' : '$') + fmt(q.high) : '--';
-                    const low = q.low != null ? (isHK ? 'HK$' : '$') + fmt(q.low) : '--';
+                    const high = q.high != null ? '$' + fmt(q.high) : '--';
+                    const low = q.low != null ? '$' + fmt(q.low) : '--';
                     const range = (q.high != null && q.low != null && q.high > 0) ? fmt(((q.high - q.low) / q.low) * 100) + '%' : '--';
                     html += `<div class="border-b border-gray-700/30">
                         <div class="flex items-center justify-between py-1.5 cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
@@ -556,7 +549,7 @@
                             <span>成交量: ${vol}</span>
                             <span>今高: ${high}</span>
                             <span>今低: ${low}</span>
-                            <span>昨收: ${q.prev_close != null ? (isHK ? 'HK$' : '$') + fmt(q.prev_close) : '--'}</span>
+                            <span>昨收: ${q.prev_close != null ? '$' + fmt(q.prev_close) : '--'}</span>
                         </div>
                     </div>`;
                 });
@@ -759,11 +752,6 @@
             setTimeout(() => el.className = 'text-xs mt-2 hidden', 3000);
         }
 
-        // Toggle lot size field based on market
-        document.getElementById('wl-market')?.addEventListener('change', function() {
-            document.getElementById('wl-lotsize').classList.toggle('hidden', this.value !== 'HK');
-        });
-
         // Remove old showWlMsg function
         function showWlMsg(msg, isError) {
             console.warn('showWlMsg deprecated, use showWlToast instead');
@@ -856,9 +844,6 @@
                     ? '<span class="text-xs px-2 py-0.5 rounded bg-orange-600/30 text-orange-300">高优</span>'
                     : '<span class="text-xs px-2 py-0.5 rounded bg-slate-600/30 text-slate-400">普通</span>';
                 const marketBadge = '<span class="text-xs px-2 py-0.5 rounded bg-slate-700/50 text-slate-300">' + s.market + '</span>';
-                const lotBadge = s.lot_size
-                    ? '<span class="text-xs px-2 py-0.5 rounded bg-slate-700/40 text-slate-400">' + s.lot_size + '</span>'
-                    : '<span class="text-xs px-2 py-0.5 rounded bg-slate-800/50 text-slate-500">-</span>';
                 const enabledCls = s.enabled ? '' : 'opacity-50';
                 const statusBtnText = s.enabled ? '禁用' : '启用';
                 const prioBtnText = s.priority === 'high' ? '设为普通' : '设为高优';
@@ -870,7 +855,6 @@
                     '<div class="col-span-1 text-center">' + marketBadge + '</div>' +
                     '<div class="col-span-1 text-center">' + statusBadge + '</div>' +
                     '<div class="col-span-1 text-center">' + prioBadge + '</div>' +
-                    '<div class="col-span-1 text-center">' + lotBadge + '</div>' +
                     '<div class="col-span-3 flex justify-end gap-1">' +
                         '<button onclick="toggleEnabled(\'' + s.symbol + '\', ' + !s.enabled + ')" class="px-2 py-1 rounded text-xs bg-slate-700/50 hover:bg-slate-600/50 text-gray-300 transition">' + statusBtnText + '</button>' +
                         '<button onclick="togglePriority(\'' + s.symbol + '\', \'' + nextPrio + '\')" class="px-2 py-1 rounded text-xs bg-slate-700/50 hover:bg-slate-600/50 text-gray-300 transition">' + prioBtnText + '</button>' +
@@ -913,7 +897,6 @@
             const symbol = document.getElementById('wl-symbol').value.trim();
             const market = document.getElementById('wl-market').value;
             const name = document.getElementById('wl-name').value.trim();
-            const lotSize = document.getElementById('wl-lotsize').value;
             const btn = document.getElementById('btn-add-watchlist');
 
             if (!symbol) { showWlToast('请输入股票代码', 'error'); return; }
@@ -923,7 +906,6 @@
             btn.textContent = '添加中...';
 
             const body = { symbol, market, name };
-            if (market === 'HK' && lotSize) body.lot_size = parseInt(lotSize);
 
             try {
                 const res = await fetch(API_BASE + '/api/watchlist', {
@@ -938,7 +920,6 @@
                     showWlToast('已添加 ' + symbol, 'success');
                     document.getElementById('wl-symbol').value = '';
                     document.getElementById('wl-name').value = '';
-                    document.getElementById('wl-lotsize').value = '';
                     fetchWatchlist();
                 }
             } catch (e) {
@@ -1005,21 +986,7 @@
             }
             usEl.innerHTML = `<span class="w-2 h-2 rounded-full ${usColor}"></span><span class="text-gray-400">${usText}</span>`;
 
-            // HK Market
-            const hkEl = document.getElementById('market-status-hk');
-            const hk = data.HK;
-            let hkColor = 'bg-gray-500';
-            let hkText = '港股: --';
-            if (hk) {
-                if (hk.open) {
-                    hkColor = 'bg-green-500';
-                    hkText = '港股: 开盘中';
-                } else {
-                    hkColor = 'bg-gray-500';
-                    hkText = '港股: 已收盘';
-                }
-            }
-            hkEl.innerHTML = `<span class="w-2 h-2 rounded-full ${hkColor}"></span><span class="text-gray-400">${hkText}</span>`;
+
         }
 
         // --- Fetch & Render ---

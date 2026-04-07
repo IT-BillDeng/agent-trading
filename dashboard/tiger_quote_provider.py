@@ -52,7 +52,7 @@ class TigerQuoteProvider(QuoteProvider):
 
     def get_market_status(self, market: str = "US") -> dict:
         try:
-            market_enum = Market.US if market == "US" else Market.HK
+            market_enum = Market.US
             result = self._quote_client.get_market_status(market=market_enum)
             return {"market": market, "status": str(result)}
         except Exception as e:

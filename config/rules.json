@@ -10,7 +10,7 @@
       "priority": 1,
       "timeframe": "30min",
       "symbols": ["*"],
-      "markets": ["US", "HK"],
+      "markets": ["US"],
       "entry": {
         "conditions": {
           "operator": "AND",

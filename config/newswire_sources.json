@@ -3,8 +3,7 @@
   "name": "tiger-newswire-sources-v1",
   "purpose": "Free v1 information sources for tiger-newswire",
   "default_market_priority": {
-    "US": ["brave_search", "web_fetch", "yahoo_finance"],
-    "HK": ["brave_search", "web_fetch", "yahoo_finance"]
+    "US": ["brave_search", "web_fetch", "yahoo_finance"]
   },
   "sources": [
     {
@@ -38,12 +37,7 @@
       "{symbol} earnings guidance analyst news",
       "{symbol} SEC regulation product launch news"
     ],
-    "HK": [
-      "{symbol} stock news Hong Kong today",
-      "{symbol} earnings guidance company announcement",
-      "{symbol} regulation filing news"
-    ],
-    "macro": [
+"macro": [
       "US market macro news today fed treasury yields inflation jobs",
       "AI semiconductor megacap market news today"
     ]
@@ -55,8 +49,6 @@
     "AMZN": "https://finance.yahoo.com/quote/AMZN",
     "SMCI": "https://finance.yahoo.com/quote/SMCI",
     "GOOGL": "https://finance.yahoo.com/quote/GOOGL",
-    "01810": "https://finance.yahoo.com/quote/1810.HK",
-    "02097": "https://finance.yahoo.com/quote/2097.HK"
   },
   "rules": {
     "prefer_priority_high": true,

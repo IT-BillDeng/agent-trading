@@ -170,7 +170,7 @@ final_quantity = min(max_limit_quantity, risk_quantity, suggested_quantity)
 | 市场 | 常规 | 盘前 | 盘后 |
 |------|------|------|------|
 | US | Mon-Fri 9:30-16:00 ET | 4:00-9:30 | 16:00-20:00 |
-| HK | Mon-Fri 9:30-12:00, 13:00-16:00 HKT | — | — |
+
 
 ---
 

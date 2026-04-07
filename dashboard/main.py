@@ -627,7 +627,7 @@ async def api_rules_test(body: dict):
 
 @app.post("/api/backtest")
 async def api_backtest(body: dict):
-    """Run a full backtest."""
+    """Run a full backtest (data source: Tiger API)."""
     import sys
     backtest_src = str(Path(__file__).parent.parent / "system" / "tiger_engine" / "src")
     if backtest_src not in sys.path:
@@ -640,15 +640,14 @@ async def api_backtest(body: dict):
     end_date = body.get("end_date", "2026-04-01")
     timeframe = body.get("timeframe", "30min")
     initial_capital = body.get("initial_capital", 100000.0)
-    data_source = body.get("data_source", "yfinance")  # 'yfinance' 或 'tiger'
     
     config = BacktestConfig(
         symbols=symbols,
         start_date=start_date,
         end_date=end_date,
         timeframe=timeframe,
-        initial_capital=initial_capital,
-        data_source=data_source
+        initial_capital=initial_capital
+        # data_source 固定为 tiger
     )
     
     rules_file = CONFIG_DIR_PATH / "rules.json"

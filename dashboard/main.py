@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
 
     # TigerClient may fail if credentials are invalid — don't crash the app
     try:
-        tiger_client = TigerClient(config_dir=config_dir)
+        tiger_client = TigerClient(config_dir=str(PROPERTIES_DIR))
     except Exception as e:
         tiger_client = None
         print(f"[dashboard] TigerClient init failed: {e}")
@@ -897,7 +897,7 @@ async def api_tiger_config_get():
     # Try API detection (non-fatal if fails)
     account_info = None
     try:
-        account_info = _get_api_account_info(str(CONFIG_DIR_PATH))
+        account_info = _get_api_account_info(str(PROPERTIES_DIR))
         detected = _account_type_to_mode(account_info.get("account_type", ""))
         if detected:
             mode = detected
@@ -967,7 +967,7 @@ async def api_tiger_config_upload_file(file: UploadFile = File(...)):
     try:
         from .tiger_client import TigerClient as TC
         from .data_cache import DataCache as DC
-        tiger_client = TC(config_dir=str(CONFIG_DIR_PATH))
+        tiger_client = TC(config_dir=str(PROPERTIES_DIR))
         provider_name = os.environ.get("TIGER_QUOTE_PROVIDER", "yfinance")
         quote_provider = get_quote_provider(provider_name, config_dir=str(CONFIG_DIR_PATH))
         cache = DC(tiger_client, quote_provider, refresh_interval=30)
@@ -981,7 +981,7 @@ async def api_tiger_config_upload_file(file: UploadFile = File(...)):
     detected = None
     if tiger_client:
         try:
-            account_info = _get_api_account_info(str(CONFIG_DIR_PATH))
+            account_info = _get_api_account_info(str(PROPERTIES_DIR))
             detected = _account_type_to_mode(account_info.get("account_type", ""))
             if detected:
                 config_file = CONFIG_DIR_PATH / "app_config.docker.json"

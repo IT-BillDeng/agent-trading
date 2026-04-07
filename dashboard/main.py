@@ -1019,6 +1019,67 @@ async def api_config_mode(body: dict):
     return {"status": "ok", "mode": mode}
 
 
+# --- News API ---
+
+NEWS_DIR = RUNTIME_DIR / "newswire"
+
+
+@app.get("/api/news")
+async def api_news():
+    """Read latest newswire output."""
+    import json
+    news_file = NEWS_DIR / "latest.json"
+    if not news_file.exists():
+        return {"items": [], "generated_at": None, "shift": None, "meta": {}}
+    try:
+        return json.loads(news_file.read_text())
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/news/sources")
+async def api_news_sources():
+    """Get news source configuration (for Dashboard checkboxes)."""
+    import json
+    sources_file = CONFIG_DIR_PATH.parent / "news" / "sources.json"
+    if not sources_file.exists():
+        return {"sources": []}
+    try:
+        return json.loads(sources_file.read_text())
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.put("/api/news/sources")
+async def api_news_sources_update(body: dict):
+    """Update news source enabled status."""
+    import json
+    sources_file = CONFIG_DIR_PATH.parent / "news" / "sources.json"
+    if not sources_file.exists():
+        return JSONResponse({"error": "sources.json not found"}, status_code=404)
+    
+    try:
+        config = json.loads(sources_file.read_text())
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+    
+    # Update enabled status for each source
+    updates = body.get("sources", [])
+    for update in updates:
+        sid = update.get("id")
+        enabled = update.get("enabled")
+        if sid is None or enabled is None:
+            continue
+        for src in config.get("sources", []):
+            if src.get("id") == sid:
+                src["enabled"] = enabled
+                break
+    
+    config["updated_at"] = __import__("datetime").datetime.now().isoformat()
+    sources_file.write_text(json.dumps(config, indent=2, ensure_ascii=False))
+    return {"status": "ok", "sources": config.get("sources", [])}
+
+
 # --- Entry point ---
 
 def main():

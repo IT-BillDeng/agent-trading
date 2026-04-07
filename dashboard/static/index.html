@@ -162,6 +162,32 @@
             </div>
         </div>
 
+        <!-- News Panel -->
+        <section class="mt-6 card">
+            <div class="flex items-center justify-between mb-3">
+                <div class="card-title mb-0">📰 Newswire 新闻情报</div>
+                <div class="flex items-center gap-3">
+                    <!-- Source Checkboxes -->
+                    <div id="news-source-checks" class="flex gap-2 text-xs"></div>
+                    <!-- Shift badge -->
+                    <span id="news-shift" class="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400">--</span>
+                    <span id="news-generated" class="text-xs text-gray-500">--</span>
+                </div>
+            </div>
+            <!-- News Filters -->
+            <div class="flex gap-1 mb-3">
+                <button onclick="setNewsFilter('all')" class="news-filter-btn active px-2 py-1 rounded text-xs border border-gray-600" data-value="all">全部</button>
+                <button onclick="setNewsFilter('high')" class="news-filter-btn px-2 py-1 rounded text-xs border border-gray-600" data-value="high">🔴 高优</button>
+                <button onclick="setNewsFilter('medium')" class="news-filter-btn px-2 py-1 rounded text-xs border border-gray-600" data-value="medium">🟡 中等</button>
+                <button onclick="setNewsFilter('stock')" class="news-filter-btn px-2 py-1 rounded text-xs border border-gray-600" data-value="stock">📊 个股</button>
+                <button onclick="setNewsFilter('macro')" class="news-filter-btn px-2 py-1 rounded text-xs border border-gray-600" data-value="macro">🌍 宏观</button>
+            </div>
+            <!-- News List -->
+            <div id="news-list" class="space-y-2 max-h-96 overflow-y-auto">
+                <div class="text-gray-500 text-sm">加载中...</div>
+            </div>
+        </section>
+
         <!-- Watchlist Management -->
         <section class="mt-6 card">
             <div class="card-title">📝 自选管理</div>
@@ -1421,6 +1447,122 @@
                 dd.classList.add('hidden');
             }
         });
+        // --- News Panel ---
+        let newsData = { items: [], meta: {} };
+        let newsFilter = 'all';
+
+        async function fetchNews() {
+            try {
+                const res = await fetch('/api/news');
+                const data = await res.json();
+                newsData = data;
+                renderNews();
+                // Update header
+                document.getElementById('news-shift').textContent = data.shift || '--';
+                if (data.generated_at) {
+                    const d = new Date(data.generated_at);
+                    document.getElementById('news-generated').textContent = d.toLocaleString('zh-CN', {hour:'2-digit', minute:'2-digit'});
+                }
+            } catch (e) {
+                console.error('fetchNews error:', e);
+            }
+        }
+
+        async function fetchNewsSources() {
+            try {
+                const res = await fetch('/api/news/sources');
+                const data = await res.json();
+                const container = document.getElementById('news-source-checks');
+                container.innerHTML = '';
+                (data.sources || []).forEach(src => {
+                    const label = document.createElement('label');
+                    label.className = 'flex items-center gap-1 cursor-pointer';
+                    label.innerHTML = `
+                        <input type="checkbox" ${src.enabled ? 'checked' : ''} 
+                            onchange="toggleNewsSource('${src.id}', this.checked)"
+                            class="accent-tiger-500">
+                        <span class="text-gray-400">${src.name}</span>
+                    `;
+                    container.appendChild(label);
+                });
+            } catch (e) {
+                console.error('fetchNewsSources error:', e);
+            }
+        }
+
+        async function toggleNewsSource(sourceId, enabled) {
+            try {
+                await fetch('/api/news/sources', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sources: [{ id: sourceId, enabled }] })
+                });
+            } catch (e) {
+                console.error('toggleNewsSource error:', e);
+            }
+        }
+
+        function setNewsFilter(filter) {
+            newsFilter = filter;
+            document.querySelectorAll('.news-filter-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.value === filter);
+                b.classList.toggle('bg-tiger-600/30', b.dataset.value === filter);
+                b.classList.toggle('text-tiger-500', b.dataset.value === filter);
+            });
+            renderNews();
+        }
+
+        function renderNews() {
+            const container = document.getElementById('news-list');
+            let items = newsData.items || [];
+            // Apply filter
+            if (newsFilter === 'high') items = items.filter(i => i.importance === 'high');
+            else if (newsFilter === 'medium') items = items.filter(i => i.importance === 'medium');
+            else if (newsFilter === 'stock') items = items.filter(i => i.category === 'stock');
+            else if (newsFilter === 'macro') items = items.filter(i => i.category === 'macro');
+
+            if (items.length === 0) {
+                container.innerHTML = '<div class="text-gray-500 text-sm">暂无新闻</div>';
+                return;
+            }
+            // Sort: high > medium > low
+            const impOrder = { high: 0, medium: 1, low: 2 };
+            items.sort((a, b) => (impOrder[a.importance] || 9) - (impOrder[b.importance] || 9));
+
+            container.innerHTML = items.map(item => {
+                const impColors = { high: 'bg-red-500', medium: 'bg-yellow-500', low: 'bg-gray-500' };
+                const sentColors = { positive: 'text-green-400', negative: 'text-red-400', neutral: 'text-gray-400' };
+                const sentIcons = { positive: '📈', negative: '📉', neutral: '➖' };
+                const dotColor = impColors[item.importance] || 'bg-gray-500';
+                const sentIcon = sentIcons[item.sentiment] || '➖';
+                const symBadge = item.symbol ? `<span class="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium">${item.symbol}</span>` : '<span class="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">宏观</span>';
+                const tags = (item.tags || []).map(t => `<span class="text-xs px-1 py-0.5 rounded bg-gray-700 text-gray-400">${t}</span>`).join(' ');
+                const urlLink = item.url ? `<a href="${item.url}" target="_blank" class="text-xs text-tiger-500 hover:underline ml-2">来源 ↗</a>` : '';
+                return `
+                    <div class="flex items-start gap-3 p-2 rounded hover:bg-gray-700/30 transition">
+                        <span class="w-2 h-2 rounded-full ${dotColor} mt-1.5 flex-shrink-0"></span>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-0.5">
+                                ${symBadge}
+                                <span class="text-xs ${sentColors[item.sentiment] || 'text-gray-400'}">${sentIcon}</span>
+                                <span class="text-xs text-gray-500">${item.source || ''}</span>
+                                ${urlLink}
+                            </div>
+                            <div class="text-sm text-gray-100 font-medium">${item.headline}</div>
+                            ${item.summary ? `<div class="text-xs text-gray-400 mt-0.5 line-clamp-2">${item.summary}</div>` : ''}
+                            ${tags ? `<div class="flex gap-1 mt-1">${tags}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Init news
+        fetchNewsSources();
+        fetchNews();
+        setInterval(fetchNews, 60000);
+        setInterval(fetchNewsSources, 120000);
+
         setInterval(fetchAll, REFRESH_MS);
         setInterval(fetchEngine, 30000);
         setInterval(fetchNewSections, 30000);

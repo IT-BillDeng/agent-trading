@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "updated_at": "2026-04-07T16:06:00+08:00",
+  "sources": [
+    {
+      "id": "web_search",
+      "name": "Web Search（Perplexity）",
+      "description": "通过 Perplexity Sonar Pro 搜索个股及宏观新闻",
+      "tool": "web_search",
+      "enabled": true,
+      "scope": ["stock", "macro", "sector"],
+      "params": {
+        "count": 5,
+        "freshness": "day"
+      }
+    },
+    {
+      "id": "yahoo_finance",
+      "name": "Yahoo Finance",
+      "description": "通过 host browser 抓取 Yahoo Finance 个股新闻与行情",
+      "tool": "browser",
+      "enabled": true,
+      "scope": ["stock"],
+      "params": {
+        "target": "host",
+        "url_template": "https://finance.yahoo.com/quote/{symbol}/",
+        "news_limit": 5
+      }
+    },
+    {
+      "id": "market_overview",
+      "name": "大盘概览",
+      "description": "通过 yfinance 获取 SPY/QQQ/DIA 等大盘 ETF 行情",
+      "tool": "yfinance",
+      "enabled": true,
+      "scope": ["macro"],
+      "params": {
+        "symbols": ["SPY", "QQQ", "DIA"]
+      }
+    }
+  ],
+  "output": {
+    "path": "runtime/tiger_engine/newswire/latest.json",
+    "history_path": "runtime/tiger_engine/newswire/history.jsonl",
+    "max_items": 50,
+    "dedupe_window_hours": 24
+  },
+  "schedule": {
+    "premarket": "US 盘前 09:00 ET 一次",
+    "intraday": "每 30 分钟",
+    "afterhours": "每 2 小时"
+  }
+}

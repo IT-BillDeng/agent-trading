@@ -1164,7 +1164,11 @@
         };
 
         function updateModeButtons(currentMode) {
-            document.querySelectorAll('.mode-btn').forEach(btn => {
+            // 安全检查：如果没有 mode-btn 元素，直接返回
+            const modeBtns = document.querySelectorAll('.mode-btn');
+            if (modeBtns.length === 0) return;
+            
+            modeBtns.forEach(btn => {
                 btn.className = 'mode-btn px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400';
             });
             const activeBtn = document.getElementById('mode-' + currentMode);
@@ -1294,25 +1298,8 @@
                 document.getElementById('tc-license').textContent = f.license || '--';
                 document.getElementById('tc-account-type').textContent = info.account_type || '--';
                 document.getElementById('account-type-badge').textContent = (info.account_type || '').includes('paper') ? '📄 Paper 模拟盘' : (info.account_type || '').includes('live') ? '🔴 Live 实盘' : '--';
-                updateModeButtons(mode);
             } catch (e) {
                 console.error('tiger-config fetch error:', e);
-            }
-        }
-
-        function updateModeButtons(mode) {
-            const paper = document.getElementById('btn-paper');
-            const live = document.getElementById('btn-live');
-            if (mode === 'live') {
-                paper.className = 'px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400 hover:border-green-400 hover:text-green-400';
-                live.className = 'px-3 py-1.5 rounded text-sm font-medium border transition bg-red-600/20 text-red-400 border-red-600/30';
-                document.getElementById('env-badge').textContent = 'LIVE';
-                document.getElementById('env-badge').className = 'text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-medium';
-            } else {
-                paper.className = 'px-3 py-1.5 rounded text-sm font-medium border transition bg-green-600/20 text-green-400 border-green-600/30';
-                live.className = 'px-3 py-1.5 rounded text-sm font-medium border transition border-gray-600 text-gray-400 hover:border-red-400 hover:text-red-400';
-                document.getElementById('env-badge').textContent = 'PAPER';
-                document.getElementById('env-badge').className = 'text-xs px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-medium';
             }
         }
 

@@ -28,3 +28,4 @@ config/secrets*
 .env*
 
 rules/rules_backup/
+rules/rules.json

@@ -125,7 +125,13 @@
 
             <!-- Quotes -->
             <div class="card">
-                <div class="card-title">📈 自选行情</div>
+                <div class="flex items-center justify-between mb-2">
+                    <div class="card-title mb-0">📈 自选行情</div>
+                    <select id="quote-provider" class="bg-dark-900 border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:border-tiger-500" onchange="setQuoteProvider(this.value)">
+                        <option value="yfinance">Yahoo Finance</option>
+                        <option value="tiger">Tiger API</option>
+                    </select>
+                </div>
                 <div id="quotes-list" class="space-y-2">
                     <div class="text-gray-500 text-sm">加载中...</div>
                 </div>
@@ -405,13 +411,6 @@
                         <input id="refresh-slider" type="range" min="5" max="120" value="30" class="w-32" onchange="setRefreshInterval(this.value)">
                         <span id="refresh-value" class="text-sm w-8">30</span>
                     </div>
-                </div>
-                <div>
-                    <div class="text-xs text-gray-500 mb-2">数据源</div>
-                    <select id="quote-provider" class="bg-dark-900 border border-gray-600 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-tiger-500" onchange="setQuoteProvider(this.value)">
-                        <option value="yfinance">Yahoo Finance</option>
-                        <option value="tiger">Tiger API</option>
-                    </select>
                 </div>
                 <div>
                     <div class="text-xs text-gray-500 mb-2">风控参数</div>

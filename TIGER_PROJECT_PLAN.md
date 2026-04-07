@@ -88,13 +88,32 @@
 
 ## ⏳ Phase 5：Agent 调度与运行
 
+### 5.1 Watcher（系统健康监护人）✅ 设计完成
+
+| 级别 | 条件 | 处理方式 |
+|------|------|----------|
+| Info | 正常 | 仅日志 |
+| Warning | 单次异常 | 日志 + 状态记录 |
+| Critical | 连续失败 ≥3 | 日志 + 通知先生 |
+| Emergency | 连续失败 ≥5 / 账户异常 | 日志 + 通知先生 + 自动锁定 |
+
+**监控维度：**
+- 引擎健康（locked/unlocked、运行模式）
+- 执行周期（最近周期、信号、风控）
+- 数据源状态
+- 账户状态（净值、异常检测）
+- 风控状态（阻塞项）
+
+**通知抑制：** 同一告警 30 分钟内不重复
+
+### 5.2 其他 Agent（待实现）
+
 | Agent | 时段 | 频率 | 模型 |
 |-------|------|------|------|
 | tiger-strategist | 盘前 | 09:00 ET | pro |
 | tiger-strategist | 盘中 | 每 15min | pro |
 | tiger-strategist | 盘后 | 16:30 ET | pro |
 | tiger-closer | 盘后 | 收盘后 | omni |
-| tiger-watcher | 盘中 | 每 15min | omni |
 | tiger-newswire | 盘前/盘中 | 按需 | omni |
 
 ---

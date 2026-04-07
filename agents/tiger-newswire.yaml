@@ -19,7 +19,7 @@ tools:
 # 输入文件
 input_files:
   - /workspace/tiger-trading/data/watchlist.json
-  - /workspace/tiger-trading/config/newswire_sources.json
+  - /workspace/tiger-trading/news/newswire_sources.json
 
 # 输出文件
 output_files:

@@ -8,7 +8,7 @@
 
 输入：
 - `./data/watchlist.json`
-- `./config/newswire_sources.json`
+- `./news/newswire_sources.json`
 - （可选）最新 watcher / strategist 输出
 
 信息源要求：

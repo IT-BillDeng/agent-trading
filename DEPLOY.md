@@ -8,9 +8,9 @@
 cd tiger-trading
 
 # 准备凭证（从旧环境复制或重新生成）
-cp config/tiger.properties.example config/tiger.properties
+cp properties/tiger.properties.example properties/tiger.properties
 # 编辑填入真实凭证
-vim config/tiger.properties
+vim properties/tiger.properties
 
 # 构建所有镜像（约 3-5 分钟）
 docker compose build
@@ -19,7 +19,7 @@ docker compose build
 docker compose run --rm tiger-engine \
   python run_readonly_cycle.py \
   /app/config/app_config.docker.json \
-  /app/config/tiger.properties
+  /app/properties/tiger.properties
 ```
 
 ### 2. 启动 Dashboard
@@ -45,25 +45,25 @@ docker compose down
 docker compose run --rm -w /app tiger-engine \
   python run_readonly_cycle.py \
   /app/config/app_config.docker.json \
-  /app/config/tiger.properties
+  /app/properties/tiger.properties
 
 # 策略信号周期
 docker compose run --rm -w /app tiger-engine \
   python run_strategy_cycle.py \
   /app/config/app_config.docker.json \
-  /app/config/tiger.properties
+  /app/properties/tiger.properties
 
 # Dry-run 周期
 docker compose run --rm -w /app tiger-engine \
   python run_dry_run_cycle.py \
   /app/config/app_config.docker.json \
-  /app/config/tiger.properties
+  /app/properties/tiger.properties
 
 # 执行周期（guarded/live 取决于配置）
 docker compose run --rm -w /app tiger-engine \
   python run_execution_cycle.py \
   /app/config/app_config.docker.json \
-  /app/config/tiger.properties
+  /app/properties/tiger.properties
 ```
 
 ### 4. 迁移到新机器
@@ -75,7 +75,7 @@ git clone git@github.com:IT-BillDeng/tiger-trading.git
 cd tiger-trading
 
 # 3. 准备凭证
-cp config/tiger.properties.example config/tiger.properties
+cp properties/tiger.properties.example properties/tiger.properties
 # 填入凭证
 
 # 4. 构建（约 2 分钟，首次之后利用缓存秒建）
@@ -85,7 +85,7 @@ docker compose build
 docker compose run --rm tiger-engine \
   python run_readonly_cycle.py \
   /app/config/app_config.docker.json \
-  /app/config/tiger.properties
+  /app/properties/tiger.properties
 ```
 
 ### 5. 目录结构
@@ -97,11 +97,15 @@ tiger-trading/
 ├── config/
 │   ├── app_config.docker.json  # 容器内路径版配置
 │   ├── tiger.properties        # API 凭证（.gitignore 排除）
-│   └── tiger.properties.example
-├── shared/                     # 共享数据（只读 mount）
-│   ├── watchlist.json
-│   ├── market_context.json
+├── rules/                      # 规则引擎配置
+│   └── rules.json
+├── news/                       # 新闻信息源配置
 │   └── newswire_sources.json
+├── properties/                 # API 凭证（gitignore）
+│   ├── tiger.properties
+│   └── tiger.properties.example
+├── data/                       # 标的数据
+│   └── watchlist.json
 ├── runtime/tiger_engine/       # 运行时产物（读写 mount）
 │   ├── logs/
 │   └── state/
@@ -121,7 +125,7 @@ tiger-trading/
 | 文件 | 容器内路径 | 说明 |
 |------|-----------|------|
 | `app_config.docker.json` | `/app/config/app_config.docker.json` | 已适配容器路径的配置 |
-| `tiger.properties` | `/app/config/tiger.properties` | API 凭证 |
+| `tiger.properties` | `/app/properties/tiger.properties` | API 凭证 |
 | `watchlist.json` | `/app/data/watchlist.json` | 共享标的清单 |
 
 ### 6. 注意事项

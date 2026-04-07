@@ -17,6 +17,9 @@ services:
     volumes:
       - ./data:/app/data
       - ./config:/app/config
+      - ./rules:/app/rules
+      - ./news:/app/news
+      - ./properties:/app/properties
       - ./runtime/tiger_engine:/app/runtime
     environment:
       - TZ=Asia/Shanghai
@@ -47,6 +50,9 @@ services:
       - manual
     volumes:
       - ./config:/app/config:ro
+      - ./rules:/app/rules:ro
+      - ./news:/app/news:ro
+      - ./properties:/app/properties:ro
       - ./runtime/tiger_engine:/app/runtime
     environment:
       - TZ=Asia/Shanghai

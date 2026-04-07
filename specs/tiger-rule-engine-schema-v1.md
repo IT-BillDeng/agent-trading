@@ -267,7 +267,7 @@
 
 ## 6. 文件位置
 
-- 规则配置：`/app/config/rules.json`
+- 规则配置：`/app/rules/rules.json`
 - 备份目录：`/app/config/rules_backup/`
 - 验证 Schema：`/app/specs/rule-schema.json`
 

@@ -6,7 +6,7 @@
 - 这是 Operator 与 Tiger subagents 的统一股票来源
 - 默认优先使用这份清单，而不是各自维护独立列表
 
-Newswire v1 信息源：`./config/newswire_sources.json`
+Newswire v1 信息源：`./news/newswire_sources.json`
 - 主源 1：Brave Search
 - 主源 2：web_fetch
 - 辅助：Yahoo Finance / 其他可读页面

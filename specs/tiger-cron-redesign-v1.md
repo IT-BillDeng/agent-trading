@@ -103,7 +103,7 @@ Operator 汇总给用户
 
 ### 输入
 - `data/watchlist.json`
-- `config/newswire_sources.json`
+- `news/newswire_sources.json`
 - role brief / task template
 
 ### 输出

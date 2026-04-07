@@ -15,6 +15,9 @@ config/credentials.json
 config/tiger_openapi_config
 config/tiger_openapi_config.properties
 config/tiger_openapi_config.properties.bak*
+properties/tiger_openapi_config.properties
+properties/tiger_openapi_config.properties.bak*
+properties/tiger.properties
 
 # Runtime user data (modified by dashboard)
 data/tiger_shared_watchlist.json

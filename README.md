@@ -116,7 +116,7 @@ tiger-trading/
 - `runtime/tiger_engine/market_context.json`
   - 共享市场上下文
 
-- `config/newswire_sources.json`
+- `news/newswire_sources.json`
   - newswire 的信息源配置
 
 ### 4.2 岗位说明 / SOP

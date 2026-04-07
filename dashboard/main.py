@@ -788,51 +788,70 @@ async def api_backtest_batch(body: dict):
 
 
 def _apply_param_overrides(rules: dict, params: dict):
-    """Apply parameter overrides to rules dict using dot-path notation.
+    """Apply parameter overrides to rules dict.
     
-    Example params:
-        {"sma_short": 5, "sma_mid": 10, "momentum_threshold": 0.002}
+    Params use {rule_id}.{json_path} format:
+        {"trend_follow_30m.entry.conditions.items.0.params.period": 5}
     
-    Maps to:
-        rules[0].entry.conditions.items[0].params.period = 5
-        rules[0].entry.conditions.items[1].params.period = 10
-        rules[0].entry.conditions.items[3].compare.value = 0.002
+    Or shorthand names mapped to specific rules.
     """
-    # Param name → rule path mapping (for trend_follow_30m)
+    # Shorthand → (rule_id, json_path)
     param_map = {
-        "sma_short": (0, "entry", "conditions", "items", 0, "params", "period"),
-        "sma_mid":   (0, "entry", "conditions", "items", 1, "params", "period"),
-        "sma_long":  (0, "entry", "conditions", "items", 2, "params", "period"),
-        "momentum_period": (0, "entry", "conditions", "items", 3, "params", "period"),
-        "momentum_threshold": (0, "entry", "conditions", "items", 3, "compare", "value"),
-        "bar_range_threshold": (0, "entry", "conditions", "items", 4, "compare", "value"),
+        "sma_short": ("trend_follow_30m", "entry.conditions.items.0.params.period"),
+        "sma_mid":   ("trend_follow_30m", "entry.conditions.items.1.params.period"),
+        "sma_long":  ("trend_follow_30m", "entry.conditions.items.2.params.period"),
+        "momentum_period": ("trend_follow_30m", "entry.conditions.items.3.params.period"),
+        "momentum_threshold": ("trend_follow_30m", "entry.conditions.items.3.compare.value"),
+        "bar_range_threshold": ("trend_follow_30m", "entry.conditions.items.4.compare.value"),
+        "rsi_period": ("rsi_reversal", "entry.conditions.items.0.params.period"),
+        "rsi_oversold": ("rsi_reversal", "entry.conditions.items.0.compare.value"),
+        "rsi_overbought": ("rsi_reversal", "exit.conditions.items.0.compare.value"),
+        "bb_period": ("bollinger_breakout", "entry.conditions.items.0.params.period"),
+        "bb_std": ("bollinger_breakout", "entry.conditions.items.0.params.std_dev"),
+        "volume_ratio": ("bollinger_breakout", "entry.conditions.items.1.ratio"),
     }
 
     rules_list = rules.get("rules", [])
+    rules_by_id = {r.get("rule_id"): r for r in rules_list}
+
     for param_name, value in params.items():
-        if param_name not in param_map:
+        # Check shorthand first
+        if param_name in param_map:
+            rule_id, json_path = param_map[param_name]
+        elif "." in param_name:
+            # Direct: rule_id.path.to.field
+            parts = param_name.split(".", 1)
+            rule_id, json_path = parts[0], parts[1]
+        else:
             continue
-        path = param_map[param_name]
-        rule_idx = path[0]
-        if rule_idx >= len(rules_list):
+
+        rule = rules_by_id.get(rule_id)
+        if not rule:
             continue
-        target = rules_list[rule_idx]
-        keys = path[1:]
-        for key in keys[:-1]:
-            if isinstance(key, int):
-                if isinstance(target, list) and key < len(target):
-                    target = target[key]
-                else:
-                    break
-            elif isinstance(target, dict):
-                target = target.get(key, {})
+
+        # Navigate json_path
+        path_keys = json_path.split(".")
+        target = rule
+        for key in path_keys[:-1]:
+            if isinstance(target, dict):
+                target = target.get(key)
+            elif isinstance(target, list) and key.isdigit():
+                idx = int(key)
+                target = target[idx] if idx < len(target) else None
             else:
+                target = None
                 break
-        last_key = keys[-1]
-        if isinstance(last_key, int) and isinstance(target, list) and last_key < len(target):
-            target[last_key] = value
-        elif isinstance(target, dict):
-            target[last_key] = value
+            if target is None:
+                break
+
+        last_key = path_keys[-1]
+        if target is not None:
+            if isinstance(target, dict):
+                target[last_key] = value
+            elif isinstance(target, list) and last_key.isdigit():
+                idx = int(last_key)
+                if idx < len(target):
+                    target[idx] = value
 
 
 @app.get("/api/backtest/results")

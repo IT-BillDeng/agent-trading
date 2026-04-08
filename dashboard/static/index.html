@@ -511,7 +511,7 @@
                 totalValue += val;
                 const pnl = p.unrealized_pnl;
                 return `<tr class="border-b border-gray-700/30 hover:bg-dark-800/50">
-                    <td class="py-2 font-medium">${p.symbol || '--'}<br><span class="text-xs text-gray-500">${p.name || ''}</span></td>
+                    <td class="py-2 font-medium">${p.symbol || '--'}<br><span class="text-xs text-gray-500">${(watchlistMap[p.symbol] && watchlistMap[p.symbol].name) || p.name || ''}</span></td>
                     <td class="text-right py-2">${p.quantity || '--'}</td>
                     <td class="text-right py-2">${fmtUSD(p.average_cost)}</td>
                     <td class="text-right py-2">${fmtUSD(val)}</td>

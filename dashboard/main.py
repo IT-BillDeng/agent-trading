@@ -1218,6 +1218,20 @@ async def api_news():
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+@app.post("/api/news")
+async def api_news_update(body: dict):
+    """Write newswire data (called by cron agents in sandbox)."""
+    import json
+    NEWS_DIR.mkdir(parents=True, exist_ok=True)
+    news_file = NEWS_DIR / "latest.json"
+    # Backup previous
+    if news_file.exists():
+        backup = NEWS_DIR / "latest_prev.json"
+        backup.write_text(news_file.read_text())
+    news_file.write_text(json.dumps(body, indent=2, ensure_ascii=False))
+    return {"status": "ok", "items": len(body.get("items", [])), "shift": body.get("shift")}
+
+
 @app.get("/api/news/sources")
 async def api_news_sources():
     """Get news source configuration (for Dashboard checkboxes)."""

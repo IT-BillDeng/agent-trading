@@ -1051,7 +1051,7 @@
         // --- Fetch & Render ---
         async function fetchAll() {
             try {
-                const [account, positions, quotes, orders, pnl, agents, system, marketStatus] = await Promise.all([
+                const [account, positions, quotes, orders, pnl, agents, system, marketStatus, wlData] = await Promise.all([
                     fetch(API_BASE + '/api/account').then(r => r.json()),
                     fetch(API_BASE + '/api/positions').then(r => r.json()),
                     fetch(API_BASE + '/api/quotes').then(r => r.json()),
@@ -1060,7 +1060,11 @@
                     fetch(API_BASE + '/api/agents').then(r => r.json()),
                     fetch(API_BASE + '/api/system').then(r => r.json()),
                     fetch(API_BASE + '/api/market-status').then(r => r.json()),
+                    fetch(API_BASE + '/api/watchlist').then(r => r.json()).catch(() => ({})),
                 ]);
+                // Populate watchlistMap before rendering
+                if (wlData && wlData.symbols) { wlData.symbols.forEach(s => { watchlistMap[s.symbol] = s; }); }
+                renderWatchlistMgmt(wlData);
 
                 // 计算今日盈亏 = sum((当前价 - 前收盘) × 持仓量)
                 let todayPnl = 0;
@@ -1088,7 +1092,6 @@
                 renderAgents(agents);
                 renderSystem(system);
                 renderMarketStatus(marketStatus);
-                fetchWatchlist();
                 fetchNewSections();
                 fetchHeaderStatus();
             } catch (e) {

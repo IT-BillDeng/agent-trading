@@ -621,7 +621,7 @@
                         <div>
                             <span>${icon}</span>
                             <span class="${actionCls} font-medium ml-1">${o.action || '--'}</span>
-                            <span class="ml-1 font-medium">${o.symbol || '--'}</span>
+                            <span class="ml-1 font-medium">${o.symbol || '--'}</span><span class="text-xs text-gray-500 ml-1">${(watchlistMap[o.symbol] && watchlistMap[o.symbol].name) || ''}</span>
                             <span class="text-gray-400 text-xs ml-1">×${filled}</span>
                             <span class="text-gray-300 text-xs ml-1">${price}</span>
                         </div>
@@ -649,7 +649,7 @@
                 </div>
             ` + data.details.map(d => `
                 <div class="flex justify-between py-1 border-b border-gray-700/30 text-sm">
-                    <span>${d.symbol || '--'}</span>
+                    <span>${d.symbol || '--'} <span class='text-xs text-gray-500'>${(watchlistMap[d.symbol] && watchlistMap[d.symbol].name) || ''}</span></span>
                     <span class="${pnlClass(d.unrealized_pnl)}">${pnlSign(d.unrealized_pnl)}${fmtUSD(d.unrealized_pnl)}</span>
                 </div>
             `).join('');
@@ -697,7 +697,7 @@
                         <div class="flex items-center justify-between">
                             <div>
                                 <span class="${actionCls} font-bold">${s.action || '--'}</span>
-                                <span class="ml-2 font-medium">${s.symbol || '--'}</span>
+                                <span class="ml-2 font-medium">${s.symbol || '--'}</span><span class="text-xs text-gray-500 ml-1">${(watchlistMap[s.symbol] && watchlistMap[s.symbol].name) || ''}</span>
                                 <span class="ml-1 text-xs text-gray-500">${s.reason || ''}</span>
                             </div>
                             <span class="text-xs text-gray-500">${conf}</span>
@@ -735,7 +735,7 @@
             } else {
                 decEl.innerHTML = decisions.map(d => {
                     const cls = d.allowed ? 'text-green-400' : 'text-red-400';
-                    return `<div class="flex justify-between py-0.5"><span>${d.symbol || '--'}</span><span class="${cls}">${d.allowed ? '✅' : '⛔'} ${d.reason || ''}</span></div>`;
+                    return `<div class="flex justify-between py-0.5"><span>${d.symbol || '--'} <span class='text-xs text-gray-500'>${(watchlistMap[d.symbol] && watchlistMap[d.symbol].name) || ''}</span></span><span class="${cls}">${d.allowed ? '✅' : '⛔'} ${d.reason || ''}</span></div>`;
                 }).join('');
             }
             // Blockers detail

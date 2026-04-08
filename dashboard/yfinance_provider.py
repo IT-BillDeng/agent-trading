@@ -44,7 +44,12 @@ class YFinanceQuoteProvider(QuoteProvider):
                     except Exception:
                         pass
 
-                    price = fast.get("lastPrice") or fast.get("last_price") or info.get("regularMarketPrice")
+                    # 优先级：盘前/盘后价 > regular market price > lastPrice
+                    price = (info.get("preMarketPrice") or info.get("postMarketPrice")
+                             or fast.get("lastPrice") or fast.get("last_price")
+                             or info.get("regularMarketPrice"))
+                    # 时间戳：盘前/盘后用对应时间
+                    market_time = info.get("preMarketTime") or info.get("postMarketTime") or info.get("regularMarketTime") or info.get("regularMarketTimestamp")
                     name = info.get("shortName") or info.get("longName") or fast.get("shortName") or orig_sym
 
                     # Get previous close: try info first, then history
@@ -72,8 +77,7 @@ class YFinanceQuoteProvider(QuoteProvider):
                         change = None
                         change_rate = None
 
-                    # Get market time from data source
-                    market_time = info.get("regularMarketTime") or info.get("regularMarketTimestamp")
+                    # Normalize market_time
                     if market_time and isinstance(market_time, (int, float)):
                         market_time = int(market_time)
                     else:

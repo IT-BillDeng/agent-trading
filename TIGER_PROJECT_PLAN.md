@@ -1,6 +1,6 @@
 # Tiger Trading 项目任务清单
 
-> 更新时间：2026-04-07 03:53
+> 更新时间：2026-04-09 02:38 CST
 > 架构原则：Engine 做机械的，Agent 做判断的。信号始终由代码规则产生，Agent 只管理规则。
 
 ## 架构概览
@@ -16,6 +16,24 @@
     盘后 (16:30 ET) → 分析信号质量 → 调整明日策略
 ```
 
+## 当前部署架构
+
+```
+┌─────────────────────────────────────────────┐
+│  tiger-dashboard（单一容器）                  │
+│  ┌───────────┐ ┌───────────┐ ┌────────────┐ │
+│  │ FastAPI   │ │ Scheduler │ │ RuleEngine │ │
+│  │ REST API  │ │ 引擎调度   │ │ 规则评估    │ │
+│  └───────────┘ └───────────┘ └────────────┘ │
+│  ┌───────────┐ ┌───────────┐ ┌────────────┐ │
+│  │ Backtest  │ │ Config    │ │ YFinance   │ │
+│  │ 回测框架   │ │ 管理      │ │ 数据源      │ │
+│  └───────────┘ └───────────┘ └────────────┘ │
+└─────────────────────────────────────────────┘
+  Docker: 8088 → host
+  Cron (sandbox): newswire / strategist / watcher / closer
+```
+
 ## 核心设计决策
 
 | 决策 | 结论 |
@@ -26,226 +44,227 @@
 | 仓位怎么算 | risk_based sizing（风险预算 / 每股风险） |
 | 运行模式 | off / signals / trade |
 | Paper vs Live | 账户类型（Tiger 配置决定），非运行模式 |
-| 策略周期 | 每条规则独立 timeframe（5min/15min/30min/60min） |
-| 策略热更新 | 配置参数热更新，代码变更需重启 |
+| 策略周期 | 30min（固定），未来支持多周期 |
+| 数据源 | yfinance（免费，盘前/盘后/非交易日均可） |
+| 策略热更新 | rules.json 每周期重新读取，零重启 |
 | 回测 | 内置回测框架，Strategist 改规则前先回测验证 |
 
 ---
 
 ## ✅ Phase 1：基础平台（已完成）
 
-单进程 Dashboard + 内置调度器 + 完整执行链路 + 仓位管理基座
+Dashboard + 内置调度器 + 完整执行链路 + 仓位管理基座
 
-## ✅ Phase 2：Subagent 体系（配置就绪）
+## ✅ Phase 2：Subagent 体系（已完成）
 
-6 个 Subagent 配置文件就绪。待调度机制实现后启动。
+6 个 Subagent cron 配置就绪并运行中。
 
 ---
 
 ## ✅ Phase 3：规则引擎
 
-目标：策略逻辑参数化，Strategist 改配置 = 改策略，零重启
+策略逻辑参数化，Strategist 改配置 = 改策略，零重启
 
 ### 3.1 指标库
 
 | 指标 | 状态 |
 |------|------|
-| SMA | ✅ 已有 |
-| EMA | ✅ 完成 |
-| RSI | ✅ 完成 |
-| Bollinger | ✅ 完成 |
-| MACD | ✅ 完成 |
-| ATR | ✅ 完成 |
-| Momentum | ✅ 已有 |
-| Volume | ✅ 完成 |
+| SMA | ✅ |
+| EMA | ✅ |
+| RSI | ✅ |
+| Bollinger | ✅ |
+| MACD | ✅ |
+| ATR | ✅ |
+| Momentum | ✅ |
+| Volume | ✅ |
 
 ### 3.2 规则引擎
 
 | # | 任务 | 状态 |
 |---|------|------|
-| 3.2.1 | 规则配置 schema（JSON） | ✅ 完成 |
-| 3.2.2 | 条件评估器（解析条件 → 调用指标 → AND/OR 组合） | ✅ 完成 |
-| 3.2.3 | 多 timeframe 支持（每规则独立周期） | ✅ 完成 |
-| 3.2.4 | 替换当前硬编码 StrategyEngine | ✅ 完成 |
-| 3.2.5 | 规则配置读写 API（/api/rules） | ✅ 完成 |
+| 3.2.1 | 规则配置 schema（JSON） | ✅ |
+| 3.2.2 | 条件评估器 | ✅ |
+| 3.2.3 | 多 timeframe 支持 | ✅ |
+| 3.2.4 | 规则配置 API（/api/rules） | ✅ |
+| 3.2.5 | 规则 symbols 覆盖全部 watchlist | ✅ 2026-04-08 |
 
 ---
 
 ## ✅ Phase 4：回测框架
 
-目标：Strategist 改规则前可回测验证，策略有据可依
-
 | # | 任务 | 状态 |
 |---|------|------|
-| 4.1 | 历史数据获取（yfinance） | ✅ 完成 |
-| 4.2 | 逐 Bar 模拟引擎 | ✅ 完成 |
-| 4.3 | 订单撮合模拟（滑点/手续费） | ✅ 完成 |
-| 4.4 | 绩效指标（Sharpe/胜率/回撤/PnL/盈亏比） | ✅ 完成 |
-| 4.5 | 回测 API（/api/backtest） | ✅ 完成 |
-| 4.6 | Dashboard 回测报告 | ✅ 完成 |
+| 4.1 | 历史数据获取（yfinance） | ✅ |
+| 4.2 | 逐 Bar 模拟引擎 | ✅ |
+| 4.3 | 订单撮合模拟 | ✅ |
+| 4.4 | 绩效指标 | ✅ |
+| 4.5 | 回测 API（/api/backtest） | ✅ |
+| 4.6 | 批量回测 API（/api/backtest/batch） | ✅ |
+| 4.7 | Dashboard 回测报告 | ✅ |
 
 ---
 
-## Phase 5：Agent 调度与运行
+## ✅ Phase 5：Agent 调度与运行
 
-### 5.0 Newswire ✅ 已完成（2026-04-07）
+### 5.0 Newswire（新闻采集） ✅
 
-见 Phase 5.0 完整文档：`specs/tiger-newswire-output-schema-v1.md`
-- 数据源：web_search + yfinance + host browser（Dashboard 复选框可开关）
-- 输出：latest.json（15 条，importance/sentiment 标注）
-- Cron：盘前/盘中(q30)/盘后(q2h)，推送到 Telegram
-- Dashboard 面板：/api/news + 数据源筛选
+- 数据源：web_search（Perplexity）
+- 输出：POST /api/news → Dashboard 面板
+- Cron：盘前/盘中(q30)/盘后(q2h)
+- 每条含 importance/sentiment/category/tags
+- **当前状态：已 disable（待调试）**
 
-### 5.1 Watcher（系统健康监护人）✅ 设计完成
+### 5.1 Watcher（系统健康） ✅ 运行中
 
-| 级别 | 条件 | 处理方式 |
-|------|------|----------|
-| Info | 正常 | 仅日志 |
-| Warning | 单次异常 | 日志 + 状态记录 |
-| Critical | 连续失败 ≥3 | 日志 + 通知先生 |
-| Emergency | 连续失败 ≥5 / 账户异常 | 日志 + 通知先生 + 自动锁定 |
+| 级别 | 处理 |
+|------|------|
+| info | 仅记录 |
+| warning | 日志 + 状态 |
+| critical | 通知先生 |
+| emergency | 通知 + 自动锁定 |
 
-**监控维度：**
-- 引擎健康（locked/unlocked、运行模式）
-- 执行周期（最近周期、信号、风控）
-- 数据源状态
-- 账户状态（净值、异常检测）
-- 风控状态（阻塞项）
+- 频率：每 15 分钟
+- 7 项健康检查全部通过
 
-**通知抑制：** 同一告警 30 分钟内不重复
+### 5.2 Strategist（策略管理） ✅ 运行中
 
-### 5.2 Strategist（策略管理器）🔧 设计中
-
-**定位：** 不产生信号，管理规则。自我迭代——每次策略变更必须回测验证才上线。
-
-**三班职责：**
-
-| 时段 | 职责 | 输出 |
+| 时段 | 职责 | 频率 |
 |------|------|------|
-| **盘前** (09:00 ET) | 复盘昨日信号 + 设定今日参数 | 规则参数调整提案 → 回测 → 验证通过 → 上线 |
-| **盘中** (q15min) | 监控异常波动 → 暂停/恢复风控 | 控制指令（不改参数） |
-| **盘后** (16:30 ET) | 分析今日信号质量 → 调整明日策略 | 策略迭代提案 → 回测 → 存档待明日上线 |
+| 盘前 | 复盘 + 设定今日参数 | 09:05 ET |
+| 盘中 | 监控异常 → 暂停/恢复 | q15min |
+| 盘后 | 分析信号质量 → 调整明日策略 | 16:30 ET |
 
-**自我迭代闭环：**
-```
-发现问题 → 提出调整方案 → 回测验证 → 方案优于基线 → 上线
-                                    → 方案不如基线 → 记录原因，继续尝试
-```
+- 模型：pro（深度推理）
+- 硬约束：盘中不改参数，参数变更必须回测通过
 
-**输入源：**
+### 5.3 Closer（收盘总结） ✅ 运行中
 
-| 来源 | 文件 | 用途 |
+- 美股收盘后生成总结报告
+- 推送到 Telegram
+
+### 5.4 其他 Agent
+
+| Agent | 状态 |
+|-------|------|
+| Executor | 🔧 待实现 |
+| Scout | 🔧 待实现 |
+
+---
+
+## Phase 6：策略优化与迭代
+
+### 6.1 min_bars 优化 ✅ 2026-04-08
+
+| 项目 | 修复前 | 修复后 |
+|------|--------|--------|
+| 默认 max_period | 30 | 0 |
+| buffer | +10 | +5 |
+| RSI 实际 min_bars | 35 | 19 |
+| BB 实际 min_bars | 35 | 25 |
+
+根因：max_period 默认 30，所有指标周期 < 30，导致 min_bars = 35 与指标周期无关。
+
+### 6.2 Volume Ratio 调整 ✅ 2026-04-08
+
+- bollinger_breakout volume_ratio: 1.5 → 1.2
+
+### 6.3 待验证方案
+
+| 方案 | 状态 | 说明 |
 |------|------|------|
-| 新闻情报 | `newswire/latest.json` | 个股/宏观/板块新闻，importance/sentiment |
-| 信号历史 | `.last_execution_cycle.json` | 最近信号、风控决策、执行结果 |
-| 规则配置 | `rules/rules.json` | 当前激活规则及参数（调整目标） |
-| 回测结果 | `backtest_results/` | 历史回测绩效（验证新方案） |
-| 行情数据 | yfinance / web_search | 实时价格、技术指标 |
-| 市场上下文 | `market_context.json` | 大盘状态、板块轮动 |
-| 自选清单 | `data/watchlist.json` | 标的白名单、优先级 |
+| RSI 阈值 30/70 → 35/65 | ❌ 回测拒绝 | 胜率更低 |
+| 止损调整 | ❌ 回测无显著改善 | RSI exit 优先于止损 |
+| 日线 SMA-50 趋势过滤 | ⏳ 待实现 | Level 1 多周期组合 |
 
-**硬约束：**
-- 任何规则参数变更必须回测通过才上线
-- 盘中绝不改规则参数，只能暂停/恢复
-- 每次迭代记录到 history.jsonl，形成学习曲线
-- 使用 pro 模型（深度推理）
+### 6.4 批量回测 API ✅
 
-**触发机制：** Newswire 跑完后自动触发 Strategist
-
-### 5.3 其他 Agent（待实现）
-
-| Agent | 时段 | 频率 | 模型 |
-|-------|------|------|------|
-| tiger-closer | 盘后 | 收盘后 | omni |
-| tiger-executor | 按需 | 信号触发 | omni |
-| tiger-scout | 按需 | 异常触发 | omni |
+- 支持多 param_sets 并行对比
+- 止损止盈参数映射已修复
+- RSI/BB 参数均正确区分
 
 ---
 
-## 🔧 Phase 6：Strategist 自主迭代系统（2026-04-07 晚间完成）
+## ✅ Dashboard 功能清单
 
-### 目标
-让 Strategist 能够自主迭代：策略参数 → 策略因子 → 策略逻辑
-
-### 架构
-
-```
-Strategist 发现问题
-    ↓
-参数搜索框架（定义搜索空间）
-    ↓
-批量回测引擎（一次跑 N 个方案）
-    ↓
-绩效对比（vs 基线）
-    ↓
-通过 → 上线 / 拒绝 → 记录原因 → 继续搜索
-```
-
-### 三层迭代
-
-| 层级 | 内容 | 迭代方式 |
-|------|------|---------|
-| 参数层 | 阈值、周期、比例 | 网格搜索 |
-| 因子层 | 指标组合、条件逻辑 | 添加/移除/替换 |
-| 策略层 | 完整规则设计 | 全新设计 |
-
-### 任务清单
-
-| # | 任务 | 状态 | 说明 |
-|---|------|------|------|
-| 6.1 | 参数搜索空间定义 | 🔧 | rules.json 中每个参数定义 min/max/step |
-| 6.2 | 批量回测 API | 🔧 | /api/backtest/batch — 一次跑 N 个参数组合 |
-| 6.3 | 绩效对比引擎 | 🔧 | 自动对比基线 vs 新方案 |
-| 6.4 | 迭代历史管理 | 🔧 | strategist_iterations/ 目录，每次尝试记录 |
-| 6.5 | 过拟合保护 | 🔧 | 多标的验证、交叉验证 |
-| 6.6 | 安全护栏 | 🔧 | 硬性约束（max_drawdown/sharpe/交易频率） |
-| 6.7 | Strategist 迭代任务模板 | 🔧 | 完整搜索→回测→对比→上线流程 |
-| 6.8 | 首次自主迭代测试 | 🔧 | 找到正期望参数组合 |
-| 6.9 | Git commit + 推送 | 🔧 | |
+| 功能 | 状态 | 说明 |
+|------|------|------|
+| 账户概览 | ✅ | 总资产/今日盈亏(含%)/可用资金/持仓市值 |
+| 持仓列表 | ✅ | 含 watchlist 统一名称 |
+| 自选行情 | ✅ | yfinance 数据源，盘前/盘后价格优先 |
+| 最近订单 | ✅ | 紧凑格式，限 10 条 |
+| 盈亏明细 | ✅ | 含 watchlist 名称 |
+| 新闻面板 | ✅ | importance 筛选，时间显示 |
+| 信号面板 | ✅ | 含 watchlist 名称 |
+| 风控面板 | ✅ | 含 watchlist 名称 |
+| 回测报告 | ✅ | 单次 + 批量 |
+| 自选管理 | ✅ | 添加/删除/优先级，新增时自动获取名称 |
+| 控制面板 | ✅ | 锁定/解锁/刷新间隔/风控参数 |
+| 风控参数 | ✅ | max_exposure: $100K |
 
 ---
 
-## 附录
+## 待办清单
 
-### 风控参数
+| 优先级 | 任务 | 说明 |
+|--------|------|------|
+| P0 | 恢复 newswire cron | 当前已 disable，待调试 |
+| P1 | 日线 SMA-50 趋势过滤 | 多周期组合 Level 1 |
+| P1 | Executor 实现 | 信号触发后自动执行 |
+| P2 | Scout 实现 | 候选标的/异常波动扫描 |
+| P2 | 多周期支持 | 规则引擎支持多 timeframe |
+| P3 | 过拟合保护 | 多标的验证、交叉验证 |
 
-**系统层（不可由规则覆盖）：**
+---
 
-| 参数 | 值 | 说明 |
-|------|-----|------|
-| max_order_notional_usd | $10,000 | 单笔订单金额上限 |
-| max_total_exposure_usd | $10,000 | 全部持仓总暴露上限 |
-| daily_loss_limit_pct | 5% | 当日亏损限制 |
+## 当前活跃规则
 
-**策略层（可在规则配置中设置）：**
-
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| stop_loss_pct | 0.03 | 止损比例 |
-| take_profit_pct | 0.06 | 止盈比例 |
-| risk_budget_pct | 0.01 | 风险预算（max_order 的 1%） |
-
-**仓位公式：**
-```
-risk_per_share = 入场价 × stop_loss_pct
-risk_budget = max_order × risk_budget_pct
-risk_quantity = risk_budget / risk_per_share
-final_quantity = min(max_limit_quantity, risk_quantity, suggested_quantity)
-```
-
-### Agent 模型
-
-| 模型 | 适用场景 |
-|------|---------|
-| `xiaomi-tp/mimo-v2-pro` | Strategist |
-| `xiaomi-tp/mimo-v2-omni` | 其他 Agent |
-
-### 交易时段
-
-| 市场 | 常规 | 盘前 | 盘后 |
+| 规则 | 指标 | 标的 | 参数 |
 |------|------|------|------|
-| US | Mon-Fri 9:30-16:00 ET | 4:00-9:30 | 16:00-20:00 |
+| rsi_reversal | RSI 14 | * (全部) | 买入<30, 卖出>70, 止损2% |
+| bollinger_breakout | BB 20,2 | * (全部) | 突破上轨买入, volume>1.2x, 止损2.5% |
+| trend_follow_30m | SMA 5/10/20 + Momentum | * (全部) | ⚠️ 已禁用 |
 
+---
+
+## Watchlist
+
+| 符号 | 名称 | 市场 | 优先级 |
+|------|------|------|--------|
+| AAPL | Apple | US | normal |
+| MSFT | Microsoft | US | high |
+| NVDA | NVIDIA | US | high |
+| AMZN | Amazon | US | normal |
+| SMCI | Super Micro | US | normal |
+| GOOGL | Alphabet | US | normal |
+
+---
+
+## Cron 任务一览
+
+| 任务 | 频率 | 模型 | 状态 |
+|------|------|------|------|
+| tiger-watcher | q15min | omni | ✅ 运行 |
+| tiger-newswire-premarket | 盘前 | omni | ❌ disabled |
+| tiger-newswire-intraday | q30min | omni | ❌ disabled |
+| tiger-newswire-afterhours | q2h | omni | ❌ disabled |
+| tiger-strategist-premarket | 盘前 | pro | ✅ 运行 |
+| tiger-strategist-intraday | q15min | pro | ✅ 运行 |
+| tiger-strategist-afterhours | 盘后 | pro | ✅ 运行 |
+| tiger-closer-us | 收盘后 | omni | ✅ 运行 |
+
+---
+
+## 已知问题与修复
+
+| 日期 | 问题 | 修复 |
+|------|------|------|
+| 2026-04-07 | 订单时间戳显示 Invalid Date | Number() 转换字符串毫秒 |
+| 2026-04-08 | 全部信号 insufficient_bars (30/35) | max_period 默认 30→0，buffer +10→+5 |
+| 2026-04-08 | 仅 5 个信号而非 12 个 | 规则 symbols 从特定列表改为 ['*'] |
+| 2026-04-08 | sandbox cron 写入的新闻 dashboard 读不到 | 新增 POST /api/news，改为 curl 写入 |
+| 2026-04-08 | newswire items=0 | 文件写入改为 inline JSON curl |
+| 2026-04-08 | watchlistMap 时序 bug | fetchWatchlist 改为 Promise.all 并行 |
+| 2026-04-08 | 股票名称不统一 | watchlistMap 为唯一名称来源 |
 
 ---
 
@@ -253,9 +272,12 @@ final_quantity = min(max_limit_quantity, risk_quantity, suggested_quantity)
 
 | 日期 | 变更内容 |
 |------|----------|
-| 2026-04-03 | 初始化 |
+| 2026-04-03 | 初始化，Docker 化 |
 | 2026-04-06 | Phase 1-2 完成 |
-| 2026-04-07 | 架构重构 + 执行链路 + 仓位管理 |
-| 2026-04-07 | 全面重写：固化架构决策，新增规则引擎/回测/Strategist 定位 |
-| 2026-04-07 | Phase 3 规则引擎完成：指标库扩展 + 条件评估器 + 规则配置 API |
-| 2026-04-07 | Phase 4 回测框架完成：历史数据获取 + 订单撮合模拟 + 绩效指标 + 回测 API |
+| 2026-04-07 | Phase 3 规则引擎 + Phase 4 回测框架 |
+| 2026-04-07 | Phase 5 Agent 调度体系（watcher/newswire/strategist/closer） |
+| 2026-04-08 | min_bars 修复 + 规则 symbols 修复 + 新闻 API 通道修复 |
+| 2026-04-08 | Dashboard UI 大量优化：今日盈亏/千分点/名称统一/百分比 |
+| 2026-04-08 | 移除冗余 tiger-engine 服务 |
+| 2026-04-08 | volume_ratio 1.5→1.2，总暴露 $10K→$100K |
+| 2026-04-08 | Strategist 周期优化分析：维持 30min，建议日线 SMA-50 过滤 |

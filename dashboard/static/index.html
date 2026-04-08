@@ -481,11 +481,11 @@
         }
 
         // --- Render Functions ---
-        function renderAccount(data) {
+        function renderAccount(data, todayPnl) {
             document.getElementById('total-assets').textContent = fmtUSD(data.net_liquidation || data.total_equity || data.cash);
-            const pnl = data.unrealized_pnl || 0;
+            const pnl = (todayPnl != null && todayPnl !== 0) ? todayPnl : (data.unrealized_pnl || 0);
             const pnlEl = document.getElementById('today-pnl');
-            pnlEl.textContent = pnlSign(pnl) + fmtUSD(pnl);
+            pnlEl.textContent = pnlSign(pnl) + fmtUSD(Math.abs(pnl));
             pnlEl.className = 'text-2xl font-bold ' + pnlClass(pnl);
             document.getElementById('buying-power').textContent = fmtUSD(data.buying_power || data.available_funds || data.cash);
         }
@@ -1043,7 +1043,25 @@
                     fetch(API_BASE + '/api/market-status').then(r => r.json()),
                 ]);
 
-                renderAccount(account);
+                // 计算今日盈亏 = sum((当前价 - 前收盘) × 持仓量)
+                let todayPnl = 0;
+                if (Array.isArray(positions) && positions.length > 0) {
+                    const quoteMap = {};
+                    if (quotes && typeof quotes === 'object') {
+                        for (const [sym, q] of Object.entries(quotes)) {
+                            if (!sym.startsWith('_') && q && q.latest_price != null) {
+                                quoteMap[sym] = q;
+                            }
+                        }
+                    }
+                    for (const p of positions) {
+                        const q = quoteMap[p.symbol];
+                        if (q && q.prev_close && q.latest_price && p.quantity) {
+                            todayPnl += (q.latest_price - q.prev_close) * p.quantity;
+                        }
+                    }
+                }
+                renderAccount(account, todayPnl);
                 renderPositions(positions);
                 renderQuotes(quotes);
                 renderOrders(orders);

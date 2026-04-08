@@ -1576,6 +1576,7 @@
                 const symBadge = item.symbol ? `<span class="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium">${item.symbol}</span>` : '<span class="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">宏观</span>';
                 const tags = (item.tags || []).map(t => `<span class="text-xs px-1 py-0.5 rounded bg-gray-700 text-gray-400">${t}</span>`).join(' ');
                 const urlLink = item.url ? `<a href="${item.url}" target="_blank" class="text-xs text-tiger-500 hover:underline ml-2">来源 ↗</a>` : '';
+                const timeStr = item.published_at ? new Date(item.published_at).toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'}) : '';
                 return `
                     <div class="flex items-start gap-3 p-2 rounded hover:bg-gray-700/30 transition">
                         <span class="w-2 h-2 rounded-full ${dotColor} mt-1.5 flex-shrink-0"></span>
@@ -1585,6 +1586,7 @@
                                 <span class="text-xs ${sentColors[item.sentiment] || 'text-gray-400'}">${sentIcon}</span>
                                 <span class="text-xs text-gray-500">${item.source || ''}</span>
                                 ${urlLink}
+                                ${timeStr ? `<span class="text-xs text-gray-600 ml-auto">${timeStr}</span>` : ''}
                             </div>
                             <div class="text-sm text-gray-100 font-medium">${item.headline}</div>
                             ${item.summary ? `<div class="text-xs text-gray-400 mt-0.5 line-clamp-2">${item.summary}</div>` : ''}

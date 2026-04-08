@@ -57,6 +57,8 @@
                 <span class="w-2 h-2 rounded-full bg-gray-500"></span>
                 <span class="text-gray-400">美股: --</span>
             </span>
+            <span id="market-session" class="text-xs text-gray-400"></span>
+            <span id="et-time" class="text-xs text-gray-500 font-mono"></span>
 
         </div>
         <div class="flex items-center gap-4 text-sm">
@@ -1023,25 +1025,26 @@
 
         // --- Market Status ---
         function renderMarketStatus(data) {
-            // US Market
             const usEl = document.getElementById('market-status-us');
-            const us = data.US;
             let usColor = 'bg-gray-500';
             let usText = '美股: --';
-            if (us) {
-                if (us.open) {
-                    usColor = 'bg-green-500';
-                    usText = '美股: 开盘中';
-                } else if (us.pre_market) {
-                    usColor = 'bg-yellow-500';
-                    usText = '美股: 盘前';
-                } else if (us.post_market) {
-                    usColor = 'bg-orange-500';
-                    usText = '美股: 盘后';
-                } else {
-                    usColor = 'bg-gray-500';
-                    usText = '美股: 已收盘';
-                }
+            if (data && data.session) {
+                const sessionMap = {
+                    regular: ['bg-green-500', '美股: 开盘中'],
+                    premarket: ['bg-yellow-500', '美股: 盘前'],
+                    afterhours: ['bg-orange-500', '美股: 盘后'],
+                    closed: ['bg-gray-500', '美股: 已收盘']
+                };
+                const m = sessionMap[data.session] || sessionMap.closed;
+                usColor = m[0];
+                usText = m[1];
+            } else if (data && data.US) {
+                // Legacy format fallback
+                const us = data.US;
+                if (us.open) { usColor = 'bg-green-500'; usText = '美股: 开盘中'; }
+                else if (us.pre_market) { usColor = 'bg-yellow-500'; usText = '美股: 盘前'; }
+                else if (us.post_market) { usColor = 'bg-orange-500'; usText = '美股: 盘后'; }
+                else { usColor = 'bg-gray-500'; usText = '美股: 已收盘'; }
             }
             usEl.innerHTML = `<span class="w-2 h-2 rounded-full ${usColor}"></span><span class="text-gray-400">${usText}</span>`;
 
@@ -1621,16 +1624,21 @@
         function renderMarketSession(data) {
             if (!data || !data.session) return;
             const el = document.getElementById('market-session');
-            if (!el) return;
-            const sessionColors = {
-                regular: 'text-green-400',
-                premarket: 'text-yellow-400',
-                afterhours: 'text-blue-400',
-                closed: 'text-gray-500'
-            };
-            const cls = sessionColors[data.session] || 'text-gray-500';
-            el.innerHTML = '<span class="' + cls + '">' + (data.session_label || '') + '</span>';
-            // Store globally for other functions
+            if (el) {
+                const sessionColors = {
+                    regular: 'text-green-400',
+                    premarket: 'text-yellow-400',
+                    afterhours: 'text-blue-400',
+                    closed: 'text-gray-500'
+                };
+                const cls = sessionColors[data.session] || 'text-gray-500';
+                el.innerHTML = '<span class="' + cls + ' font-medium">' + (data.session_label || '') + '</span>';
+            }
+            // Show ET time
+            const timeEl = document.getElementById('et-time');
+            if (timeEl && data.now_et) {
+                timeEl.textContent = '🕐 ' + data.now_et.replace(' EDT', ' ET').replace(' EST', ' ET');
+            }
             window._marketInfo = data;
         }
 

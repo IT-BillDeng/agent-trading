@@ -806,9 +806,11 @@
             console.warn('showWlMsg deprecated, use showWlToast instead');
         }
 
+        let watchlistMap = {}; // symbol -> {name, market, ...}
         async function fetchWatchlist() {
             try {
                 const data = await fetch(API_BASE + '/api/watchlist').then(r => r.json());
+                (data.symbols || []).forEach(s => { watchlistMap[s.symbol] = s; });
                 renderWatchlistMgmt(data);
             } catch (e) {
                 console.error('watchlist fetch error:', e);

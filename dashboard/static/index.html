@@ -947,7 +947,7 @@
         async function addWatchlist() {
             const symbol = document.getElementById('wl-symbol').value.trim();
             const market = document.getElementById('wl-market').value;
-            const name = document.getElementById('wl-name').value.trim();
+            let name = document.getElementById('wl-name').value.trim();
             const btn = document.getElementById('btn-add-watchlist');
 
             if (!symbol) { showWlToast('请输入股票代码', 'error'); return; }
@@ -955,6 +955,14 @@
             // Show loading state
             btn.disabled = true;
             btn.textContent = '添加中...';
+
+            // Auto-fetch name from yfinance if not provided
+            if (!name) {
+                try {
+                    const lookup = await fetch(API_BASE + '/api/lookup/' + encodeURIComponent(symbol)).then(r => r.json());
+                    name = lookup.name || symbol;
+                } catch (e) { name = symbol; }
+            }
 
             const body = { symbol, market, name };
 

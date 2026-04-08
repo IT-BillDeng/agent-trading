@@ -151,6 +151,19 @@ async def api_pnl():
     return cache.get_pnl()
 
 
+@app.get("/api/lookup/{symbol}")
+async def api_lookup_symbol(symbol: str):
+    """Lookup stock name from yfinance."""
+    try:
+        import yfinance as yf
+        t = yf.Ticker(symbol.upper())
+        info = t.info or {}
+        name = info.get("shortName") or info.get("longName") or symbol.upper()
+        return {"symbol": symbol.upper(), "name": name}
+    except Exception:
+        return {"symbol": symbol.upper(), "name": symbol.upper()}
+
+
 @app.get("/api/watchlist")
 async def api_watchlist():
     """Shared watchlist."""

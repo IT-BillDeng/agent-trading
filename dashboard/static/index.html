@@ -488,13 +488,13 @@
             const pnl = (todayPnl != null && todayPnl !== 0) ? todayPnl : (data.unrealized_pnl || 0);
             const pnlPct = totalAssets > 0 ? (pnl / (totalAssets - pnl) * 100) : 0;
             const pnlEl = document.getElementById('today-pnl');
-            pnlEl.textContent = pnlSign(pnl) + fmtUSD(Math.abs(pnl)) + ' (' + pnlSign(pnl) + Math.abs(pnlPct).toFixed(2) + '%)';
+            pnlEl.innerHTML = pnlSign(pnl) + fmtUSD(Math.abs(pnl)) + ' <span class="text-base font-normal ' + pnlClass(pnl) + '">' + pnlSign(pnl) + Math.abs(pnlPct).toFixed(2) + '%</span>';
             pnlEl.className = 'text-2xl font-bold ' + pnlClass(pnl);
             // 总浮动盈亏
             const totalPnl = data.unrealized_pnl || 0;
             const totalPct = totalAssets > 0 ? (totalPnl / (totalAssets - totalPnl) * 100) : 0;
             const totalEl = document.getElementById('total-pnl');
-            totalEl.textContent = '总浮动: ' + pnlSign(totalPnl) + fmtUSD(Math.abs(totalPnl)) + ' (' + pnlSign(totalPnl) + Math.abs(totalPct).toFixed(2) + '%)';
+            totalEl.innerHTML = '总浮动: ' + pnlSign(totalPnl) + fmtUSD(Math.abs(totalPnl)) + ' <span class="' + pnlClass(totalPnl) + '">' + pnlSign(totalPnl) + Math.abs(totalPct).toFixed(2) + '%</span>';
             totalEl.className = 'text-xs mt-1 ' + pnlClass(totalPnl);
             document.getElementById('buying-power').textContent = fmtUSD(data.buying_power || data.available_funds || data.cash);
         }

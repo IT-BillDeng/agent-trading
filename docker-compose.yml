@@ -2,7 +2,6 @@
 # Tiger Trading — Docker 编排
 # ============================================================
 # 主服务：dashboard（Web 看板 + 内置信号调度器）
-# 辅助服务：tiger-engine（按需执行，用于手动触发完整执行周期）
 # ============================================================
 
 services:
@@ -43,20 +42,4 @@ services:
       retries: 3
       start_period: 10s
 
-  # ---------- 辅助服务：按需执行完整周期（含下单） ----------
-  tiger-engine:
-    build:
-      context: ./system/tiger_engine
-      dockerfile: Dockerfile
-    container_name: tiger-engine
-    profiles:
-      - manual
-    volumes:
-      - ./config:/app/config:ro
-      - ./rules:/app/rules:ro
-      - ./news:/app/news:ro
-      - ./properties:/app/properties:ro
-      - ./runtime/tiger_engine:/app/runtime
-    environment:
-      - TZ=Asia/Shanghai
-    restart: "no"
+

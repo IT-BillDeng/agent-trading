@@ -86,6 +86,7 @@
             <div class="card">
                 <div class="card-title">今日盈亏</div>
                 <div id="today-pnl" class="text-2xl font-bold">--</div>
+                <div id="total-pnl" class="text-xs text-gray-500 mt-1">总浮动: --</div>
             </div>
             <div class="card">
                 <div class="card-title">可用资金</div>
@@ -487,6 +488,11 @@
             const pnlEl = document.getElementById('today-pnl');
             pnlEl.textContent = pnlSign(pnl) + fmtUSD(Math.abs(pnl));
             pnlEl.className = 'text-2xl font-bold ' + pnlClass(pnl);
+            // 总浮动盈亏
+            const totalPnl = data.unrealized_pnl || 0;
+            const totalEl = document.getElementById('total-pnl');
+            totalEl.textContent = '总浮动: ' + pnlSign(totalPnl) + fmtUSD(Math.abs(totalPnl));
+            totalEl.className = 'text-xs mt-1 ' + pnlClass(totalPnl);
             document.getElementById('buying-power').textContent = fmtUSD(data.buying_power || data.available_funds || data.cash);
         }
 

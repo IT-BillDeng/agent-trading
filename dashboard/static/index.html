@@ -461,7 +461,7 @@
         // --- Helpers ---
         function fmt(n, decimals = 2) {
             if (n === null || n === undefined || isNaN(n)) return '--';
-            return Number(n).toFixed(decimals);
+            return Number(n).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
         }
         function fmtUSD(n) { return '$' + fmt(n); }
         function pnlClass(n) {

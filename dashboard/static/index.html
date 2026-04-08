@@ -1051,7 +1051,7 @@
         // --- Fetch & Render ---
         async function fetchAll() {
             try {
-                const [account, positions, quotes, orders, pnl, agents, system, marketStatus, wlData] = await Promise.all([
+                const [account, positions, quotes, orders, pnl, agents, system, wlData, marketInfo] = await Promise.all([
                     fetch(API_BASE + '/api/account').then(r => r.json()),
                     fetch(API_BASE + '/api/positions').then(r => r.json()),
                     fetch(API_BASE + '/api/quotes').then(r => r.json()),
@@ -1059,15 +1059,19 @@
                     fetch(API_BASE + '/api/pnl').then(r => r.json()),
                     fetch(API_BASE + '/api/agents').then(r => r.json()),
                     fetch(API_BASE + '/api/system').then(r => r.json()),
-                    fetch(API_BASE + '/api/market-status').then(r => r.json()),
                     fetch(API_BASE + '/api/watchlist').then(r => r.json()).catch(() => ({})),
+                    fetch(API_BASE + '/api/market-status').then(r => r.json()).catch(() => ({})),
                 ]);
                 // Populate watchlistMap before rendering
                 if (wlData && wlData.symbols) { wlData.symbols.forEach(s => { watchlistMap[s.symbol] = s; }); }
                 renderWatchlistMgmt(wlData);
 
-                // 计算今日盈亏 = sum((当前价 - 前收盘) × 持仓量)
+                // 计算今日盈亏 = sum((当前价 - 前收盘) × 持仓量)，非交易日归零
                 let todayPnl = 0;
+                const isTradingDay = marketInfo && marketInfo.is_trading_day;
+                if (!isTradingDay) {
+                    todayPnl = 0; // 非交易日无当日盈亏
+                } else
                 if (Array.isArray(positions) && positions.length > 0) {
                     const quoteMap = {};
                     if (quotes && typeof quotes === 'object') {
@@ -1091,7 +1095,8 @@
                 renderPnl(pnl);
                 renderAgents(agents);
                 renderSystem(system);
-                renderMarketStatus(marketStatus);
+                renderMarketStatus(oldMarketStatus);
+                renderMarketSession(marketInfo);
                 fetchNewSections();
                 fetchHeaderStatus();
             } catch (e) {
@@ -1611,6 +1616,22 @@
                     </div>
                 `;
             }).join('');
+        }
+
+        function renderMarketSession(data) {
+            if (!data || !data.session) return;
+            const el = document.getElementById('market-session');
+            if (!el) return;
+            const sessionColors = {
+                regular: 'text-green-400',
+                premarket: 'text-yellow-400',
+                afterhours: 'text-blue-400',
+                closed: 'text-gray-500'
+            };
+            const cls = sessionColors[data.session] || 'text-gray-500';
+            el.innerHTML = '<span class="' + cls + '">' + (data.session_label || '') + '</span>';
+            // Store globally for other functions
+            window._marketInfo = data;
         }
 
         // Init news

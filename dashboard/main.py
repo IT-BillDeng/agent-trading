@@ -164,6 +164,57 @@ async def api_lookup_symbol(symbol: str):
         return {"symbol": symbol.upper(), "name": symbol.upper()}
 
 
+
+@app.get("/api/market-status")
+async def api_market_status():
+    """US market status: trading day + current session (ET-based)."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    et = ZoneInfo("America/New_York")
+    now_et = datetime.now(et)
+
+    # Trading day: weekday Mon-Fri
+    is_weekday = now_et.weekday() < 5  # 0=Mon, 4=Fri
+
+    # TODO: exclude US market holidays (2026 calendar)
+    # For now, weekday = trading day
+    is_trading_day = is_weekday
+
+    # Session detection (ET times)
+    hour = now_et.hour
+    minute = now_et.minute
+    t = hour * 60 + minute  # minutes from midnight
+
+    if not is_trading_day:
+        session = "closed"
+        session_label = "休市"
+    elif 240 <= t < 570:  # 4:00 - 9:30
+        session = "premarket"
+        session_label = "盘前"
+    elif 570 <= t < 960:  # 9:30 - 16:00
+        session = "regular"
+        session_label = "开盘中"
+    elif 960 <= t < 1200:  # 16:00 - 20:00
+        session = "afterhours"
+        session_label = "盘后"
+    else:
+        session = "closed"
+        session_label = "闭市"
+
+    # Today's date in ET (for day boundary)
+    today_et = now_et.strftime("%Y-%m-%d")
+
+    return {
+        "is_trading_day": is_trading_day,
+        "session": session,
+        "session_label": session_label,
+        "date_et": today_et,
+        "now_et": now_et.strftime("%Y-%m-%d %H:%M:%S %Z"),
+        "timezone": str(now_et.tzinfo),
+        "is_dst": bool(now_et.dst() and now_et.dst().total_seconds() > 0),
+    }
+
 @app.get("/api/watchlist")
 async def api_watchlist():
     """Shared watchlist."""

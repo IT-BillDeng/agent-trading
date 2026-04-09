@@ -466,8 +466,8 @@
             return n > 0 ? 'positive' : n < 0 ? 'negative' : 'neutral';
         }
         function pnlSign(n) {
-            if (n === null || n === undefined) return '';
-            return n > 0 ? '+' : '';
+            if (n === null || n === undefined || isNaN(n)) return '';
+            return n > 0 ? '+' : n < 0 ? '-' : '';
         }
         function ago(isoStr) {
             if (!isoStr) return '--';

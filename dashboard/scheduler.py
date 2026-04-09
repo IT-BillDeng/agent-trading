@@ -202,7 +202,7 @@ class SignalScheduler:
 
             # Load Tiger credentials
             config_dir = self._app_config_path.parent
-            props_file = config_dir / "tiger_openapi_config.properties"
+            props_file = Path(os.environ.get("TIGER_PROPERTIES_DIR", str(config_dir.parent / "properties"))) / "tiger_openapi_config.properties"
             if not props_file.exists():
                 logger.warning("Tiger credentials not found, skipping order submission")
                 summary["execution_submit"] = {"items": [], "count": 0, "error": "no_credentials"}

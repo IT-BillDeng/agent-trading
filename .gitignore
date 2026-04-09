@@ -4,11 +4,11 @@ __pycache__/
 .DS_Store
 # data/  # Allow watchlist.json to be tracked
 runtime/
-system/tiger_engine/logs/
-system/tiger_engine/state/
-system/tiger_engine/.last_execution_cycle.json
-system/tiger_engine/.tmp_*
-system/tiger_engine/__pycache__/
+system/engine/logs/
+system/engine/state/
+system/engine/.last_execution_cycle.json
+system/engine/.tmp_*
+system/engine/__pycache__/
 
 # API credentials - NEVER commit
 config/credentials.json

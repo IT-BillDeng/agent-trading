@@ -1,0 +1,37 @@
+# Tiger Executor Agent Configuration
+# 职责：执行检查单/参数校验（把计划转成可执行检查单）
+# 频率：策略完成后触发
+
+agent_id: executor
+model: xiaomi/mimo-v2-omni
+description: "执行检查单/参数校验：把计划转成可执行检查单"
+frequency: "策略完成后触发"
+
+# Tool 权限配置
+tools:
+  - read
+  - write
+  - exec
+  - sessions_send
+
+# 输入文件
+input_files:
+  - /workspace/agent-trading/data/watchlist.json
+  - /workspace/agent-trading/system/engine/README.md
+  - /workspace/agent-trading/system/engine/app_config.paper.json
+  - /workspace/agent-trading/runtime/engine/.last_execution_cycle.json
+  - /workspace/agent-trading/runtime/engine/logs/execution.jsonl
+  - /workspace/agent-trading/runtime/engine/logs/dispatch_queue.jsonl
+  - /workspace/agent-trading/runtime/engine/state/control_state.json
+
+# 输出文件
+output_files:
+  - /workspace/agent-trading/runtime/engine/executor_checklist_latest.json
+  - /workspace/agent-trading/runtime/engine/executor_checklist_history.jsonl
+
+# 执行命令（校验）
+exec_commands:
+  - "python3 /workspace/agent-trading/system/engine/run_dry_run_cycle.py"
+
+# 汇报目标
+report_to: agent:yuuka:main

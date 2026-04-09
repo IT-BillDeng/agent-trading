@@ -10,9 +10,9 @@ from datetime import datetime
 from .tiger_client import TigerClient
 from .quote_provider import QuoteProvider
 
-WORKSPACE = Path(os.environ.get("TIGER_WORKSPACE", str(Path(__file__).parent.parent.parent)))
-WATCHLIST_PATH = Path(os.environ.get("TIGER_WATCHLIST_PATH", str(WORKSPACE / "data" / "watchlist.json")))
-MARKET_CONTEXT_PATH = Path(os.environ.get("TIGER_RUNTIME_DIR", str(WORKSPACE / "runtime" / "tiger_engine"))) / "market_context.json"
+WORKSPACE = Path(os.environ.get("ENGINE_WORKSPACE", str(Path(__file__).parent.parent.parent)))
+WATCHLIST_PATH = Path(os.environ.get("ENGINE_WATCHLIST_PATH", str(WORKSPACE / "data" / "watchlist.json")))
+MARKET_CONTEXT_PATH = Path(os.environ.get("ENGINE_RUNTIME_DIR", str(WORKSPACE / "runtime" / "engine"))) / "market_context.json"
 
 
 class DataCache:

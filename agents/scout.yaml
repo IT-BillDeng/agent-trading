@@ -1,0 +1,31 @@
+# Tiger Scout Agent Configuration
+# 职责：候选标的/异常波动扫描（扫描候选标的、异常波动检测）
+# 频率：按需或定时
+
+agent_id: scout
+model: xiaomi/mimo-v2-omni
+description: "候选标的/异常波动扫描：扫描候选标的、异常波动检测"
+frequency: "按需或定时"
+
+# Tool 权限配置
+tools:
+  - read
+  - write
+  - browser
+  - web_search
+  - web_fetch
+  - sessions_send
+
+# 输入文件
+input_files:
+  - /workspace/agent-trading/data/watchlist.json
+  - /workspace/agent-trading/runtime/engine/.last_execution_cycle.json
+  - /workspace/agent-trading/runtime/engine/market_context.json
+
+# 输出文件
+output_files:
+  - /workspace/agent-trading/runtime/engine/scout_candidates_latest.json
+  - /workspace/agent-trading/runtime/engine/scout_candidates_history.jsonl
+
+# 汇报目标
+report_to: agent:yuuka:main

@@ -1,1 +1,1 @@
-# tiger-trading dashboard
+# agent-trading dashboard

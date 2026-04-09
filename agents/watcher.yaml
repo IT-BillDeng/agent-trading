@@ -1,0 +1,35 @@
+# Tiger Watcher Agent Configuration
+# 职责：系统健康监控（engine 心跳、Docker 状态、API 权限）
+# 频率：每 15 分钟
+
+agent_id: watcher
+model: xiaomi/mimo-v2-omni
+description: "系统健康监控：engine 心跳、Docker 状态、API 权限"
+frequency: "每 15 分钟"
+
+# Tool 权限配置
+tools:
+  - read
+  - write
+  - exec
+  - sessions_send
+
+# 输入文件
+input_files:
+  - /workspace/agent-trading/data/watchlist.json
+  - /workspace/agent-trading/runtime/engine/.last_execution_cycle.json
+  - /workspace/agent-trading/runtime/engine/logs/dispatch_queue.jsonl
+  - /workspace/agent-trading/runtime/engine/logs/execution.jsonl
+  - /workspace/agent-trading/runtime/engine/state/control_state.json
+
+# 输出文件
+output_files:
+  - /workspace/agent-trading/runtime/engine/watcher/latest.json
+  - /workspace/agent-trading/runtime/engine/watcher/history.jsonl
+
+# 执行命令（健康检查）
+exec_commands:
+  - "curl -s http://localhost:8088/health"
+
+# 汇报目标
+report_to: agent:yuuka:main

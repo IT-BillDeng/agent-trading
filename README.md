@@ -1,6 +1,6 @@
-# tiger-trading
+# agent-trading
 
-Tiger 自动化交易项目工作区。当前核心引擎已统一命名为 **tiger_engine**，用于承载 paper trading 执行链、观察岗位、总结岗位与后续更高频/多周期扩展。
+Tiger 自动化交易项目工作区。当前核心引擎已统一命名为 **engine**，用于承载 paper trading 执行链、观察岗位、总结岗位与后续更高频/多周期扩展。
 
 ---
 
@@ -20,7 +20,7 @@ Tiger 自动化交易项目工作区。当前核心引擎已统一命名为 **ti
 ## 2. 当前目录结构
 
 ```text
-tiger-trading/
+agent-trading/
   README.md
   .gitignore
   data/
@@ -33,9 +33,9 @@ tiger-trading/
     market_context.json
     newswire_sources.json
   specs/
-    tiger-trading-spec-v1-30min.md
+    agent-trading-spec-v1-30min.md
   system/
-    tiger_engine/
+    engine/
       README.md
       app_config.paper.json
       config.example.json
@@ -44,11 +44,11 @@ tiger-trading/
       run_readonly_cycle.py
       run_execution_cycle.py
       src/
-        tiger_engine/
+        engine/
       logs/
       state/
   runtime/
-    tiger_engine/
+    engine/
 ```
 
 说明：
@@ -56,8 +56,8 @@ tiger-trading/
 - `docs/`：岗位说明、任务模板、协作说明
 - `shared/`：跨岗位共享输入
 - `specs/`：规格文档与设计草案
-- `system/tiger_engine/`：核心执行引擎代码
-- `runtime/tiger_engine/`：运行时产物、状态、日志
+- `system/engine/`：核心执行引擎代码
+- `runtime/engine/`：运行时产物、状态、日志
 - `data/`：本地数据、缓存、实验产物（默认不进 Git）
 
 ---
@@ -75,21 +75,21 @@ tiger-trading/
 - 负责整理工程结构、统一命名、决定演进方向
 - 也承担部分执行链与汇报类任务
 
-### tiger-watcher
+### watcher
 
 职责：
 - 高频只读监控行情与信号变化
 - 读取最近执行结果与状态文件
 - 产出观察结论与下一步建议
 
-### tiger-newswire
+### newswire
 
 职责：
 - 在 HK / US 开盘前与 US 盘中做新闻与催化扫描
 - 主源：Brave Search + web_fetch
 - 辅助：Yahoo Finance / 其他可读页面
 
-### tiger-closer
+### closer
 
 职责：
 - HK / US 收盘后生成收盘总结
@@ -98,7 +98,7 @@ tiger-trading/
 ### Operator 的 execution / portfolio-report 任务
 
 职责：
-- 定时运行 `tiger_engine` 执行周期
+- 定时运行 `engine` 执行周期
 - 生成盘中/盘后持仓与盈亏播报
 
 ---
@@ -113,7 +113,7 @@ tiger-trading/
   - 共享股票池
   - 各岗位优先读取
 
-- `runtime/tiger_engine/market_context.json`
+- `runtime/engine/market_context.json`
   - 共享市场上下文
 
 - `news/newswire_sources.json`
@@ -131,7 +131,7 @@ tiger-trading/
 ### 4.3 运行产物
 
 主要在：
-- `runtime/tiger_engine/`
+- `runtime/engine/`
 
 关键文件包括：
 
@@ -152,8 +152,8 @@ tiger-trading/
 
 ### 4.4 核心代码层
 
-- `system/tiger_engine/run_*_cycle.py`
-- `system/tiger_engine/src/tiger_engine/*`
+- `system/engine/run_*_cycle.py`
+- `system/engine/src/engine/*`
 
 作用：
 - 负责读取配置、生成信号、执行风控、维护状态、输出日志
@@ -176,9 +176,9 @@ tiger-trading/
 当前主要依赖 OpenClaw cron 触发各岗位：
 
 - `tiger-paper-execution`
-- `tiger-watcher-market-watch`
-- `tiger-newswire-*`
-- `tiger-closer-*`
+- `watcher-market-watch`
+- `newswire-*`
+- `closer-*`
 - `tiger-portfolio-report-*`
 
 本质是：
@@ -196,7 +196,7 @@ shared/*.json + docs/*.md
         ↓
 Tiger Engine 执行周期 / watcher / newswire / closer
         ↓
-runtime/tiger_engine/*.json / *.jsonl
+runtime/engine/*.json / *.jsonl
         ↓
 Operator / closer / portfolio-report 消费结果
         ↓
@@ -249,7 +249,7 @@ Telegram 汇报 / 下一轮继续读取
 从“单周期工程”过渡到“多周期工程”，例如：
 
 ```text
-system/tiger_engine/
+system/engine/
   strategies/
     m5/
     m15/
@@ -272,10 +272,10 @@ system/tiger_engine/
 
 ## 9. 当前命名约定
 
-- 仓库名：`tiger-trading`
-- 核心引擎：`tiger_engine`
-- 运行产物：`runtime/tiger_engine`
-- Python 包：`src/tiger_engine`
+- 仓库名：`agent-trading`
+- 核心引擎：`engine`
+- 运行产物：`runtime/engine`
+- Python 包：`src/engine`
 
 说明：
 - 项目已移除 `30m / tiger30` 作为主命名
@@ -297,4 +297,4 @@ system/tiger_engine/
 
 ## 11. 一句话总结
 
-**这是一个以 `tiger_engine` 为核心、用 cron 触发岗位协作、通过共享文件与运行日志交接数据的 Tiger 自动化交易工程。**
+**这是一个以 `engine` 为核心、用 cron 触发岗位协作、通过共享文件与运行日志交接数据的 Tiger 自动化交易工程。**

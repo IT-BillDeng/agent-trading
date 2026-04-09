@@ -1,5 +1,5 @@
 # ============================================================
-# Tiger Trading — Docker 编排
+# Agent Trading — Docker 编排
 # ============================================================
 # 主服务：dashboard（Web 看板 + 内置信号调度器）
 # ============================================================
@@ -10,7 +10,7 @@ services:
     build:
       context: .
       dockerfile: dashboard/Dockerfile
-    container_name: tiger-dashboard
+    container_name: agent-dashboard
     ports:
       - "8088:8088"
     volumes:
@@ -19,21 +19,21 @@ services:
       - ./rules:/app/rules
       - ./news:/app/news
       - ./properties:/app/properties
-      - ./runtime/tiger_engine:/app/runtime
+      - ./runtime/engine:/app/runtime
     environment:
       - TZ=Asia/Shanghai
-      - TIGER_CONFIG_DIR=/app/config
-      - TIGER_RULES_DIR=/app/rules
-      - TIGER_NEWS_DIR=/app/news
+      - ENGINE_CONFIG_DIR=/app/config
+      - ENGINE_RULES_DIR=/app/rules
+      - ENGINE_NEWS_DIR=/app/news
       - TIGER_PROPERTIES_DIR=/app/properties
-      - TIGER_WORKSPACE=/app
-      - TIGER_WATCHLIST_PATH=/app/data/watchlist.json
-      - TIGER_QUOTE_PROVIDER=yfinance
-      - TIGER_RUNTIME_DIR=/app/runtime
-      - TIGER_APP_CONFIG=/app/config/app_config.docker.json
+      - ENGINE_WORKSPACE=/app
+      - ENGINE_WATCHLIST_PATH=/app/data/watchlist.json
+      - ENGINE_QUOTE_PROVIDER=yfinance
+      - ENGINE_RUNTIME_DIR=/app/runtime
+      - ENGINE_APP_CONFIG=/app/config/app_config.docker.json
       # 调度器配置
-      - TIGER_SCHEDULER_PROVIDER=yfinance
-      - TIGER_SCHEDULER_INTERVAL=60
+      - ENGINE_SCHEDULER_PROVIDER=yfinance
+      - ENGINE_SCHEDULER_INTERVAL=60
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8088/health')"]

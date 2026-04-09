@@ -127,13 +127,13 @@ class SignalScheduler:
 
         # Lazy imports to avoid circular dependencies
         import sys
-        engine_src = str(Path(__file__).parent.parent / "system" / "tiger_engine" / "src")
+        engine_src = str(Path(__file__).parent.parent / "system" / "engine" / "src")
         if engine_src not in sys.path:
             sys.path.insert(0, engine_src)
 
-        from tiger_engine.config import load_app_config
-        from tiger_engine.data_provider import create_data_provider
-        from tiger_engine.runtime import (
+        from engine.config import load_app_config
+        from engine.data_provider import create_data_provider
+        from engine.runtime import (
             fetch_cycle_raw_with_provider,
             build_strategy_summary,
             build_execution_summary,
@@ -195,10 +195,10 @@ class SignalScheduler:
     def _submit_orders(self, summary: dict, app):
         """Preview and submit orders via Tiger API."""
         try:
-            from tiger_engine.tiger_client import TigerClient
-            from tiger_engine.config import load_tiger_props
-            from tiger_engine.live_execution import LiveExecutionAdapter
-            from tiger_engine.control import ControlPlane
+            from engine.tiger_client import TigerClient
+            from engine.config import load_tiger_props
+            from engine.live_execution import LiveExecutionAdapter
+            from engine.control import ControlPlane
 
             # Load Tiger credentials
             config_dir = self._app_config_path.parent

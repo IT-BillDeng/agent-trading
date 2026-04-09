@@ -1,4 +1,4 @@
-"""Tiger Trading Dashboard - FastAPI entry point."""
+"""Agent Trading Dashboard - FastAPI entry point."""
 
 import os
 from pathlib import Path
@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
     global tiger_client, cache
 
     config_dir = os.environ.get(
-        "TIGER_CONFIG_DIR",
+        "ENGINE_CONFIG_DIR",
         str(Path(__file__).parent.parent / "config"),
     )
 
@@ -39,8 +39,8 @@ async def lifespan(app: FastAPI):
         tiger_client = None
         print(f"[dashboard] TigerClient init failed: {e}")
 
-    # Quote provider: TIGER_QUOTE_PROVIDER env var (default: yfinance)
-    provider_name = os.environ.get("TIGER_QUOTE_PROVIDER", "yfinance")
+    # Quote provider: ENGINE_QUOTE_PROVIDER env var (default: yfinance)
+    provider_name = os.environ.get("ENGINE_QUOTE_PROVIDER", "yfinance")
     quote_provider = get_quote_provider(provider_name, config_dir=config_dir)
 
     if tiger_client:
@@ -53,15 +53,15 @@ async def lifespan(app: FastAPI):
     # Start signal scheduler
     global scheduler
     app_config = os.environ.get(
-        "TIGER_APP_CONFIG",
+        "ENGINE_APP_CONFIG",
         str(Path(config_dir) / "app_config.docker.json"),
     )
     runtime_dir = os.environ.get(
-        "TIGER_RUNTIME_DIR",
-        str(Path(__file__).parent.parent / "runtime" / "tiger_engine"),
+        "ENGINE_RUNTIME_DIR",
+        str(Path(__file__).parent.parent / "runtime" / "engine"),
     )
-    scheduler_provider = os.environ.get("TIGER_SCHEDULER_PROVIDER", provider_name)
-    scheduler_interval = int(os.environ.get("TIGER_SCHEDULER_INTERVAL", "60"))
+    scheduler_provider = os.environ.get("ENGINE_SCHEDULER_PROVIDER", provider_name)
+    scheduler_interval = int(os.environ.get("ENGINE_SCHEDULER_INTERVAL", "60"))
 
     try:
         scheduler = SignalScheduler(
@@ -84,7 +84,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Tiger Trading Dashboard",
+    title="Agent Trading Dashboard",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -299,10 +299,10 @@ async def api_watchlist_remove(symbol: str):
 
 # --- Engine results & control ---
 
-RUNTIME_DIR = Path(os.environ.get("TIGER_RUNTIME_DIR", str(Path(__file__).parent.parent / "runtime")))
-CONFIG_DIR_PATH = Path(os.environ.get("TIGER_CONFIG_DIR", str(Path(__file__).parent.parent / "config")))
-RULES_DIR = Path(os.environ.get("TIGER_RULES_DIR", str(Path(__file__).parent.parent / "rules")))
-NEWS_DIR_PATH = Path(os.environ.get("TIGER_NEWS_DIR", str(Path(__file__).parent.parent / "news")))
+RUNTIME_DIR = Path(os.environ.get("ENGINE_RUNTIME_DIR", str(Path(__file__).parent.parent / "runtime")))
+CONFIG_DIR_PATH = Path(os.environ.get("ENGINE_CONFIG_DIR", str(Path(__file__).parent.parent / "config")))
+RULES_DIR = Path(os.environ.get("ENGINE_RULES_DIR", str(Path(__file__).parent.parent / "rules")))
+NEWS_DIR_PATH = Path(os.environ.get("ENGINE_NEWS_DIR", str(Path(__file__).parent.parent / "news")))
 PROPERTIES_DIR = Path(os.environ.get("TIGER_PROPERTIES_DIR", str(Path(__file__).parent.parent / "properties")))
 
 
@@ -662,11 +662,11 @@ async def api_rules_test(body: dict):
     """Test a rule against historical data."""
     # Import backtest module
     import sys
-    backtest_src = str(Path(__file__).parent.parent / "system" / "tiger_engine" / "src")
+    backtest_src = str(Path(__file__).parent.parent / "system" / "engine" / "src")
     if backtest_src not in sys.path:
         sys.path.insert(0, backtest_src)
     
-    from tiger_engine.backtest import BacktestConfig, run_backtest
+    from engine.backtest import BacktestConfig, run_backtest
     
     rule_id = body.get("rule_id")
     symbol = body.get("symbol", "AAPL")
@@ -710,11 +710,11 @@ def _clean_nan_values(obj):
 async def api_backtest(body: dict):
     """Run a full backtest (data source: Tiger API)."""
     import sys
-    backtest_src = str(Path(__file__).parent.parent / "system" / "tiger_engine" / "src")
+    backtest_src = str(Path(__file__).parent.parent / "system" / "engine" / "src")
     if backtest_src not in sys.path:
         sys.path.insert(0, backtest_src)
     
-    from tiger_engine.backtest import BacktestConfig, run_backtest
+    from engine.backtest import BacktestConfig, run_backtest
     
     symbols = body.get("symbols", ["AAPL"])
     start_date = body.get("start_date", "2026-01-01")
@@ -765,11 +765,11 @@ async def api_backtest_batch(body: dict):
     """
     import sys
     import json
-    backtest_src = str(Path(__file__).parent.parent / "system" / "tiger_engine" / "src")
+    backtest_src = str(Path(__file__).parent.parent / "system" / "engine" / "src")
     if backtest_src not in sys.path:
         sys.path.insert(0, backtest_src)
 
-    from tiger_engine.backtest import BacktestConfig, run_backtest
+    from engine.backtest import BacktestConfig, run_backtest
 
     symbols = body.get("symbols", ["AAPL"])
     start_date = body.get("start_date", "2026-01-07")
@@ -1210,7 +1210,7 @@ async def api_tiger_config_upload_file(file: UploadFile = File(...)):
         from .tiger_client import TigerClient as TC
         from .data_cache import DataCache as DC
         tiger_client = TC(config_dir=str(PROPERTIES_DIR))
-        provider_name = os.environ.get("TIGER_QUOTE_PROVIDER", "yfinance")
+        provider_name = os.environ.get("ENGINE_QUOTE_PROVIDER", "yfinance")
         quote_provider = get_quote_provider(provider_name, config_dir=str(CONFIG_DIR_PATH))
         cache = DC(tiger_client, quote_provider, refresh_interval=30)
         cache.start()

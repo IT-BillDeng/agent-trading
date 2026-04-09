@@ -1,12 +1,12 @@
-# Tiger Trading Data Directory
+# Agent Trading Data Directory
 
-This directory contains runtime data files for the Tiger Trading system.
+This directory contains runtime data files for the Agent Trading system.
 
 ## Files
 
 - `watchlist.json` - Shared watchlist for yuuka and Tiger subagents (single source of truth)
 - `watchlist.json.example` - Example watchlist file
-- `closer_outbox.json` - Outbox for tiger-closer agent
+- `closer_outbox.json` - Outbox for closer agent
 
 ## Notes
 

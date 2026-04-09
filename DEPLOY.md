@@ -1,11 +1,11 @@
-# Tiger Trading — Docker 部署指南
+# Agent Trading — Docker 部署指南
 
 ## 快速开始
 
 ### 1. 首次部署
 
 ```bash
-cd tiger-trading
+cd agent-trading
 
 # 准备凭证（从旧环境复制或重新生成）
 cp properties/tiger.properties.example properties/tiger.properties
@@ -16,7 +16,7 @@ vim properties/tiger.properties
 docker compose build
 
 # 只读连通性测试（不下单）
-docker compose run --rm tiger-engine \
+docker compose run --rm engine \
   python run_readonly_cycle.py \
   /app/config/app_config.docker.json \
   /app/properties/tiger.properties
@@ -42,25 +42,25 @@ docker compose down
 
 ```bash
 # 只读周期
-docker compose run --rm -w /app tiger-engine \
+docker compose run --rm -w /app engine \
   python run_readonly_cycle.py \
   /app/config/app_config.docker.json \
   /app/properties/tiger.properties
 
 # 策略信号周期
-docker compose run --rm -w /app tiger-engine \
+docker compose run --rm -w /app engine \
   python run_strategy_cycle.py \
   /app/config/app_config.docker.json \
   /app/properties/tiger.properties
 
 # Dry-run 周期
-docker compose run --rm -w /app tiger-engine \
+docker compose run --rm -w /app engine \
   python run_dry_run_cycle.py \
   /app/config/app_config.docker.json \
   /app/properties/tiger.properties
 
 # 执行周期（guarded/live 取决于配置）
-docker compose run --rm -w /app tiger-engine \
+docker compose run --rm -w /app engine \
   python run_execution_cycle.py \
   /app/config/app_config.docker.json \
   /app/properties/tiger.properties
@@ -71,8 +71,8 @@ docker compose run --rm -w /app tiger-engine \
 ```bash
 # 1. 安装 Docker（macOS: Docker Desktop; Ubuntu: docker.io + docker-compose-v2）
 # 2. 克隆仓库
-git clone git@github.com:IT-BillDeng/tiger-trading.git
-cd tiger-trading
+git clone git@github.com:IT-BillDeng/agent-trading.git
+cd agent-trading
 
 # 3. 准备凭证
 cp properties/tiger.properties.example properties/tiger.properties
@@ -82,7 +82,7 @@ cp properties/tiger.properties.example properties/tiger.properties
 docker compose build
 
 # 5. 验证
-docker compose run --rm tiger-engine \
+docker compose run --rm engine \
   python run_readonly_cycle.py \
   /app/config/app_config.docker.json \
   /app/properties/tiger.properties
@@ -91,7 +91,7 @@ docker compose run --rm tiger-engine \
 ### 5. 目录结构
 
 ```
-tiger-trading/
+agent-trading/
 ├── docker-compose.yml          # 编排配置（2 个服务）
 ├── DEPLOY.md                   # 部署指南
 ├── config/
@@ -106,13 +106,13 @@ tiger-trading/
 │   └── tiger.properties.example
 ├── data/                       # 标的数据
 │   └── watchlist.json
-├── runtime/tiger_engine/       # 运行时产物（读写 mount）
+├── runtime/engine/       # 运行时产物（读写 mount）
 │   ├── logs/
 │   └── state/
-├── system/tiger_engine/        # 核心执行引擎
+├── system/engine/        # 核心执行引擎
 │   ├── Dockerfile
 │   ├── requirements.txt        # urllib3 + cryptography
-│   └── src/tiger_engine/
+│   └── src/engine/
 ├── dashboard/                  # Web 看板
 │   ├── Dockerfile
 │   ├── requirements.txt        # tigeropen + fastapi + uvicorn
@@ -132,7 +132,7 @@ tiger-trading/
 
 - **默认 guarded 模式**：`app_config.docker.json` 默认 `submit_mode: guarded`，不会真实下单
 - **切换 live**：修改 `submit_mode` 为 `live` + `live_submit: true`（需先生确认）
-- **运行时日志**：持久化在 `runtime/tiger_engine/`，跨容器周期保留
+- **运行时日志**：持久化在 `runtime/engine/`，跨容器周期保留
 - **时区**：容器内设为 `Asia/Shanghai`
 - **容器以 root 运行**：为简化 volume mount 权限，容器内以 root 运行（本地开发工具，非生产暴露）
 
@@ -140,13 +140,13 @@ tiger-trading/
 
 ```bash
 # 查看最近日志
-cat runtime/tiger_engine/logs/cycles.jsonl | tail -5
+cat runtime/engine/logs/cycles.jsonl | tail -5
 
 # 查看执行状态
-cat runtime/tiger_engine/state/execution_state.json
+cat runtime/engine/state/execution_state.json
 
 # 手动解锁（如果系统被锁定）
-cat runtime/tiger_engine/state/control_state.json
+cat runtime/engine/state/control_state.json
 # 编辑后重新写入
 
 # 重建镜像（依赖更新后）

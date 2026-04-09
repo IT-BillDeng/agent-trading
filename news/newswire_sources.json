@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "name": "tiger-newswire-sources-v1",
-  "purpose": "Free v1 information sources for tiger-newswire",
+  "name": "newswire-sources-v1",
+  "purpose": "Free v1 information sources for newswire",
   "default_market_priority": {
     "US": ["brave_search", "web_fetch", "yahoo_finance"]
   },

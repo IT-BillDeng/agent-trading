@@ -1,11 +1,11 @@
-# Tiger Trading Dashboard
+# Agent Trading Dashboard
 
 Web-based dashboard for monitoring the Tiger trading system.
 
 ## Quick Start
 
 ```bash
-cd tiger-trading/dashboard
+cd agent-trading/dashboard
 pip install -r requirements.txt
 python main.py
 ```

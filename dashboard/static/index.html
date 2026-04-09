@@ -157,12 +157,7 @@
             </div>
 
             <!-- Agents -->
-            <div class="card">
-                <div class="card-title">🤖 Subagent 状态</div>
-                <div id="agents-list" class="space-y-2">
-                    <div class="text-gray-500 text-sm">加载中...</div>
-                </div>
-            </div>
+
         </div>
 
         <!-- News Panel -->
@@ -657,21 +652,6 @@
             `).join('');
         }
 
-        function renderAgents(data) {
-            const el = document.getElementById('agents-list');
-            const agentNames = {
-                watcher: '👁️ Watcher', strategist: '🧠 Strategist', executor: '⚡ Executor',
-                newswire: '📰 Newswire', scout: '🔍 Scout', closer: '🔚 Closer'
-            };
-            el.innerHTML = Object.entries(data).map(([name, info]) => {
-                const statusCls = info.last_update ? 'text-green-400' : 'text-gray-500';
-                return `<div class="flex items-center justify-between py-1.5 border-b border-gray-700/30 text-sm">
-                    <span>${agentNames[name] || name}</span>
-                    <span class="${statusCls} text-xs">${info.last_update ? ago(info.last_update) : '待启动'}</span>
-                </div>`;
-            }).join('');
-        }
-
         function renderSystem(data) {
             document.getElementById('system-info').textContent =
                 `账户: ${data.account_id || '--'} | 刷新: ${data.refresh_count || 0}次 | 间隔: ${data.refresh_interval || '--'}s`;
@@ -1054,14 +1034,13 @@
         // --- Fetch & Render ---
         async function fetchAll() {
             try {
-                const [account, positions, quotes, orders, pnl, agents, system, wlData, marketInfo] = await Promise.all([
+                const [account, positions, quotes, orders, pnl, system, wlData, marketInfo] = await Promise.all([
                     fetch(API_BASE + '/api/account').then(r => r.json()),
                     fetch(API_BASE + '/api/positions').then(r => r.json()),
                     fetch(API_BASE + '/api/quotes').then(r => r.json()),
                     fetch(API_BASE + '/api/orders').then(r => r.json()),
                     fetch(API_BASE + '/api/pnl').then(r => r.json()),
-                    fetch(API_BASE + '/api/agents').then(r => r.json()),
-                    fetch(API_BASE + '/api/system').then(r => r.json()),
+                                        fetch(API_BASE + '/api/system').then(r => r.json()),
                     fetch(API_BASE + '/api/watchlist').then(r => r.json()).catch(() => ({})),
                     fetch(API_BASE + '/api/market-status').then(r => r.json()).catch(() => ({})),
                 ]);
@@ -1096,8 +1075,7 @@
                 renderQuotes(quotes);
                 renderOrders(orders);
                 renderPnl(pnl);
-                renderAgents(agents);
-                renderSystem(system);
+                                renderSystem(system);
                 renderMarketStatus(marketInfo);
                 renderMarketSession(marketInfo);
                 fetchNewSections();

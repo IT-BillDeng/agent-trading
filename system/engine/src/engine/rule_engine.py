@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any, Callable
 
@@ -23,7 +23,9 @@ class RuleSignal:
     stop_loss: float | None
     take_profit: float | None
     last_close: float | None
-    diagnostics: dict[str, Any]
+    suggested_quantity: int | None = None
+    risk_per_share: float | None = None
+    diagnostics: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -484,6 +486,16 @@ class RuleEngine:
                 if entry_result:
                     stop_loss_pct = entry_config.get('stop_loss_pct', 0.03)
                     take_profit_pct = entry_config.get('take_profit_pct', 0.06)
+                    stop_loss = round(last_close * (1 - stop_loss_pct), 4)
+                    take_profit = round(last_close * (1 + take_profit_pct), 4)
+                    risk_per_share = round(last_close * stop_loss_pct, 4)
+                    # 默认风险预算: $1,000 (max_order $100K × 1%)
+                    risk_budget = float(entry_config.get('risk_budget', 1000))
+                    suggested_qty = int(risk_budget / risk_per_share) if risk_per_share > 0 else None
+                    # 额外约束: 单笔不超过 $100K
+                    max_qty = int(100000 / last_close) if last_close > 0 else None
+                    if max_qty and suggested_qty:
+                        suggested_qty = min(suggested_qty, max_qty)
                     
                     return RuleSignal(
                         rule_id=rule_id,
@@ -493,10 +505,12 @@ class RuleEngine:
                         order_type=entry_config.get('order_type', 'LMT'),
                         score=1,
                         reason=f'entry_condition_met',
-                        stop_loss=round(last_close * (1 - stop_loss_pct), 4),
-                        take_profit=round(last_close * (1 + take_profit_pct), 4),
+                        stop_loss=stop_loss,
+                        take_profit=take_profit,
                         last_close=last_close,
-                        diagnostics={'entry': entry_diag}
+                        suggested_quantity=suggested_qty,
+                        risk_per_share=risk_per_share,
+                        diagnostics={'entry': entry_diag, 'risk_budget': risk_budget, 'suggested_qty': suggested_qty}
                     )
         
         # 默认 HOLD

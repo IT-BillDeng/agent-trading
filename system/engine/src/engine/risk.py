@@ -28,6 +28,7 @@ class RiskManager:
         self.max_total_exposure_usd = float(risk.get('max_total_exposure_usd', 1000000))
         self.daily_loss_limit_pct = float(risk.get('daily_loss_limit_pct', 5))
         self.fx_rates_to_usd = dict(risk.get('fx_rates_to_usd', {'USD': 1.0}))
+        self.disable_leverage = bool(risk.get('disable_leverage', False))
 
     def evaluate(
         self,
@@ -110,10 +111,24 @@ class RiskManager:
             if not reasons:
                 suggested_qty = signal.get('suggested_quantity')
                 risk_per_share = signal.get('risk_per_share')
+
+                # Leverage-free cash cap
+                cash_cap = None
+                if self.disable_leverage:
+                    net_liq = float(asset_snapshot.get('netLiquidation') or 0)
+                    gross_pos = float(asset_snapshot.get('grossPositionValue') or 0)
+                    effective_cash = net_liq - gross_pos
+                    diagnostics['leverage_free_cash'] = effective_cash
+                    if effective_cash <= 0:
+                        reasons.append('leverage_blocked_no_cash')
+                    else:
+                        cash_cap = effective_cash
+
                 quantity, estimated_notional, estimated_notional_usd = self._size_buy(
                     last_close, fx_rate,
                     suggested_quantity=suggested_qty,
                     risk_per_share=risk_per_share,
+                    cash_cap=cash_cap,
                 )
                 diagnostics.update({
                     'sizing_last_close': last_close,
@@ -121,6 +136,7 @@ class RiskManager:
                     'sizing_method': 'risk_based' if risk_per_share else 'max_limit',
                     'sizing_risk_per_share': risk_per_share,
                     'sizing_suggested_qty': suggested_qty,
+                    'sizing_cash_cap': cash_cap,
                 })
                 if quantity <= 0:
                     reasons.append('order_too_small')
@@ -171,6 +187,7 @@ class RiskManager:
         fx_rate: float,
         suggested_quantity: int | None = None,
         risk_per_share: float | None = None,
+        cash_cap: float | None = None,
     ) -> tuple[int, float | None, float | None]:
         if last_close <= 0 or fx_rate <= 0:
             return 0, None, None
@@ -184,12 +201,19 @@ class RiskManager:
             risk_budget = self.max_order_notional_usd * 0.01  # 1% of max order as risk budget
             risk_quantity = int(risk_budget / (risk_per_share * fx_rate))
 
+        # Cash-only cap (disable_leverage)
+        cash_quantity = None
+        if cash_cap is not None and cash_cap > 0:
+            cash_quantity = int(cash_cap / (last_close * fx_rate))
+
         # Pick the most conservative
         candidates = [max_quantity]
         if suggested_quantity and suggested_quantity > 0:
             candidates.append(int(suggested_quantity))
         if risk_quantity and risk_quantity > 0:
             candidates.append(risk_quantity)
+        if cash_quantity is not None and cash_quantity > 0:
+            candidates.append(cash_quantity)
         quantity = min(candidates)
 
         if quantity <= 0:

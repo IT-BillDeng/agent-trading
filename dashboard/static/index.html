@@ -45,7 +45,7 @@
 </head>
 <body class="bg-dark-900 text-gray-100 min-h-screen">
     <!-- Header -->
-    <header class="border-b border-gray-700/50 px-6 py-3 flex items-center justify-between" style="background-color: #11111b;">
+    <header class="sticky top-0 z-40 border-b border-gray-700/50 px-6 py-3 flex items-center justify-between" style="background-color: #11111b;">
         <div class="flex items-center gap-3">
             <span class="text-2xl">🤖</span>
             <h1 class="text-lg font-semibold">Agent Trading Dashboard</h1>
@@ -141,7 +141,7 @@
         <!-- Second Row -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
             <!-- Orders -->
-            <div class="card">
+            <div class="card lg:col-span-2">
                 <div class="card-title">📋 最近订单</div>
                 <div id="orders-list" class="space-y-2 max-h-64 overflow-y-auto">
                     <div class="text-gray-500 text-sm">加载中...</div>
@@ -392,14 +392,6 @@
                         <div>API 类型: <span id="tc-account-type" class="text-gray-500">--</span></div>
                     </div>
                 </div>
-                <!-- Mode Switch -->
-                <div>
-                    <div class="text-xs text-gray-500 mb-2">账户类型</div>
-                    <div class="flex items-center gap-2">
-                        <span id="account-type-badge" class="text-sm text-gray-300">--</span>
-                    </div>
-                    <div class="text-xs text-gray-500 mt-2">由 Tiger 配置文件决定</div>
-                </div>
             </div>
             <!-- Upload -->
             <div class="mt-4 flex gap-2 items-center">
@@ -433,12 +425,33 @@
                 </div>
                 <div>
                     <div class="text-xs text-gray-500 mb-2">风控参数</div>
-                    <div id="risk-display" class="text-sm space-y-1">
-                        <div>单笔上限: <span id="risk-max-order">--</span></div>
-                        <div>总暴露上限: <span id="risk-max-exposure">--</span></div>
-                        <div>日亏损限制: <span id="risk-daily-loss">--</span>%</div>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-center gap-2">
+                            <label class="text-gray-400 w-20 shrink-0">单笔上限</label>
+                            <input id="risk-input-max-order" type="number" min="1000" step="1000" class="bg-gray-800 border border-gray-600 rounded px-2 py-1 w-28 text-sm text-right" placeholder="10000">
+                            <span class="text-gray-500">USD</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-gray-400 w-20 shrink-0">总暴露上限</label>
+                            <input id="risk-input-max-exposure" type="number" min="1000" step="1000" class="bg-gray-800 border border-gray-600 rounded px-2 py-1 w-28 text-sm text-right" placeholder="10000">
+                            <span class="text-gray-500">USD</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-gray-400 w-20 shrink-0">日亏损限制</label>
+                            <input id="risk-input-daily-loss" type="number" min="1" max="50" step="1" class="bg-gray-800 border border-gray-600 rounded px-2 py-1 w-28 text-sm text-right" placeholder="5">
+                            <span class="text-gray-500">%</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-gray-400 w-20 shrink-0">禁用杠杆</label>
+                            <input id="risk-input-disable-leverage" type="checkbox" class="w-4 h-4 accent-blue-500">
+                        </div>
+                        <div class="flex gap-2 mt-1">
+                            <button onclick="saveRiskConfig()" class="bg-blue-600/30 hover:bg-blue-600/50 text-blue-400 px-3 py-1 rounded text-xs border border-blue-600/30 transition">💾 保存</button>
+                            <div id="risk-msg" class="text-xs self-center hidden"></div>
+                        </div>
                     </div>
                 </div>
+
             </div>
         </section>
 
@@ -1182,9 +1195,10 @@
             try {
                 const config = await fetch(API_BASE + '/api/config').then(r => r.json());
                 const risk = config.risk || {};
-                document.getElementById('risk-max-order').textContent = fmtUSD(risk.max_order_notional_usd);
-                document.getElementById('risk-max-exposure').textContent = fmtUSD(risk.max_total_exposure_usd);
-                document.getElementById('risk-daily-loss').textContent = risk.daily_loss_limit_pct || '--';
+                document.getElementById('risk-input-max-order').value = risk.max_order_notional_usd || '';
+                document.getElementById('risk-input-max-exposure').value = risk.max_total_exposure_usd || '';
+                document.getElementById('risk-input-daily-loss').value = risk.daily_loss_limit_pct || '';
+                document.getElementById('risk-input-disable-leverage').checked = !!risk.disable_leverage;
             } catch (e) {
                 console.error('config fetch error:', e);
             }
@@ -1270,6 +1284,40 @@
             }
         }
 
+
+        async function saveRiskConfig() {
+            const msgEl = document.getElementById('risk-msg');
+            const payload = {
+                risk: {
+                    max_order_notional_usd: parseFloat(document.getElementById('risk-input-max-order').value) || 10000,
+                    max_total_exposure_usd: parseFloat(document.getElementById('risk-input-max-exposure').value) || 10000,
+                    daily_loss_limit_pct: parseFloat(document.getElementById('risk-input-daily-loss').value) || 5,
+                    disable_leverage: document.getElementById('risk-input-disable-leverage').checked,
+                }
+            };
+            try {
+                const res = await fetch(API_BASE + '/api/config', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    msgEl.textContent = '✅ 已保存';
+                    msgEl.className = 'text-xs self-center text-green-400';
+                } else {
+                    msgEl.textContent = data.error || '保存失败';
+                    msgEl.className = 'text-xs self-center text-red-400';
+                }
+                msgEl.classList.remove('hidden');
+                setTimeout(() => msgEl.classList.add('hidden'), 3000);
+            } catch (e) {
+                msgEl.textContent = '请求失败';
+                msgEl.className = 'text-xs self-center text-red-400';
+                msgEl.classList.remove('hidden');
+            }
+        }
+
         async function setRefreshInterval(val) {
             document.getElementById('refresh-value').textContent = val;
             try {
@@ -1331,7 +1379,7 @@
                 document.getElementById('tc-tiger-id').textContent = f.tiger_id || '--';
                 document.getElementById('tc-license').textContent = f.license || '--';
                 document.getElementById('tc-account-type').textContent = info.account_type || '--';
-                document.getElementById('account-type-badge').textContent = (info.account_type || '').includes('paper') ? '📄 Paper 模拟盘' : (info.account_type || '').includes('live') ? '🔴 Live 实盘' : '--';
+
             } catch (e) {
                 console.error('tiger-config fetch error:', e);
             }
@@ -1379,7 +1427,7 @@
                 });
                 const data = await res.json();
                 if (data.error) { showTcMsg(data.error, true); return; }
-                showTcMsg('配置上传成功，请通过 Paper/Live 按钮设置交易模式', false);
+                showTcMsg('配置上传成功', false);
                 fileInput.value = '';
                 document.getElementById('tiger-config-filename').textContent = '未选择文件';
                 fetchTigerConfig();

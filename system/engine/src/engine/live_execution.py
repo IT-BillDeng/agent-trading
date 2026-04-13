@@ -68,9 +68,18 @@ class LiveExecutionAdapter:
         response = self.client.preview_order(payload)
         body = response.get('body', {})
         data = body.get('data') or {}
+        if isinstance(data, str):
+            try:
+                import json as _json
+                data = _json.loads(data)
+            except Exception:
+                data = {}
         warning_text = None
         if isinstance(data, dict):
-            warning_text = data.get('warningText') or data.get('warning_text')
+            warning_text = data.get('warningText') or data.get('warning_text') or data.get('message')
+            # Treat isPass=false as a warning even without explicit warningText
+            if not warning_text and data.get('isPass') is False:
+                warning_text = data.get('message') or 'preview_not_passed'
         reason = self._map_preview_reason(body.get('code'), warning_text)
         ok = reason == 'preview_ok'
         preview = PreviewResult(intent['intent_id'], intent['symbol'], ok, reason, warning_text, payload, response)

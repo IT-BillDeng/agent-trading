@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
         str(Path(__file__).parent.parent / "config"),
     )
 
-    # TigerClient may fail if credentials are invalid — don't crash the app
+    # TigerClient may fail if credentials are invalid - don't crash the app
     try:
         tiger_client = TigerClient(config_dir=str(PROPERTIES_DIR))
     except Exception as e:
@@ -504,6 +504,73 @@ async def api_control(action: str):
         return {"status": "ok", "action": "unlocked"}
     else:
         return JSONResponse({"error": f"unknown action: {action}"}, status_code=400)
+    """Reset paper account local state.
+
+    Clears all local order tracking (submitted, previews, sync, history)
+    so the system can trade freely after a Tiger paper account reset.
+    Also locks the engine as a safety measure.
+    """
+    import json as _json
+    from datetime import datetime as _dt
+
+    state_file = RUNTIME_DIR / "state" / "execution_state.json"
+    summary = {"cleared": {}, "backup": None}
+
+    # Read current state
+    if state_file.exists():
+        try:
+            state = _json.loads(state_file.read_text())
+        except Exception:
+            state = {}
+    else:
+        state = {}
+
+    # Record counts before clearing
+    submitted = state.get("submitted", {})
+    previews = state.get("previews", {})
+    sync = state.get("sync", {})
+    history = state.get("history", [])
+
+    summary["cleared"] = {
+        "submitted": len(submitted),
+        "previews": len(previews),
+        "sync": len(sync),
+        "history": len(history),
+    }
+
+    # Symbol breakdown
+    symbols = {}
+    for val in submitted.values():
+        sym = val.get("symbol", "?")
+        symbols[sym] = symbols.get(sym, 0) + 1
+    summary["submitted_by_symbol"] = symbols
+
+    # Backup before clearing
+    if state_file.exists() and (submitted or previews or history):
+        ts = _dt.now().strftime("%Y%m%d_%H%M%S")
+        backup_file = RUNTIME_DIR / "state" / f"execution_state.bak.{ts}.json"
+        backup_file.write_text(state_file.read_text())
+        summary["backup"] = backup_file.name
+
+    # Clear
+    state["submitted"] = {}
+    state["previews"] = {}
+    state["sync"] = {}
+    state["history"] = []
+    state_file.parent.mkdir(parents=True, exist_ok=True)
+    state_file.write_text(_json.dumps(state, indent=2, ensure_ascii=False))
+
+    # Lock engine as safety measure
+    ctrl = _read_control_state()
+    ctrl["locked"] = True
+    ctrl["reason"] = "paper_account_reset"
+    ctrl["updated_by"] = "dashboard"
+    ctrl["updated_at"] = _dt.now().isoformat()
+    _write_control_state(ctrl)
+    summary["engine_locked"] = True
+
+    summary["status"] = "ok"
+    return summary
 
 
 VALID_TRADING_MODES = {"off", "signals", "trade"}
@@ -601,11 +668,11 @@ async def api_rules_update(rules_data: dict):
     import json
     import shutil
     from datetime import datetime
-    
+
     # Validate structure
     if "rules" not in rules_data:
         return JSONResponse({"error": "Missing 'rules' field"}, status_code=400)
-    
+
     # Backup existing rules
     if RULES_FILE.exists():
         backup_dir = RULES_DIR / "rules_backup"
@@ -613,15 +680,15 @@ async def api_rules_update(rules_data: dict):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_file = backup_dir / f"rules_{timestamp}.json"
         shutil.copy2(RULES_FILE, backup_file)
-    
+
     # Add metadata
     rules_data["updated_at"] = datetime.now().isoformat()
     if "version" not in rules_data:
         rules_data["version"] = "1.0"
-    
+
     # Write new rules
     RULES_FILE.write_text(json.dumps(rules_data, indent=2, ensure_ascii=False))
-    
+
     return {"status": "ok", "message": "Rules updated", "backup_created": RULES_FILE.exists()}
 
 
@@ -629,31 +696,31 @@ async def api_rules_update(rules_data: dict):
 async def api_rules_validate(rules_data: dict):
     """Validate rules configuration format."""
     errors = []
-    
+
     if "rules" not in rules_data:
         errors.append("Missing 'rules' field")
         return {"valid": False, "errors": errors}
-    
+
     for i, rule in enumerate(rules_data["rules"]):
         if "rule_id" not in rule:
             errors.append(f"Rule {i}: missing 'rule_id'")
         if "name" not in rule:
             errors.append(f"Rule {i}: missing 'name'")
-        
+
         # Validate entry conditions
         entry = rule.get("entry", {})
         if entry:
             conditions = entry.get("conditions", {})
             if not conditions:
                 errors.append(f"Rule {rule.get('rule_id', i)}: entry missing conditions")
-        
+
         # Validate exit conditions
         exit_config = rule.get("exit", {})
         if exit_config:
             conditions = exit_config.get("conditions", {})
             if not conditions:
                 errors.append(f"Rule {rule.get('rule_id', i)}: exit missing conditions")
-    
+
     return {"valid": len(errors) == 0, "errors": errors}
 
 
@@ -665,14 +732,14 @@ async def api_rules_test(body: dict):
     backtest_src = str(Path(__file__).parent.parent / "system" / "engine" / "src")
     if backtest_src not in sys.path:
         sys.path.insert(0, backtest_src)
-    
+
     from engine.backtest import BacktestConfig, run_backtest
-    
+
     rule_id = body.get("rule_id")
     symbol = body.get("symbol", "AAPL")
     start_date = body.get("start_date", "2026-01-01")
     end_date = body.get("end_date", "2026-04-01")
-    
+
     # Create backtest config
     config = BacktestConfig(
         symbols=[symbol],
@@ -682,11 +749,11 @@ async def api_rules_test(body: dict):
         initial_capital=100000.0,
         data_source="yfinance"
     )
-    
+
     # Run backtest
     rules_file = RULES_FILE
     result = run_backtest(config, rules_file)
-    
+
     return {
         "status": "ok",
         "result": result.to_dict()
@@ -694,7 +761,7 @@ async def api_rules_test(body: dict):
 
 
 def _clean_nan_values(obj):
-    """递归清理 NaN/Inf 值，转换为 None"""
+    """递归清理 NaN/Inf 值,转换为 None"""
     import math
     if isinstance(obj, dict):
         return {k: _clean_nan_values(v) for k, v in obj.items()}
@@ -713,17 +780,17 @@ async def api_backtest(body: dict):
     backtest_src = str(Path(__file__).parent.parent / "system" / "engine" / "src")
     if backtest_src not in sys.path:
         sys.path.insert(0, backtest_src)
-    
+
     from engine.backtest import BacktestConfig, run_backtest
-    
+
     symbols = body.get("symbols", ["AAPL"])
     start_date = body.get("start_date", "2026-01-01")
     end_date = body.get("end_date", "2026-04-01")
     timeframe = body.get("timeframe", "30min")
     initial_capital = body.get("initial_capital", 100000.0)
-    
+
     data_source = body.get("data_source", "tiger")
-    
+
     config = BacktestConfig(
         symbols=symbols,
         start_date=start_date,
@@ -732,13 +799,13 @@ async def api_backtest(body: dict):
         initial_capital=initial_capital,
         data_source=data_source
     )
-    
+
     rules_file = RULES_FILE
     result = run_backtest(config, rules_file)
-    
-    # 清理 NaN/Inf 值，避免 JSON 序列化错误
+
+    # 清理 NaN/Inf 值,避免 JSON 序列化错误
     result_dict = _clean_nan_values(result.to_dict())
-    
+
     return {
         "status": "ok",
         "result": result_dict
@@ -748,7 +815,7 @@ async def api_backtest(body: dict):
 @app.post("/api/backtest/batch")
 async def api_backtest_batch(body: dict):
     """Run batch backtest with multiple parameter combinations.
-    
+
     Input:
         symbols: ["AAPL", "NVDA"]
         start_date: "2026-01-07"
@@ -853,10 +920,10 @@ async def api_backtest_batch(body: dict):
 
 def _apply_param_overrides(rules: dict, params: dict):
     """Apply parameter overrides to rules dict.
-    
+
     Params use {rule_id}.{json_path} format:
         {"trend_follow_30m.entry.conditions.items.0.params.period": 5}
-    
+
     Or shorthand names mapped to specific rules.
     """
     # Shorthand → (rule_id, json_path)
@@ -927,7 +994,7 @@ async def api_backtest_results():
     results_dir = RUNTIME_DIR / "backtest_results"
     if not results_dir.exists():
         return {"results": []}
-    
+
     results = []
     for result_file in sorted(results_dir.glob("*.json"), reverse=True)[:10]:
         try:
@@ -940,7 +1007,7 @@ async def api_backtest_results():
             })
         except Exception:
             continue
-    
+
     return {"results": results}
 
 
@@ -951,7 +1018,7 @@ async def api_rules_history():
     backup_dir = RULES_DIR / "rules_backup"
     if not backup_dir.exists():
         return {"history": []}
-    
+
     history = []
     for backup_file in sorted(backup_dir.glob("rules_*.json"), reverse=True)[:10]:
         try:
@@ -963,7 +1030,7 @@ async def api_rules_history():
             })
         except Exception:
             continue
-    
+
     return {"history": history}
 
 
@@ -1017,7 +1084,7 @@ async def api_quote_providers():
     """List available quote providers."""
     return {
         "providers": [
-            {"id": "yfinance", "name": "Yahoo Finance", "desc": "免费，有延迟"},
+            {"id": "yfinance", "name": "Yahoo Finance", "desc": "免费,有延迟"},
             {"id": "tiger", "name": "Tiger API", "desc": "需要行情权限"},
         ],
         "current": cache._quote_provider.name if cache else None,
@@ -1029,21 +1096,21 @@ async def api_market_status():
     """Get market open/close status for US market."""
     import datetime
     import pytz
-    
+
     # Get current time in market timezone
     now = datetime.datetime.now(pytz.UTC)
-    
+
     # US market (Eastern Time)
     us_tz = pytz.timezone("America/New_York")
     us_now = now.astimezone(us_tz)
     us_hour = us_now.hour + us_now.minute / 60
     us_weekday = us_now.weekday()  # 0=Monday, 4=Friday
-    
+
     # US market hours: 9:30 - 16:00 ET (9.5 - 16.0)
     us_open = us_weekday < 5 and 9.5 <= us_hour < 16.0
     us_pre_market = us_weekday < 5 and 4.0 <= us_hour < 9.5
     us_post_market = us_weekday < 5 and 16.0 <= us_hour < 20.0
-    
+
     return {
         "US": {
             "open": us_open,
@@ -1159,49 +1226,72 @@ async def api_tiger_config_get():
 @app.post("/api/tiger-config/upload")
 async def api_tiger_config_upload_file(file: UploadFile = File(...)):
     """Upload Tiger config file.
-    
+
     Validates content, renames to tiger_openapi_config.properties,
     replaces existing file, then detects trading mode via API.
     """
     # Read file
     content_bytes = await file.read()
-    
-    # Size check (max 64KB — a properties file should be tiny)
+
+    # Size check (max 64KB - a properties file should be tiny)
     if len(content_bytes) > 64 * 1024:
         return JSONResponse({"error": "file too large (max 64KB)"}, status_code=400)
-    
+
     try:
         content = content_bytes.decode("utf-8")
     except UnicodeDecodeError:
         return JSONResponse({"error": "file must be UTF-8 text"}, status_code=400)
-    
+
     # Parse and validate
     props = _parse_properties(content)
     required = {"tiger_id", "account"}
     missing = required - set(props.keys())
     if missing:
         return JSONResponse({"error": f"missing required fields: {', '.join(missing)}"}, status_code=400)
-    
+
     # Validate field values are non-empty
     for key in required:
         if not props[key].strip():
             return JSONResponse({"error": f"{key} must not be empty"}, status_code=400)
-    
+
     # Validate private key exists (PKCS8 preferred)
     has_key = "private_key_pk8" in props or "private_key_pk1" in props
     if not has_key:
         return JSONResponse({"error": "missing private key (private_key_pk8 or private_key_pk1)"}, status_code=400)
-    
+
     # Backup existing file
     if TIGER_PROPS_FILE.exists():
         from datetime import datetime
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup = PROPERTIES_DIR / f"tiger_openapi_config.properties.bak.{ts}"
         backup.write_text(TIGER_PROPS_FILE.read_text())
-    
+
     # Write new config (always as tiger_openapi_config.properties)
     TIGER_PROPS_FILE.write_text(content)
-    
+
+    # Clear execution state (idempotency keys) — account changed, old tracking is stale
+    state_file = RUNTIME_DIR / "state" / "execution_state.json"
+    state_cleared = False
+    if state_file.exists():
+        try:
+            old_state = json.loads(state_file.read_text())
+            old_submitted = len(old_state.get("submitted", {}))
+            old_previews = len(old_state.get("previews", {}))
+            old_history = len(old_state.get("history", []))
+            if old_submitted or old_previews or old_history:
+                from datetime import datetime
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                bak = RUNTIME_DIR / "state" / f"execution_state.bak.{ts}.json"
+                bak.write_text(state_file.read_text())
+                old_state["submitted"] = {}
+                old_state["previews"] = {}
+                old_state["sync"] = {}
+                old_state["history"] = []
+                state_file.write_text(json.dumps(old_state, indent=2, ensure_ascii=False))
+                state_cleared = True
+        except Exception:
+            pass
+
     # Reinitialize TigerClient and DataCache with new credentials
     global tiger_client, cache
     if cache:
@@ -1217,7 +1307,7 @@ async def api_tiger_config_upload_file(file: UploadFile = File(...)):
     except Exception as e:
         tiger_client = None
         cache = None
-    
+
     # Detect mode from API (non-fatal)
     account_info = None
     detected = None
@@ -1233,7 +1323,7 @@ async def api_tiger_config_upload_file(file: UploadFile = File(...)):
                     config_file.write_text(json.dumps(app_config, indent=2, ensure_ascii=False))
         except Exception as e:
             account_info = {"error": str(e)}
-    
+
     return {
         "status": "ok",
         "filename": TIGER_PROPS_FILE.name,
@@ -1242,6 +1332,7 @@ async def api_tiger_config_upload_file(file: UploadFile = File(...)):
         "has_private_key": has_key,
         "account_info": account_info,
         "detected_mode": detected,
+        "state_cleared": state_cleared,
     }
 
 
@@ -1316,12 +1407,12 @@ async def api_news_sources_update(body: dict):
     sources_file = NEWS_DIR_PATH / "sources.json"
     if not sources_file.exists():
         return JSONResponse({"error": "sources.json not found"}, status_code=404)
-    
+
     try:
         config = json.loads(sources_file.read_text())
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
-    
+
     # Update enabled status for each source
     updates = body.get("sources", [])
     for update in updates:
@@ -1333,7 +1424,7 @@ async def api_news_sources_update(body: dict):
             if src.get("id") == sid:
                 src["enabled"] = enabled
                 break
-    
+
     config["updated_at"] = __import__("datetime").datetime.now().isoformat()
     sources_file.write_text(json.dumps(config, indent=2, ensure_ascii=False))
     return {"status": "ok", "sources": config.get("sources", [])}

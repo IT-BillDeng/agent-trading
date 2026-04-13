@@ -14,7 +14,11 @@ from .tiger_client import TigerClient
 from .data_cache import DataCache
 from .quote_provider import get_quote_provider
 from .scheduler import SignalScheduler
-from .normalize import normalize_account, normalize_positions, normalize_orders, normalize_pnl, normalize_quotes
+from .normalize import get_normalizer, available_brokers
+
+# Broker normalizer — configurable via env or defaults to tiger
+BROKER = os.environ.get("ENGINE_BROKER", "tiger")
+norm = get_normalizer(BROKER)
 
 # --- App lifecycle ---
 
@@ -117,7 +121,7 @@ async def api_account():
     """Account info (assets, buying power)."""
     if not cache:
         return JSONResponse({"error": "not ready"}, status_code=503)
-    return normalize_account(cache.get_account())
+    return norm.account(cache.get_account())
 
 
 @app.get("/api/positions")
@@ -125,7 +129,7 @@ async def api_positions():
     """Current positions."""
     if not cache:
         return JSONResponse({"error": "not ready"}, status_code=503)
-    return normalize_positions(cache.get_positions())
+    return norm.positions(cache.get_positions())
 
 
 @app.get("/api/quotes")
@@ -141,7 +145,7 @@ async def api_orders():
     """Today's orders."""
     if not cache:
         return JSONResponse({"error": "not ready"}, status_code=503)
-    return normalize_orders(cache.get_orders())
+    return norm.orders(cache.get_orders())
 
 
 @app.get("/api/pnl")
@@ -149,7 +153,7 @@ async def api_pnl():
     """P&L summary."""
     if not cache:
         return JSONResponse({"error": "not ready"}, status_code=503)
-    return normalize_pnl(cache.get_pnl())
+    return norm.pnl(cache.get_pnl())
 
 
 @app.get("/api/lookup/{symbol}")
@@ -1078,6 +1082,15 @@ async def api_refresh(config: RefreshConfig):
             return JSONResponse({"error": "minimum interval is 5 seconds"}, status_code=400)
         cache._interval = config.interval
     return {"status": "ok", "interval": cache._interval}
+
+
+@app.get("/api/broker")
+async def api_broker():
+    """Current broker and available brokers."""
+    return {
+        "current": BROKER,
+        "available": available_brokers(),
+    }
 
 
 @app.get("/api/quote-providers")

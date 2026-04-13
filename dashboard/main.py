@@ -14,6 +14,7 @@ from .tiger_client import TigerClient
 from .data_cache import DataCache
 from .quote_provider import get_quote_provider
 from .scheduler import SignalScheduler
+from .normalize import normalize_account, normalize_positions, normalize_orders, normalize_pnl, normalize_quotes
 
 # --- App lifecycle ---
 
@@ -116,7 +117,7 @@ async def api_account():
     """Account info (assets, buying power)."""
     if not cache:
         return JSONResponse({"error": "not ready"}, status_code=503)
-    return cache.get_account()
+    return normalize_account(cache.get_account())
 
 
 @app.get("/api/positions")
@@ -124,7 +125,7 @@ async def api_positions():
     """Current positions."""
     if not cache:
         return JSONResponse({"error": "not ready"}, status_code=503)
-    return cache.get_positions()
+    return normalize_positions(cache.get_positions())
 
 
 @app.get("/api/quotes")
@@ -140,7 +141,7 @@ async def api_orders():
     """Today's orders."""
     if not cache:
         return JSONResponse({"error": "not ready"}, status_code=503)
-    return cache.get_orders()
+    return normalize_orders(cache.get_orders())
 
 
 @app.get("/api/pnl")
@@ -148,7 +149,7 @@ async def api_pnl():
     """P&L summary."""
     if not cache:
         return JSONResponse({"error": "not ready"}, status_code=503)
-    return cache.get_pnl()
+    return normalize_pnl(cache.get_pnl())
 
 
 @app.get("/api/lookup/{symbol}")

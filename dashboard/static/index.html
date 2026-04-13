@@ -497,8 +497,8 @@
 
         // --- Render Functions ---
         function renderAccount(data, todayPnl) {
-            document.getElementById('total-assets').textContent = fmtUSD(data.net_liquidation || data.total_equity || data.cash);
-            const totalAssets = data.net_liquidation || data.total_equity || data.cash || 0;
+            document.getElementById('total-assets').textContent = fmtUSD(data.total_assets);
+            const totalAssets = data.total_assets || 0;
             const pnl = (todayPnl != null && todayPnl !== 0) ? todayPnl : (data.unrealized_pnl || 0);
             const pnlPct = totalAssets > 0 ? (pnl / (totalAssets - pnl) * 100) : 0;
             const pnlEl = document.getElementById('today-pnl');
@@ -512,11 +512,11 @@
             totalEl.className = 'text-xs mt-1 ' + pnlClass(totalPnl);
             if (riskConfig.disable_leverage) {
                 // Use cashValue directly — it's the actual cash, no leverage
-                const cashOnly = data.cash || (data.net_liquidation || 0) - (data.gross_position_value || 0);
+                const cashOnly = data.cash_balance;
                 document.getElementById('buying-power').textContent = fmtUSD(Math.max(cashOnly, 0));
                 document.getElementById('buying-power-label').textContent = '可用现金（禁用杠杆）';
             } else {
-                document.getElementById('buying-power').textContent = fmtUSD(data.available_funds || data.buying_power || data.cash);
+                document.getElementById('buying-power').textContent = fmtUSD(data.buying_power);
                 document.getElementById('buying-power-label').textContent = '可用资金';
             }
         }
@@ -535,7 +535,7 @@
                 return `<tr class="border-b border-gray-700/30 hover:bg-dark-800/50">
                     <td class="py-2 font-medium">${p.symbol || '--'}<br><span class="text-xs text-gray-500">${(watchlistMap[p.symbol] && watchlistMap[p.symbol].name) || p.name || ''}</span></td>
                     <td class="text-right py-2">${p.quantity || '--'}</td>
-                    <td class="text-right py-2">${fmtUSD(p.average_cost)}</td>
+                    <td class="text-right py-2">${fmtUSD(p.avg_cost)}</td>
                     <td class="text-right py-2">${fmtUSD(val)}</td>
                     <td class="text-right py-2 ${pnlClass(pnl)}">${pnlSign(pnl)}${fmtUSD(Math.abs(pnl))}</td>
                 </tr>`;
@@ -579,9 +579,9 @@
                 if (!items || items.length === 0) return;
                 html += `<div class="text-xs text-gray-500 font-medium mt-2 mb-1">${marketLabel[mkt] || mkt}</div>`;
                 items.forEach(q => {
-                    const price = q.latest_price || q.last_price || '--';
+                    const price = q.latest_price || '--';
                     const change = q.change || 0;
-                    const changeRate = q.change_rate || 0;
+                    const changeRate = q.change_pct || 0;
                     const cls = pnlClass(change);
                     const priceStr = '$' + fmt(price);
                     const vol = q.volume != null ? fmtVolume(q.volume) : '--';
@@ -632,7 +632,7 @@
                 const isBuy = o.action === 'BUY';
                 const icon = isBuy ? '🟢' : '🔴';
                 const actionCls = isBuy ? 'text-green-400' : 'text-red-400';
-                const filled = o.filled_quantity || o.quantity || '--';
+                const filled = o.filled_qty || o.quantity || '--';
                 const price = o.limit_price ? `@ $${Number(o.limit_price).toFixed(2)}` : '';
                 const ts = o.submitted_at ? Number(o.submitted_at) : null;
                 const time = ts ? new Date(ts).toLocaleString('zh-CN', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';

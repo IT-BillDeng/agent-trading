@@ -97,6 +97,8 @@ class DataCache:
                     "unrealized_pnl": unrealized,
                     "realized_pnl": realized,
                     "market_value": pos.get("market_value"),
+                    "today_pnl": pos.get("today_pnl", 0) or 0,
+                    "today_pnl_percent": pos.get("today_pnl_percent", 0) or 0,
                 })
 
             return {

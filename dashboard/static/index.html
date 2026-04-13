@@ -511,11 +511,12 @@
             totalEl.innerHTML = '总浮动: ' + pnlSign(totalPnl) + fmtUSD(Math.abs(totalPnl)) + ' <span class="' + pnlClass(totalPnl) + '">' + pnlSign(totalPnl) + Math.abs(totalPct).toFixed(2) + '%</span>';
             totalEl.className = 'text-xs mt-1 ' + pnlClass(totalPnl);
             if (riskConfig.disable_leverage) {
-                const cashOnly = (data.net_liquidation || 0) - (data.gross_position_value || 0);
+                // Use cashValue directly — it's the actual cash, no leverage
+                const cashOnly = data.cash || (data.net_liquidation || 0) - (data.gross_position_value || 0);
                 document.getElementById('buying-power').textContent = fmtUSD(Math.max(cashOnly, 0));
                 document.getElementById('buying-power-label').textContent = '可用现金（禁用杠杆）';
             } else {
-                document.getElementById('buying-power').textContent = fmtUSD(data.buying_power || data.available_funds || data.cash);
+                document.getElementById('buying-power').textContent = fmtUSD(data.available_funds || data.buying_power || data.cash);
                 document.getElementById('buying-power-label').textContent = '可用资金';
             }
         }
@@ -1058,16 +1059,24 @@
         // --- Fetch & Render ---
         async function fetchAll() {
             try {
-                const [account, positions, quotes, orders, pnl, system, wlData, marketInfo] = await Promise.all([
+                const [account, positions, quotes, orders, pnl, system, wlData, marketInfo, configData] = await Promise.all([
                     fetch(API_BASE + '/api/account').then(r => r.json()),
                     fetch(API_BASE + '/api/positions').then(r => r.json()),
                     fetch(API_BASE + '/api/quotes').then(r => r.json()),
                     fetch(API_BASE + '/api/orders').then(r => r.json()),
                     fetch(API_BASE + '/api/pnl').then(r => r.json()),
-                                        fetch(API_BASE + '/api/system').then(r => r.json()),
+                    fetch(API_BASE + '/api/system').then(r => r.json()),
                     fetch(API_BASE + '/api/watchlist').then(r => r.json()).catch(() => ({})),
                     fetch(API_BASE + '/api/market-status').then(r => r.json()).catch(() => ({})),
+                    fetch(API_BASE + '/api/config').then(r => r.json()).catch(() => ({})),
                 ]);
+                if (configData && configData.risk) {
+                    riskConfig = configData.risk;
+                    document.getElementById('risk-input-max-order').value = riskConfig.max_order_notional_usd || '';
+                    document.getElementById('risk-input-max-exposure').value = riskConfig.max_total_exposure_usd || '';
+                    document.getElementById('risk-input-daily-loss').value = riskConfig.daily_loss_limit_pct || '';
+                    document.getElementById('risk-input-disable-leverage').checked = !!riskConfig.disable_leverage;
+                }
                 // Populate watchlistMap before rendering
                 if (wlData && wlData.symbols) { wlData.symbols.forEach(s => { watchlistMap[s.symbol] = s; }); }
                 renderWatchlistMgmt(wlData);

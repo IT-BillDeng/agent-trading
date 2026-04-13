@@ -129,6 +129,9 @@ class TigerClient:
                     "market_value": getattr(pos, 'market_value', 0),
                     "unrealized_pnl": getattr(pos, 'unrealized_pnl', 0),
                     "realized_pnl": getattr(pos, 'realized_pnl', 0),
+                    "today_pnl": getattr(pos, 'today_pnl', 0),
+                    "today_pnl_percent": getattr(pos, 'today_pnl_percent', 0),
+                    "last_close_price": getattr(pos, 'last_close_price', None),
                     "currency": getattr(pos, 'currency', None),
                 })
             return positions

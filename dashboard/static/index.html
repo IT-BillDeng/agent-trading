@@ -1081,26 +1081,11 @@
                 if (wlData && wlData.symbols) { wlData.symbols.forEach(s => { watchlistMap[s.symbol] = s; }); }
                 renderWatchlistMgmt(wlData);
 
-                // 计算今日盈亏 = sum((当前价 - 前收盘) × 持仓量)，非交易日归零
+                // 今日盈亏 — 直接用 Tiger API 返回的 today_pnl
                 let todayPnl = 0;
-                const isTradingDay = marketInfo && marketInfo.is_trading_day;
-                if (!isTradingDay) {
-                    todayPnl = 0; // 非交易日无当日盈亏
-                } else
                 if (Array.isArray(positions) && positions.length > 0) {
-                    const quoteMap = {};
-                    if (quotes && typeof quotes === 'object') {
-                        for (const [sym, q] of Object.entries(quotes)) {
-                            if (!sym.startsWith('_') && q && q.latest_price != null) {
-                                quoteMap[sym] = q;
-                            }
-                        }
-                    }
                     for (const p of positions) {
-                        const q = quoteMap[p.symbol];
-                        if (q && q.prev_close && q.latest_price && p.quantity) {
-                            todayPnl += (q.latest_price - q.prev_close) * p.quantity;
-                        }
+                        todayPnl += (p.today_pnl || 0);
                     }
                 }
                 renderAccount(account, todayPnl);

@@ -95,6 +95,9 @@ class TigerClient:
                 "realized_pnl": safe_val(summary, 'realized_pnl', 0),
                 "currency": safe_val(summary, 'currency', 'USD'),
                 "available_funds": safe_val(summary, 'available_funds', 0),
+                "gross_position_value": safe_val(summary, 'gross_position_value', 0),
+                "equity_with_loan": safe_val(summary, 'equity_with_loan', 0),
+                "excess_liquidity": safe_val(summary, 'excess_liquidity', 0),
             }
         except Exception as e:
             return {"error": str(e)}

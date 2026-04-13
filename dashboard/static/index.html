@@ -94,7 +94,7 @@
                 <div id="total-pnl" class="text-xs text-gray-500 mt-1">总浮动: --</div>
             </div>
             <div class="card">
-                <div class="card-title">可用资金</div>
+                <div class="card-title" id="buying-power-label">可用资金</div>
                 <div id="buying-power" class="text-2xl font-bold">--</div>
             </div>
             <div class="card">
@@ -469,6 +469,7 @@
 
     <script>
         const API_BASE = '';
+        let riskConfig = {};
         const REFRESH_MS = 15000; // 15 seconds
 
         // --- Helpers ---
@@ -509,7 +510,14 @@
             const totalEl = document.getElementById('total-pnl');
             totalEl.innerHTML = '总浮动: ' + pnlSign(totalPnl) + fmtUSD(Math.abs(totalPnl)) + ' <span class="' + pnlClass(totalPnl) + '">' + pnlSign(totalPnl) + Math.abs(totalPct).toFixed(2) + '%</span>';
             totalEl.className = 'text-xs mt-1 ' + pnlClass(totalPnl);
-            document.getElementById('buying-power').textContent = fmtUSD(data.buying_power || data.available_funds || data.cash);
+            if (riskConfig.disable_leverage) {
+                const cashOnly = (data.net_liquidation || 0) - (data.gross_position_value || 0);
+                document.getElementById('buying-power').textContent = fmtUSD(Math.max(cashOnly, 0));
+                document.getElementById('buying-power-label').textContent = '可用现金（禁用杠杆）';
+            } else {
+                document.getElementById('buying-power').textContent = fmtUSD(data.buying_power || data.available_funds || data.cash);
+                document.getElementById('buying-power-label').textContent = '可用资金';
+            }
         }
 
         function renderPositions(data) {
@@ -1202,6 +1210,7 @@
                 document.getElementById('risk-input-max-exposure').value = risk.max_total_exposure_usd || '';
                 document.getElementById('risk-input-daily-loss').value = risk.daily_loss_limit_pct || '';
                 document.getElementById('risk-input-disable-leverage').checked = !!risk.disable_leverage;
+                riskConfig = risk;
             } catch (e) {
                 console.error('config fetch error:', e);
             }

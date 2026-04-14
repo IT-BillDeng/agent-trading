@@ -126,6 +126,7 @@ class TigerClient:
                     "name": getattr(pos, 'contract', None) and getattr(pos.contract, 'name', None) or getattr(pos, 'name', None),
                     "quantity": getattr(pos, 'quantity', 0),
                     "average_cost": getattr(pos, 'average_cost', 0) or getattr(pos, 'avg_cost', 0),
+                    "market_price": getattr(pos, 'market_price', 0),
                     "market_value": getattr(pos, 'market_value', 0),
                     "unrealized_pnl": getattr(pos, 'unrealized_pnl', 0),
                     "realized_pnl": getattr(pos, 'realized_pnl', 0),

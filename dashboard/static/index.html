@@ -114,7 +114,8 @@
                             <tr class="text-gray-500 border-b border-gray-700/50">
                                 <th class="text-left py-2">标的</th>
                                 <th class="text-right py-2">数量</th>
-                                <th class="text-right py-2">均价</th>
+                                <th class="text-right py-2">成本价</th>
+                                <th class="text-right py-2">当前价</th>
                                 <th class="text-right py-2">市值</th>
                                 <th class="text-right py-2">浮动盈亏</th>
                             </tr>
@@ -551,7 +552,7 @@
         function renderPositions(data) {
             const tbody = document.getElementById('positions-body');
             if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-gray-500">无持仓</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-gray-500">无持仓</td></tr>';
                 return;
             }
             let totalValue = 0;
@@ -559,10 +560,12 @@
                 const val = p.market_value || 0;
                 totalValue += val;
                 const pnl = p.unrealized_pnl;
+                const currentPrice = p.market_price || (p.quantity > 0 ? val / p.quantity : 0);
                 return `<tr class="border-b border-gray-700/30 hover:bg-dark-800/50">
                     <td class="py-2 font-medium">${p.symbol || '--'}<br><span class="text-xs text-gray-500">${(watchlistMap[p.symbol] && watchlistMap[p.symbol].name) || p.name || ''}</span></td>
                     <td class="text-right py-2">${p.quantity || '--'}</td>
                     <td class="text-right py-2">${fmtUSD(p.avg_cost)}</td>
+                    <td class="text-right py-2">${fmtUSD(currentPrice)}</td>
                     <td class="text-right py-2">${fmtUSD(val)}</td>
                     <td class="text-right py-2 ${pnlClass(pnl)}">${pnlSign(pnl)}${fmtUSD(Math.abs(pnl))}</td>
                 </tr>`;

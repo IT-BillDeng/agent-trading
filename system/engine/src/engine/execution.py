@@ -34,10 +34,11 @@ class DryRunExecutor:
         risk_decisions: list[dict[str, Any]],
         contracts: dict[str, dict[str, dict[str, Any]]],
     ) -> list[ExecutionPreview]:
-        decisions_by_symbol = {item['symbol']: item for item in risk_decisions}
+        # Match decisions by symbol + action (not just symbol, to avoid EXIT overwritten by HOLD)
+        decisions_by_key = {(item['symbol'], item['action']): item for item in risk_decisions}
         previews: list[ExecutionPreview] = []
         for signal in signals:
-            decision = decisions_by_symbol.get(signal['symbol'])
+            decision = decisions_by_key.get((signal['symbol'], signal['action']))
             if not decision or not decision.get('allowed'):
                 continue
             contract = contracts.get(signal['market'], {}).get(signal['symbol'], {})

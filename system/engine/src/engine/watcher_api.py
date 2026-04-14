@@ -147,8 +147,8 @@ class TigerWatcherAPI:
         )
     
     def check_engine_health(self) -> HealthCheck:
-        """检查引擎健康状态"""
-        data = self.client.get("/api/health/engine")
+        """检查引擎健康状态（通过 /api/engine 的 cycle 数据判断）"""
+        data = self.client.get("/api/engine")
         
         if "error" in data:
             return HealthCheck(
@@ -157,21 +157,21 @@ class TigerWatcherAPI:
                 message=f"引擎健康检查失败: {data['error']}"
             )
         
-        status = data.get("status", "unknown")
-        
-        if status == "ok":
+        cycle = data.get("last_cycle")
+        if not cycle:
             return HealthCheck(
                 name="engine_health",
-                status="ok",
-                message="引擎健康",
+                status="warning",
+                message="引擎无执行周期记录",
                 details=data
             )
         
+        cycle_id = cycle.get("cycle_id", "unknown")
         return HealthCheck(
             name="engine_health",
-            status="warning",
-            message=f"引擎状态: {status}",
-            details=data
+            status="ok",
+            message=f"引擎健康 (cycle={cycle_id})",
+            details={"cycle_id": cycle_id}
         )
     
     def check_engine_state(self) -> HealthCheck:

@@ -686,27 +686,26 @@
         function renderPnl(data) {
             const el = document.getElementById('pnl-details');
             if (!data) {
-                el.innerHTML = '<div class="text-gray-500 text-sm">无数据</div>';
+                el.innerHTML = '<div class="text-gray-500 text-sm">加载中...</div>';
                 return;
             }
-            // Always show totals, even with no positions
-            const totalSection = `
+            const unrealized = data.total_unrealized || 0;
+            const realized = data.total_realized || 0;
+            let html = `
                 <div class="text-sm mb-2">
                     <span class="text-gray-400">总浮动:</span>
-                    <span class="${pnlClass(data.total_unrealized)} font-medium ml-1">${pnlSign(data.total_unrealized)}${fmtUSD(Math.abs(data.total_unrealized || 0))}</span>
+                    <span class="${pnlClass(unrealized)} font-medium ml-1">${pnlSign(unrealized)}${fmtUSD(Math.abs(unrealized))}</span>
                     <span class="text-gray-400 ml-3">总已实现:</span>
-                    <span class="${pnlClass(data.total_realized)} font-medium ml-1">${pnlSign(data.total_realized)}${fmtUSD(Math.abs(data.total_realized || 0))}</span>
+                    <span class="${pnlClass(realized)} font-medium ml-1">${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</span>
                 </div>`;
-            if (!data.details || data.details.length === 0) {
-                el.innerHTML = totalSection + '<div class="text-gray-500 text-sm">当前无持仓</div>';
-                return;
+            if (data.details && data.details.length > 0) {
+                html += data.details.map(d => `
+                    <div class="flex justify-between py-1 border-b border-gray-700/30 text-sm">
+                        <span>${d.symbol || '--'} <span class='text-xs text-gray-500'>${(watchlistMap[d.symbol] && watchlistMap[d.symbol].name) || ''}</span></span>
+                        <span class="${pnlClass(d.unrealized_pnl)}">${pnlSign(d.unrealized_pnl)}${fmtUSD(d.unrealized_pnl)}</span>
+                    </div>`).join('');
             }
-            el.innerHTML = totalSection + data.details.map(d => `
-                <div class="flex justify-between py-1 border-b border-gray-700/30 text-sm">
-                    <span>${d.symbol || '--'} <span class='text-xs text-gray-500'>${(watchlistMap[d.symbol] && watchlistMap[d.symbol].name) || ''}</span></span>
-                    <span class="${pnlClass(d.unrealized_pnl)}">${pnlSign(d.unrealized_pnl)}${fmtUSD(d.unrealized_pnl)}</span>
-                </div>
-            `).join('');
+            el.innerHTML = html;
         }
 
         function renderSystem(data) {

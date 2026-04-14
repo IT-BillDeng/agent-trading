@@ -1444,6 +1444,56 @@ async def api_news_sources_update(body: dict):
     return {"status": "ok", "sources": config.get("sources", [])}
 
 
+# --- Logs ---
+
+@app.get("/api/logs")
+@app.get("/api/logs/{log_name}")
+async def api_logs(log_name: str = "execution", lines: int = 100):
+    """Read log files. Available: execution, dispatch_queue."""
+    import os
+    log_dir = Path(os.environ.get("ENGINE_RUNTIME_DIR", str(RUNTIME_DIR))) / "logs"
+    log_file = log_dir / f"{log_name}.jsonl"
+    if not log_file.exists():
+        return JSONResponse({"error": f"log not found: {log_name}", "available": [f.stem for f in log_dir.glob("*.jsonl")]}, status_code=404)
+    try:
+        all_lines = log_file.read_text().strip().split("\n")
+        entries = []
+        for line in all_lines[-lines:]:
+            line = line.strip()
+            if line:
+                try:
+                    entries.append(json.loads(line))
+                except json.JSONDecodeError:
+                    entries.append({"_raw": line})
+        return {
+            "log": log_name,
+            "total_lines": len(all_lines),
+            "returned": len(entries),
+            "entries": entries,
+        }
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/logs-list")
+async def api_logs_list():
+    """List available log files."""
+    import os
+    log_dir = Path(os.environ.get("ENGINE_RUNTIME_DIR", str(RUNTIME_DIR))) / "logs"
+    if not log_dir.exists():
+        return {"logs": []}
+    logs = []
+    for f in sorted(log_dir.glob("*.jsonl")):
+        stat = f.stat()
+        logs.append({
+            "name": f.stem,
+            "size": stat.st_size,
+            "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+            "lines": sum(1 for _ in open(f)) if stat.st_size < 1_000_000 else None,
+        })
+    return {"logs": logs}
+
+
 # --- Entry point ---
 
 def main():

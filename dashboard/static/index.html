@@ -695,11 +695,23 @@
                     <span class="${pnlClass(realized)} font-medium ml-1">${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</span>
                 </div>`;
             if (data.details && data.details.length > 0) {
-                html += data.details.map(d => `
-                    <div class="flex justify-between py-1 border-b border-gray-700/30 text-sm">
-                        <span>${d.symbol || '--'} <span class='text-xs text-gray-500'>${(watchlistMap[d.symbol] && watchlistMap[d.symbol].name) || ''}</span></span>
-                        <span class="${pnlClass(d.unrealized_pnl)}">${pnlSign(d.unrealized_pnl)}${fmtUSD(d.unrealized_pnl)}</span>
-                    </div>`).join('');
+                html += data.details.map(d => {
+                    const today = d.today_pnl || 0;
+                    const unrealized = d.unrealized_pnl || 0;
+                    const realized = d.realized_pnl || 0;
+                    const status = d.status === 'closed' ? ' (已平仓)' : '';
+                    return `
+                    <div class="py-1 border-b border-gray-700/30 text-sm">
+                        <div class="flex justify-between">
+                            <span>${d.symbol || '--'}${status} <span class='text-xs text-gray-500'>${(watchlistMap[d.symbol] && watchlistMap[d.symbol].name) || d.name || ''}</span></span>
+                            <span class="${pnlClass(today)} font-medium">${pnlSign(today)}${fmtUSD(Math.abs(today))}</span>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>浮动: ${pnlSign(unrealized)}${fmtUSD(Math.abs(unrealized))}</span>
+                            <span>已实现: ${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</span>
+                        </div>
+                    </div>`;
+                }).join('');
             }
             el.innerHTML = html;
         }

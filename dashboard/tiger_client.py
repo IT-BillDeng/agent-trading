@@ -3,6 +3,7 @@
 import os
 import json
 from pathlib import Path
+from datetime import datetime, timedelta
 
 from tigeropen.tiger_open_client import TigerOpenClient
 from tigeropen.tiger_open_config import TigerOpenClientConfig
@@ -161,6 +162,41 @@ class TigerClient:
                     "status": str(getattr(o, 'status', '')),
                     "realized_pnl": getattr(o, 'realized_pnl', 0) or 0,
                     "submitted_at": str(getattr(o, 'order_time', '') or getattr(o, 'submitted_at', '')),
+                })
+            return orders
+        except Exception as e:
+            return [{"error": str(e)}]
+
+    def get_filled_orders(self) -> list:
+        """Get today's filled orders with realized_pnl from Tiger API."""
+        try:
+            now = datetime.now()
+            start = now - timedelta(days=1)
+            start_ms = int(start.timestamp() * 1000)
+            end_ms = int(now.timestamp() * 1000)
+
+            result = self._trade_client.get_filled_orders(
+                start_time=start_ms,
+                end_time=end_ms,
+                market=Market.US
+            )
+            if not result:
+                return []
+
+            orders = []
+            for o in result:
+                contract = getattr(o, 'contract', None)
+                orders.append({
+                    "id": getattr(o, 'id', None) or getattr(o, 'order_id', None),
+                    "symbol": getattr(contract, 'symbol', None) if contract else None,
+                    "name": getattr(contract, 'name', None) if contract else None,
+                    "action": str(getattr(o, 'action', '')),
+                    "quantity": getattr(o, 'quantity', 0),
+                    "filled_quantity": getattr(o, 'filled_quantity', 0) or getattr(o, 'filled', 0),
+                    "avg_fill_price": getattr(o, 'avg_fill_price', None),
+                    "status": str(getattr(o, 'status', '')),
+                    "realized_pnl": getattr(o, 'realized_pnl', 0) or 0,
+                    "order_time": getattr(o, 'order_time', None),
                 })
             return orders
         except Exception as e:

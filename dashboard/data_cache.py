@@ -77,39 +77,67 @@ class DataCache:
             return dict(self._data["watchlist"]) if self._data["watchlist"] else {}
 
     def get_pnl(self) -> dict:
-        """Calculate P&L: today = SELL orders realized_pnl + positions today_pnl."""
+        """Calculate P&L using Tiger API filled_orders for realized_pnl."""
         with self._lock:
             positions = self._data["positions"] or []
-            orders = self._data["orders"] or []
+            filled_orders = self._data.get("filled_orders") or []
             account = self._data["account"] or {}
 
             # Account-level P&L
             account_realized = float(account.get("realized_pnl") or account.get("realizedPnl") or 0)
             account_unrealized = float(account.get("unrealized_pnl") or account.get("unrealizedPnl") or 0)
 
-            # 今日已实现盈亏: SELL 订单的 realized_pnl 之和
+            # 当前持仓 symbols
+            position_symbols = {pos.get("symbol") for pos in positions}
+
+            # 从 filled_orders 按 symbol 汇总 realized_pnl (仅 SELL)
+            closed_pnl = {}  # symbol -> realized_pnl
             today_realized = 0
-            for o in orders:
-                if o.get("action") == "SELL" and "FILLED" in str(o.get("status", "")):
-                    today_realized += o.get("realized_pnl", 0) or 0
+            for o in filled_orders:
+                if o.get("action") == "SELL":
+                    symbol = o.get("symbol")
+                    pnl = o.get("realized_pnl", 0) or 0
+                    today_realized += pnl
+                    if symbol:
+                        closed_pnl[symbol] = closed_pnl.get(symbol, 0) + pnl
 
             # 持仓今日浮动
             today_unrealized = 0
             details = []
             total_unrealized = 0
 
+            # 当前持仓明细
             for pos in positions:
+                symbol = pos.get("symbol")
                 unrealized = pos.get("unrealized_pnl", 0) or 0
                 today = pos.get("today_pnl", 0) or 0
                 total_unrealized += unrealized
                 today_unrealized += today
                 details.append({
-                    "symbol": pos.get("symbol"),
+                    "symbol": symbol,
+                    "name": pos.get("name", ""),
+                    "status": "open",
                     "unrealized_pnl": unrealized,
-                    "realized_pnl": pos.get("realized_pnl", 0) or 0,
+                    "realized_pnl": closed_pnl.get(symbol, 0),
                     "market_value": pos.get("market_value"),
-                    "today_pnl": today,
+                    "today_pnl": today + closed_pnl.get(symbol, 0),
                     "today_pnl_pct": pos.get("today_pnl_percent", 0) or 0,
+                })
+                # 移除已处理的
+                if symbol in closed_pnl:
+                    del closed_pnl[symbol]
+
+            # 已平仓明细（今日平仓但不在持仓中的）
+            for symbol, realized in closed_pnl.items():
+                details.append({
+                    "symbol": symbol,
+                    "name": "",
+                    "status": "closed",
+                    "unrealized_pnl": 0,
+                    "realized_pnl": realized,
+                    "market_value": 0,
+                    "today_pnl": realized,
+                    "today_pnl_pct": 0,
                 })
 
             # 今日总盈亏 = 今日已实现 + 持仓今日浮动
@@ -205,6 +233,13 @@ class DataCache:
             orders = []
             errors.append(f"orders: {e}")
 
+        # Filled orders (with realized_pnl from Tiger API)
+        try:
+            filled_orders = self._client.get_filled_orders()
+        except Exception as e:
+            filled_orders = []
+            errors.append(f"filled_orders: {e}")
+
         # Quotes (from watchlist) — rebuild each cycle so deleted symbols disappear
         quotes = {}
         try:
@@ -226,6 +261,7 @@ class DataCache:
             self._data["account"] = account
             self._data["positions"] = positions
             self._data["orders"] = orders
+            self._data["filled_orders"] = filled_orders
             self._data["quotes"] = quotes
             self._data["last_updated"] = datetime.now().isoformat()
             self._data["refresh_count"] += 1

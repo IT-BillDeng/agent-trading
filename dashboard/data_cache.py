@@ -110,17 +110,18 @@ class DataCache:
             for pos in positions:
                 symbol = pos.get("symbol")
                 unrealized = pos.get("unrealized_pnl", 0) or 0
-                today = pos.get("today_pnl", 0) or 0
+                today_pos = pos.get("today_pnl", 0) or 0  # 持仓的日内浮动
+                realized_today = closed_pnl.get(symbol, 0)  # 今日该股已实现
                 total_unrealized += unrealized
-                today_unrealized += today
+                today_unrealized += today_pos
                 details.append({
                     "symbol": symbol,
                     "name": pos.get("name", ""),
                     "status": "open",
                     "unrealized_pnl": unrealized,
-                    "realized_pnl": closed_pnl.get(symbol, 0),
+                    "realized_pnl": realized_today,
                     "market_value": pos.get("market_value"),
-                    "today_pnl": today + closed_pnl.get(symbol, 0),
+                    "today_pnl": today_pos + realized_today,
                     "today_pnl_pct": pos.get("today_pnl_percent", 0) or 0,
                 })
                 # 移除已处理的

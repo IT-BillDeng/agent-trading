@@ -629,7 +629,7 @@
             // Sort by time desc, limit to 10
             const sorted = [...data].sort((a, b) => (b.submitted_at || 0) - (a.submitted_at || 0)).slice(0, 10);
             list.innerHTML = sorted.map(o => {
-                const isBuy = o.action === 'BUY';
+                const isBuy = o.side === 'BUY';
                 const icon = isBuy ? '🟢' : '🔴';
                 const actionCls = isBuy ? 'text-green-400' : 'text-red-400';
                 const filled = o.filled_qty || o.quantity || '--';
@@ -642,7 +642,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <span>${icon}</span>
-                            <span class="${actionCls} font-medium ml-1">${o.action || '--'}</span>
+                            <span class="${actionCls} font-medium ml-1">${o.side || '--'}</span>
                             <span class="ml-1 font-medium">${o.symbol || '--'}</span><span class="text-xs text-gray-500 ml-1">${(watchlistMap[o.symbol] && watchlistMap[o.symbol].name) || ''}</span>
                             <span class="text-gray-400 text-xs ml-1">×${filled}</span>
                             <span class="text-gray-300 text-xs ml-1">${price}</span>

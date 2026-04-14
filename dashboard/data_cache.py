@@ -112,7 +112,7 @@ class DataCache:
                     "realized_pnl": realized,
                     "market_value": pos.get("market_value"),
                     "today_pnl": today,
-                    "today_pnl_percent": pos.get("today_pnl_percent", 0) or 0,
+                    "today_pnl_pct": pos.get("today_pnl_percent", 0) or 0,
                 })
 
             # Use account-level as authoritative (includes closed positions)

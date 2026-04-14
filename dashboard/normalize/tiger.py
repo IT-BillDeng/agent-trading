@@ -28,7 +28,7 @@ class TigerNormalizer:
             "market_value": float(raw.get("market_value") or raw.get("marketValue") or 0),
             "unrealized_pnl": float(raw.get("unrealized_pnl") or raw.get("unrealizedPnl") or 0),
             "today_pnl": float(raw.get("today_pnl") or raw.get("todayPnl") or 0),
-            "today_pnl_pct": float(raw.get("today_pnl_percent") or raw.get("todayPnlPercent") or 0),
+            "today_pnl_pct": float(raw.get("today_pnl_pct") or raw.get("today_pnl_percent") or raw.get("todayPnlPercent") or 0),
             "last_close": float(raw.get("last_close") or raw.get("last_close_price") or raw.get("lastClosePrice") or 0),
             "currency": raw.get("currency") or "USD",
         }
@@ -86,7 +86,7 @@ class TigerNormalizer:
                 "realized_pnl": float(d.get("realized_pnl") or 0),
                 "market_value": float(d.get("market_value") or 0),
                 "today_pnl": float(d.get("today_pnl") or 0),
-                "today_pnl_pct": float(d.get("today_pnl_percent") or 0),
+                "today_pnl_pct": float(d.get("today_pnl_pct") or 0),
             })
         return {
             "total_today": float(raw.get("total_today") or 0),

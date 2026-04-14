@@ -77,18 +77,20 @@ class DataCache:
             return dict(self._data["watchlist"]) if self._data["watchlist"] else {}
 
     def get_pnl(self) -> dict:
-        """Calculate P&L from positions + account-level realized P&L."""
+        """Calculate P&L from positions + account-level P&L."""
         with self._lock:
             positions = self._data["positions"]
             account = self._data["account"] or {}
 
-            # Account-level realized P&L (from closed trades)
+            # Account-level P&L
             account_realized = float(account.get("realized_pnl") or account.get("realizedPnl") or 0)
             account_unrealized = float(account.get("unrealized_pnl") or account.get("unrealizedPnl") or 0)
+            # total_today_pl from segment S — includes today's closed trades
+            account_total_today = float(account.get("total_today_pl") or 0)
 
             if not positions:
                 return {
-                    "total_today": 0,
+                    "total_today": account_total_today,
                     "total_unrealized": account_unrealized,
                     "total_realized": account_realized,
                     "details": [],
@@ -97,7 +99,6 @@ class DataCache:
             details = []
             total_unrealized = 0
             total_realized = 0
-            total_today = 0
 
             for pos in positions:
                 unrealized = pos.get("unrealized_pnl", 0) or 0
@@ -105,7 +106,6 @@ class DataCache:
                 today = pos.get("today_pnl", 0) or 0
                 total_unrealized += unrealized
                 total_realized += realized
-                total_today += today
                 details.append({
                     "symbol": pos.get("symbol"),
                     "unrealized_pnl": unrealized,
@@ -115,9 +115,9 @@ class DataCache:
                     "today_pnl_pct": pos.get("today_pnl_percent", 0) or 0,
                 })
 
-            # Use account-level as authoritative (includes closed positions)
+            # Use account-level total_today_pl (includes closed positions)
             return {
-                "total_today": total_today,
+                "total_today": account_total_today,
                 "total_unrealized": account_unrealized or total_unrealized,
                 "total_realized": account_realized or total_realized,
                 "total_pnl": (account_unrealized or total_unrealized) + (account_realized or total_realized),

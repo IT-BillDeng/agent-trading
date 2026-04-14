@@ -86,16 +86,20 @@ class TigerClient:
                     pass
                 return v
 
-            # Extract segment-level fields (grossPositionValue lives in segments, not summary)
+            # Extract segment-level fields
             segments = getattr(pa, 'segments', {})
             seg_s = segments.get('S')  # Securities segment
 
             gross_pos = safe_val(summary, 'gross_position_value', 0)
             available_funds = safe_val(summary, 'available_funds', 0)
-            if seg_s and not gross_pos:
-                gross_pos = safe_val(seg_s, 'gross_position_value', 0)
-            if seg_s and not available_funds:
-                available_funds = safe_val(seg_s, 'available_funds', 0)
+            # total_today_pl lives in segment S, not summary
+            total_today_pl = 0
+            if seg_s:
+                if not gross_pos:
+                    gross_pos = safe_val(seg_s, 'gross_position_value', 0)
+                if not available_funds:
+                    available_funds = safe_val(seg_s, 'available_funds', 0)
+                total_today_pl = safe_val(seg_s, 'total_today_pl', 0) or 0
 
             return {
                 "account": safe_val(pa, 'account', self.account),
@@ -104,6 +108,7 @@ class TigerClient:
                 "buying_power": safe_val(summary, 'buying_power', 0),
                 "unrealized_pnl": safe_val(summary, 'unrealized_pnl', 0),
                 "realized_pnl": safe_val(summary, 'realized_pnl', 0),
+                "total_today_pl": total_today_pl,
                 "currency": safe_val(summary, 'currency', 'USD'),
                 "available_funds": available_funds,
                 "gross_position_value": gross_pos,

@@ -1,59 +1,94 @@
 {
-  "version": 1,
-  "name": "newswire-sources-v1",
-  "purpose": "Free v1 information sources for newswire",
+  "version": 2,
+  "name": "newswire-sources-v2",
+  "purpose": "Optimized v2 sources — web_fetch first, web_search as fallback",
+  "updated_at": "2026-04-14T20:25:00+08:00",
   "default_market_priority": {
-    "US": ["brave_search", "web_fetch", "yahoo_finance"]
+    "US": ["web_fetch_rss", "web_fetch_page", "web_search_batch"]
   },
   "sources": [
     {
-      "id": "brave_search",
-      "type": "search",
-      "tool": "web_search",
+      "id": "web_fetch_rss",
+      "type": "rss",
+      "tool": "web_fetch",
       "role": "primary_discovery",
       "enabled": true,
-      "notes": "Primary source for fresh event discovery and ticker news lookup"
+      "cost": "free",
+      "notes": "RSS feeds — zero API cost, primary source for news headlines"
     },
     {
-      "id": "web_fetch",
-      "type": "fetch",
+      "id": "web_fetch_page",
+      "type": "page",
       "tool": "web_fetch",
-      "role": "article_summary",
+      "role": "page_scrape",
       "enabled": true,
-      "notes": "Use after discovery to extract readable article summaries"
+      "cost": "free",
+      "notes": "Scrape financial news pages directly — free fallback before search"
+    },
+    {
+      "id": "web_search_batch",
+      "type": "search",
+      "tool": "web_search",
+      "role": "batch_supplement",
+      "enabled": true,
+      "cost": "perplexity_sonar_pro",
+      "notes": "Batch search — only when web_fetch yields insufficient data. Combines all tickers in 1-2 queries max."
     },
     {
       "id": "yahoo_finance",
       "type": "page",
       "tool": "web_fetch",
       "role": "auxiliary_page_check",
+      "enabled": false,
+      "cost": "free",
+      "notes": "Disabled in v2 — covered by web_fetch_page. Re-enable if needed."
+    },
+    {
+      "id": "market_overview",
+      "type": "yfinance",
+      "tool": "yfinance",
+      "role": "macro_etf",
       "enabled": true,
-      "notes": "Auxiliary fallback for headline/page context, not a primary source"
+      "cost": "free",
+      "notes": "SPY/QQQ/DIA price data via yfinance — free, no API cost"
     }
   ],
-  "query_templates": {
-    "US": [
-      "{symbol} stock news today",
-      "{symbol} earnings guidance analyst news",
-      "{symbol} SEC regulation product launch news"
+  "rss_feeds": {
+    "general_finance": [
+      "https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx1YlY4U0FtVnVHZ0pWVXlnQVAB"
     ],
-"macro": [
-      "US market macro news today fed treasury yields inflation jobs",
-      "AI semiconductor megacap market news today"
+    "stock_search": {
+      "template": "https://news.google.com/rss/search?q={symbol}+stock+when:1d&hl=en-US&gl=US&ceid=US:en",
+      "symbols": ["AAPL", "MSFT", "NVDA", "AMZN", "SMCI", "GOOGL"]
+    },
+    "macro": [
+      "https://news.google.com/rss/search?q=US+stock+market+fed+inflation+when:1d&hl=en-US&gl=US&ceid=US:en",
+      "https://news.google.com/rss/search?q=AI+semiconductor+tech+sector+when:1d&hl=en-US&gl=US&ceid=US:en"
     ]
   },
-  "yahoo_urls": {
-    "AAPL": "https://finance.yahoo.com/quote/AAPL",
-    "MSFT": "https://finance.yahoo.com/quote/MSFT",
-    "NVDA": "https://finance.yahoo.com/quote/NVDA",
-    "AMZN": "https://finance.yahoo.com/quote/AMZN",
-    "SMCI": "https://finance.yahoo.com/quote/SMCI",
-    "GOOGL": "https://finance.yahoo.com/quote/GOOGL",
+  "page_sources": {
+    "yahoo_finance_news": {
+      "template": "https://finance.yahoo.com/quote/{symbol}/news/",
+      "symbols": ["AAPL", "MSFT", "NVDA", "AMZN", "SMCI", "GOOGL"],
+      "extract": "headlines + summaries from page text"
+    },
+    "marketwatch": {
+      "template": "https://www.marketwatch.com/investing/stock/{symbol_lower}",
+      "symbols": ["AAPL", "MSFT", "NVDA", "AMZN", "SMCI", "GOOGL"],
+      "extract": "headline + first paragraph"
+    }
+  },
+  "batch_search_queries": {
+    "all_stocks": "{symbols} stock news today earnings analyst rating",
+    "macro": "US stock market AI semiconductor macro news today fed inflation jobs"
   },
   "rules": {
+    "web_fetch_first": true,
+    "min_items_before_search": 3,
+    "max_search_calls_per_run": 2,
+    "search_context_size": "low",
     "prefer_priority_high": true,
-    "prefer_current_buy_candidates": true,
-    "max_relevant_items": 3,
+    "max_relevant_items": 5,
     "if_insufficient_data_say_so": true,
     "do_not_issue_trade_orders": true
   }

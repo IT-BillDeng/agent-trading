@@ -77,11 +77,21 @@ class DataCache:
             return dict(self._data["watchlist"]) if self._data["watchlist"] else {}
 
     def get_pnl(self) -> dict:
-        """Calculate P&L from positions."""
+        """Calculate P&L from positions + account-level realized P&L."""
         with self._lock:
             positions = self._data["positions"]
+            account = self._data["account"] or {}
+
+            # Account-level realized P&L (from closed trades)
+            account_realized = float(account.get("realized_pnl") or account.get("realizedPnl") or 0)
+            account_unrealized = float(account.get("unrealized_pnl") or account.get("unrealizedPnl") or 0)
+
             if not positions:
-                return {"total_unrealized": 0, "total_realized": 0, "details": []}
+                return {
+                    "total_unrealized": account_unrealized,
+                    "total_realized": account_realized,
+                    "details": [],
+                }
 
             details = []
             total_unrealized = 0
@@ -101,10 +111,11 @@ class DataCache:
                     "today_pnl_percent": pos.get("today_pnl_percent", 0) or 0,
                 })
 
+            # Use account-level as authoritative (includes closed positions)
             return {
-                "total_unrealized": total_unrealized,
-                "total_realized": total_realized,
-                "total_pnl": total_unrealized + total_realized,
+                "total_unrealized": account_unrealized or total_unrealized,
+                "total_realized": account_realized or total_realized,
+                "total_pnl": (account_unrealized or total_unrealized) + (account_realized or total_realized),
                 "details": details,
             }
 

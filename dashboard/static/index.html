@@ -99,7 +99,6 @@
             <div class="card">
                 <div class="card-title">今日盈亏</div>
                 <div id="today-pnl" class="text-2xl font-bold">--</div>
-                <div id="total-pnl" class="text-xs text-gray-500 mt-1">总浮动: --</div>
             </div>
         </section>
 
@@ -532,12 +531,6 @@
             const pnlEl = document.getElementById('today-pnl');
             pnlEl.innerHTML = pnlSign(todayPnl) + fmtUSD(Math.abs(todayPnl)) + ' <span class="text-base font-normal ' + pnlClass(todayPnl) + '">' + pnlSign(todayPnl) + Math.abs(pnlPct).toFixed(2) + '%</span>';
             pnlEl.className = 'text-2xl font-bold ' + pnlClass(todayPnl);
-            // 总浮动盈亏
-            const totalPnl = data.unrealized_pnl || 0;
-            const totalPct = totalAssets > 0 ? (totalPnl / (totalAssets - totalPnl) * 100) : 0;
-            const totalEl = document.getElementById('total-pnl');
-            totalEl.innerHTML = '总浮动: ' + pnlSign(totalPnl) + fmtUSD(Math.abs(totalPnl)) + ' <span class="' + pnlClass(totalPnl) + '">' + pnlSign(totalPnl) + Math.abs(totalPct).toFixed(2) + '%</span>';
-            totalEl.className = 'text-xs mt-1 ' + pnlClass(totalPnl);
             if (riskConfig.disable_leverage) {
                 // Use cashValue directly — it's the actual cash, no leverage
                 const cashOnly = data.cash_balance;

@@ -157,7 +157,9 @@ class TigerClient:
                     "filled_quantity": getattr(o, 'filled', 0) or getattr(o, 'filled_quantity', 0),
                     "order_type": str(getattr(o, 'order_type', '')),
                     "limit_price": getattr(o, 'limit_price', None),
+                    "avg_fill_price": getattr(o, 'avg_fill_price', None),
                     "status": str(getattr(o, 'status', '')),
+                    "realized_pnl": getattr(o, 'realized_pnl', 0) or 0,
                     "submitted_at": str(getattr(o, 'order_time', '') or getattr(o, 'submitted_at', '')),
                 })
             return orders

@@ -523,14 +523,14 @@
         }
 
         // --- Render Functions ---
-        function renderAccount(data, todayPnl) {
+        function renderAccount(data, pnlData) {
             document.getElementById('total-assets').textContent = fmtUSD(data.total_assets);
             const totalAssets = data.total_assets || 0;
-            const pnl = (todayPnl != null && todayPnl !== 0) ? todayPnl : (data.unrealized_pnl || 0);
-            const pnlPct = totalAssets > 0 ? (pnl / (totalAssets - pnl) * 100) : 0;
+            const todayPnl = (pnlData && pnlData.total_today != null) ? pnlData.total_today : 0;
+            const pnlPct = totalAssets > 0 ? (todayPnl / (totalAssets - todayPnl) * 100) : 0;
             const pnlEl = document.getElementById('today-pnl');
-            pnlEl.innerHTML = pnlSign(pnl) + fmtUSD(Math.abs(pnl)) + ' <span class="text-base font-normal ' + pnlClass(pnl) + '">' + pnlSign(pnl) + Math.abs(pnlPct).toFixed(2) + '%</span>';
-            pnlEl.className = 'text-2xl font-bold ' + pnlClass(pnl);
+            pnlEl.innerHTML = pnlSign(todayPnl) + fmtUSD(Math.abs(todayPnl)) + ' <span class="text-base font-normal ' + pnlClass(todayPnl) + '">' + pnlSign(todayPnl) + Math.abs(pnlPct).toFixed(2) + '%</span>';
+            pnlEl.className = 'text-2xl font-bold ' + pnlClass(todayPnl);
             // 总浮动盈亏
             const totalPnl = data.unrealized_pnl || 0;
             const totalPct = totalAssets > 0 ? (totalPnl / (totalAssets - totalPnl) * 100) : 0;
@@ -1112,14 +1112,8 @@
                 if (wlData && wlData.symbols) { wlData.symbols.forEach(s => { watchlistMap[s.symbol] = s; }); }
                 renderWatchlistMgmt(wlData);
 
-                // 今日盈亏 — 直接用 Tiger API 返回的 today_pnl
-                let todayPnl = 0;
-                if (Array.isArray(positions) && positions.length > 0) {
-                    for (const p of positions) {
-                        todayPnl += (p.today_pnl || 0);
-                    }
-                }
-                renderAccount(account, todayPnl);
+                // 今日盈亏 — 由后端 /api/pnl 统一提供 total_today
+                renderAccount(account, pnl);
                 renderPositions(positions);
                 renderQuotes(quotes);
                 renderOrders(orders);

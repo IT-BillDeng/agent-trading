@@ -89,6 +89,7 @@ class TigerNormalizer:
                 "today_pnl_pct": float(d.get("today_pnl_percent") or 0),
             })
         return {
+            "total_today": float(raw.get("total_today") or 0),
             "total_unrealized": float(raw.get("total_unrealized") or 0),
             "total_realized": float(raw.get("total_realized") or 0),
             "details": details,

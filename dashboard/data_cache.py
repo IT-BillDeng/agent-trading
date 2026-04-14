@@ -88,6 +88,7 @@ class DataCache:
 
             if not positions:
                 return {
+                    "total_today": 0,
                     "total_unrealized": account_unrealized,
                     "total_realized": account_realized,
                     "details": [],
@@ -96,23 +97,27 @@ class DataCache:
             details = []
             total_unrealized = 0
             total_realized = 0
+            total_today = 0
 
             for pos in positions:
                 unrealized = pos.get("unrealized_pnl", 0) or 0
                 realized = pos.get("realized_pnl", 0) or 0
+                today = pos.get("today_pnl", 0) or 0
                 total_unrealized += unrealized
                 total_realized += realized
+                total_today += today
                 details.append({
                     "symbol": pos.get("symbol"),
                     "unrealized_pnl": unrealized,
                     "realized_pnl": realized,
                     "market_value": pos.get("market_value"),
-                    "today_pnl": pos.get("today_pnl", 0) or 0,
+                    "today_pnl": today,
                     "today_pnl_percent": pos.get("today_pnl_percent", 0) or 0,
                 })
 
             # Use account-level as authoritative (includes closed positions)
             return {
+                "total_today": total_today,
                 "total_unrealized": account_unrealized or total_unrealized,
                 "total_realized": account_realized or total_realized,
                 "total_pnl": (account_unrealized or total_unrealized) + (account_realized or total_realized),

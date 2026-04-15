@@ -731,20 +731,20 @@
             let html = '';
             if (data.details && data.details.length > 0) {
                 html += `
-                <div class="rounded border border-gray-700/40">
-                    <table class="w-full min-w-[980px] text-sm">
-                        <thead class="bg-dark-900 sticky top-0 z-10 shadow-[0_1px_0_rgba(55,65,81,0.6)]">
-                            <tr class="text-gray-400 border-b border-gray-700/50">
-                                <th class="text-left py-2 px-3">代码/名称</th>
-                                <th class="text-center py-2 px-3">状态</th>
-                                <th class="text-right py-2 px-3">区间已实现</th>
-                                <th class="text-right py-2 px-3">当前未实现</th>
-                                <th class="text-right py-2 px-3">总览</th>
-                                <th class="text-right py-2 px-3">交易次数</th>
-                                <th class="text-right py-2 px-3">买/卖次数</th>
-                                <th class="text-right py-2 px-3">当前市值</th>
-                                <th class="text-right py-2 px-3">当前数量</th>
-                                <th class="text-right py-2 px-3">最近成交</th>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-gray-500 border-b border-gray-700/50">
+                                <th class="text-left py-2">代码/名称</th>
+                                <th class="text-center py-2">状态</th>
+                                <th class="text-right py-2">区间已实现</th>
+                                <th class="text-right py-2">当前未实现</th>
+                                <th class="text-right py-2">总览</th>
+                                <th class="text-right py-2">交易次数</th>
+                                <th class="text-right py-2">买/卖次数</th>
+                                <th class="text-right py-2">当前市值</th>
+                                <th class="text-right py-2">当前数量</th>
+                                <th class="text-right py-2">最近成交</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -762,15 +762,15 @@
                                         <div class="font-medium">${d.symbol || '--'}</div>
                                         <div class="text-xs text-gray-500 mt-1">${(watchlistMap[d.symbol] && watchlistMap[d.symbol].name) || d.name || '--'}</div>
                                     </td>
-                                    <td class="py-2 px-3 text-center">${status}</td>
-                                    <td class="py-2 px-3 text-right ${pnlClass(realized)}">${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</td>
-                                    <td class="py-2 px-3 text-right ${pnlClass(unrealized)}">${pnlSign(unrealized)}${fmtUSD(Math.abs(unrealized))}</td>
-                                    <td class="py-2 px-3 text-right ${pnlClass(total)}">${pnlSign(total)}${fmtUSD(Math.abs(total))}</td>
-                                    <td class="py-2 px-3 text-right text-gray-200">${d.trade_count || 0}</td>
-                                    <td class="py-2 px-3 text-right text-gray-200">${d.buy_count || 0}/${d.sell_count || 0}</td>
-                                    <td class="py-2 px-3 text-right text-gray-200">${fmtUSD(d.market_value || 0)}</td>
-                                    <td class="py-2 px-3 text-right text-gray-200">${d.quantity || 0}</td>
-                                    <td class="py-2 px-3 text-right text-gray-200 whitespace-nowrap">${tradeTime}</td>
+                                    <td class="py-2 text-center">${status}</td>
+                                    <td class="py-2 text-right ${pnlClass(realized)}">${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</td>
+                                    <td class="py-2 text-right ${pnlClass(unrealized)}">${pnlSign(unrealized)}${fmtUSD(Math.abs(unrealized))}</td>
+                                    <td class="py-2 text-right ${pnlClass(total)}">${pnlSign(total)}${fmtUSD(Math.abs(total))}</td>
+                                    <td class="py-2 text-right text-gray-200">${d.trade_count || 0}</td>
+                                    <td class="py-2 text-right text-gray-200">${d.buy_count || 0}/${d.sell_count || 0}</td>
+                                    <td class="py-2 text-right text-gray-200">${fmtUSD(d.market_value || 0)}</td>
+                                    <td class="py-2 text-right text-gray-200">${d.quantity || 0}</td>
+                                    <td class="py-2 text-right text-gray-200 whitespace-nowrap">${tradeTime}</td>
                                 </tr>`;
                             }).join('')}
                         </tbody>

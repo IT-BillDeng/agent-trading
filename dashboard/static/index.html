@@ -139,13 +139,10 @@
             <div class="card flex flex-col h-[32rem] min-h-0">
                 <div class="flex items-center justify-between mb-2">
                     <div class="card-title mb-0">📈 自选行情</div>
-                    <div class="flex items-center gap-2">
-                        <div id="quote-sort-controls" class="flex items-center gap-1"></div>
-                        <select id="quote-provider" class="bg-dark-900 border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:border-tiger-500" onchange="setQuoteProvider(this.value)">
-                            <option value="yfinance">Yahoo Finance</option>
-                            <option value="tiger">Tiger API</option>
-                        </select>
-                    </div>
+                    <select id="quote-provider" class="bg-dark-900 border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:border-tiger-500" onchange="setQuoteProvider(this.value)">
+                        <option value="yfinance">Yahoo Finance</option>
+                        <option value="tiger">Tiger API</option>
+                    </select>
                 </div>
                 <div id="quotes-list" class="flex-1 min-h-0 overflow-auto space-y-2">
                     <div class="text-gray-500 text-sm">加载中...</div>
@@ -707,13 +704,6 @@
                     : 'border-gray-600 text-gray-400 hover:text-gray-200'
             );
         }
-        function quoteSortBtnClass(active) {
-            return 'px-2 py-1 rounded text-xs border transition ' + (
-                active
-                    ? 'bg-tiger-600/30 text-tiger-500 border-tiger-600/40'
-                    : 'border-gray-600 text-gray-400 hover:text-gray-200'
-            );
-        }
         function getWatchlistOrder(symbol) {
             const item = watchlistMap[symbol] || {};
             return Number.isFinite(item._order) ? item._order : 9999;
@@ -726,6 +716,8 @@
                     return Number(q.latest_price || 0);
                 case 'change_rate':
                     return Number(q.change_rate ?? q.change_pct ?? 0);
+                case 'volume':
+                    return Number(q.volume || 0);
                 case 'watchlist':
                 default:
                     return getWatchlistOrder(q.sym);
@@ -745,27 +737,24 @@
                 return (a.sym || '').localeCompare(b.sym || '') * dir;
             });
         }
-        function renderQuoteSortControls() {
-            const el = document.getElementById('quote-sort-controls');
-            if (!el) return;
-            const options = [
-                ['watchlist', '顺序'],
-                ['change_rate', '涨跌幅'],
-                ['latest_price', '最新价'],
-                ['symbol', '代码'],
-            ];
-            el.innerHTML = options.map(([key, label]) =>
-                `<button type="button" onclick="setQuoteSort('${key}')" class="${quoteSortBtnClass(quoteSortKey === key)}">${label}</button>`
-            ).join('');
+        function quoteSortIndicator(key) {
+            if (quoteSortKey !== key) return '<span class="text-gray-600 ml-1">↕</span>';
+            return quoteSortDir === 'asc'
+                ? '<span class="text-tiger-400 ml-1">↑</span>'
+                : '<span class="text-tiger-400 ml-1">↓</span>';
+        }
+        function quoteHeaderClass(key, align = 'left') {
+            const active = quoteSortKey === key;
+            const justify = align === 'right' ? 'justify-end' : 'justify-start';
+            return `w-full flex items-center ${justify} gap-1 hover:text-gray-300 transition ${active ? 'text-tiger-400' : 'text-gray-500'}`;
         }
         function setQuoteSort(key) {
             if (quoteSortKey === key) {
                 quoteSortDir = quoteSortDir === 'asc' ? 'desc' : 'asc';
             } else {
                 quoteSortKey = key;
-                quoteSortDir = key === 'symbol' || key === 'watchlist' ? 'asc' : 'desc';
+                quoteSortDir = key === 'symbol' ? 'asc' : 'desc';
             }
-            renderQuoteSortControls();
             renderQuotes(quotesData);
         }
 
@@ -818,7 +807,6 @@
         function renderQuotes(data) {
             const list = document.getElementById('quotes-list');
             quotesData = data || {};
-            renderQuoteSortControls();
             // Filter out internal fields (like _fetched_at)
             const symbols = Object.keys(data).filter(k => !k.startsWith('_'));
             if (symbols.length === 0) {
@@ -839,53 +827,41 @@
                 });
                 html += `<div class="text-xs text-gray-600 mb-1">数据源时间: ${timeStr}</div>`;
             }
-            // Group by market
-            const groups = { US: [] };
-            symbols.forEach(sym => {
-                const q = data[sym];
-                const mkt = q.market || 'US';
-                if (!groups[mkt]) groups[mkt] = [];
-                groups[mkt].push({ sym, ...q });
-            });
-            const marketLabel = { US: '🇺🇸 美股' };
-            ['US'].forEach(mkt => {
-                const items = groups[mkt];
-                if (!items || items.length === 0) return;
-                const sortedItems = sortQuoteItems(items);
-                html += `<div class="text-xs text-gray-500 font-medium mt-2 mb-1">${marketLabel[mkt] || mkt}</div>`;
-                sortedItems.forEach(q => {
-                    const price = q.latest_price || '--';
-                    const change = q.change || 0;
-                    const changeRate = q.change_rate || 0;
-                    const cls = pnlClass(change);
-                    const priceStr = '$' + fmt(price);
-                    const vol = q.volume != null ? fmtVolume(q.volume) : '--';
-                    const high = q.high != null ? '$' + fmt(q.high) : '--';
-                    const low = q.low != null ? '$' + fmt(q.low) : '--';
-                    const range = (q.high != null && q.low != null && q.high > 0) ? fmt(((q.high - q.low) / q.low) * 100) + '%' : '--';
-                    html += `<div class="border-b border-gray-700/30">
-                        <div class="flex items-center justify-between py-1.5 cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
-                            <div class="flex items-center gap-1.5">
-                                <span class="font-medium text-sm">${q.sym}</span>
-                                <span class="text-xs text-gray-500">${(watchlistMap[q.sym] && watchlistMap[q.sym].name) || q.name || ''}</span>
-                            </div>
-                            <div class="flex items-center gap-3 text-right">
-                                <span class="font-medium text-sm">${priceStr}</span>
-                                <span class="${cls} text-xs w-20 text-right">${pnlSign(changeRate * 100)}${fmt(Math.abs(changeRate * 100))}%</span>
-                                <span class="text-gray-600 text-xs">▾</span>
-                            </div>
-                        </div>
-                        <div class="hidden pb-2 pl-1 text-xs text-gray-500 grid grid-cols-3 gap-x-4 gap-y-0.5">
-                            <span>涨跌: <span class="${cls}">${pnlSign(change)}${fmt(Math.abs(change))}</span></span>
-                            <span>振幅: ${range}</span>
-                            <span>成交量: ${vol}</span>
-                            <span>今高: ${high}</span>
-                            <span>今低: ${low}</span>
-                            <span>昨收: ${q.prev_close != null ? '$' + fmt(q.prev_close) : '--'}</span>
-                        </div>
-                    </div>`;
-                });
-            });
+            const items = sortQuoteItems(symbols.map(sym => ({ sym, ...(data[sym] || {}) })));
+            html += `
+                <table class="w-full min-w-max table-auto text-sm">
+                    <thead class="sticky top-0 z-10" style="background:#2a2a3c">
+                        <tr class="text-gray-500 border-b border-gray-700/50">
+                            <th class="px-3 text-left py-2">
+                                <button type="button" class="${quoteHeaderClass('symbol')}" onclick="setQuoteSort('symbol')">代码/名称${quoteSortIndicator('symbol')}</button>
+                            </th>
+                            <th class="px-3 text-right py-2 whitespace-nowrap">
+                                <button type="button" class="${quoteHeaderClass('latest_price', 'right')}" onclick="setQuoteSort('latest_price')">最新价${quoteSortIndicator('latest_price')}</button>
+                            </th>
+                            <th class="px-3 text-right py-2 whitespace-nowrap">
+                                <button type="button" class="${quoteHeaderClass('change_rate', 'right')}" onclick="setQuoteSort('change_rate')">涨跌幅${quoteSortIndicator('change_rate')}</button>
+                            </th>
+                            <th class="px-3 text-right py-2 whitespace-nowrap">
+                                <button type="button" class="${quoteHeaderClass('volume', 'right')}" onclick="setQuoteSort('volume')">成交量${quoteSortIndicator('volume')}</button>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${items.map(q => {
+                            const price = q.latest_price || '--';
+                            const changeRate = q.change_rate ?? q.change_pct ?? 0;
+                            const cls = pnlClass(q.change || 0);
+                            const priceStr = '$' + fmt(price);
+                            const vol = q.volume != null ? fmtVolume(q.volume) : '--';
+                            return `<tr class="border-b border-gray-700/30 hover:bg-dark-800/40">
+                                <td class="px-3 py-2 font-medium">${q.sym}<br><span class="text-xs text-gray-500">${(watchlistMap[q.sym] && watchlistMap[q.sym].name) || q.name || ''}</span></td>
+                                <td class="px-3 py-2 text-right whitespace-nowrap">${priceStr}</td>
+                                <td class="px-3 py-2 text-right whitespace-nowrap ${cls}">${pnlSign(changeRate * 100)}${fmt(Math.abs(changeRate * 100))}%</td>
+                                <td class="px-3 py-2 text-right whitespace-nowrap text-gray-200">${vol}</td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>`;
             list.innerHTML = html || '<div class="text-gray-500 text-sm">无行情数据</div>';
         }
         function fmtVolume(n) {

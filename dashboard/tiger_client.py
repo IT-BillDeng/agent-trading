@@ -1,9 +1,8 @@
 """Tiger API client wrapper for dashboard."""
 
-import os
-import json
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from tigeropen.tiger_open_client import TigerOpenClient
 from tigeropen.tiger_open_config import TigerOpenClientConfig
@@ -12,6 +11,7 @@ from tigeropen.trade.trade_client import TradeClient
 from tigeropen.common.consts import Language, Market
 
 CONFIG_DIR = str(Path(__file__).parent.parent / "config")
+ET_ZONE = ZoneInfo("America/New_York")
 
 
 class TigerClient:
@@ -155,10 +155,10 @@ class TigerClient:
     def get_filled_orders(self) -> list:
         """Get today's filled orders with realized_pnl from Tiger API."""
         try:
-            now = datetime.now()
-            start = now - timedelta(days=1)
-            start_ms = int(start.timestamp() * 1000)
-            end_ms = int(now.timestamp() * 1000)
+            now_et = datetime.now(ET_ZONE)
+            start_et = now_et.replace(hour=0, minute=0, second=0, microsecond=0)
+            start_ms = int(start_et.astimezone(timezone.utc).timestamp() * 1000)
+            end_ms = int(now_et.astimezone(timezone.utc).timestamp() * 1000)
 
             result = self._trade_client.get_filled_orders(
                 start_time=start_ms,

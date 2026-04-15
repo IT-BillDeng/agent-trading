@@ -119,16 +119,17 @@
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="text-gray-500 border-b border-gray-700/50">
-                                <th class="text-left py-2">标的</th>
+                                <th class="text-left py-2">代码/名称</th>
                                 <th class="text-right py-2">数量</th>
                                 <th class="text-right py-2">成本价</th>
                                 <th class="text-right py-2">当前价</th>
                                 <th class="text-right py-2">市值</th>
                                 <th class="text-right py-2">浮动盈亏</th>
+                                <th class="text-right py-2">盈亏百分比</th>
                             </tr>
                         </thead>
                         <tbody id="positions-body">
-                            <tr><td colspan="5" class="py-4 text-center text-gray-500">加载中...</td></tr>
+                            <tr><td colspan="7" class="py-4 text-center text-gray-500">加载中...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -582,12 +583,14 @@
         function renderPositions(data) {
             const tbody = document.getElementById('positions-body');
             if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-gray-500">无持仓</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-gray-500">无持仓</td></tr>';
                 return;
             }
             tbody.innerHTML = data.map(p => {
                 const val = p.market_value || 0;
                 const pnl = p.unrealized_pnl;
+                const costBasis = (p.avg_cost || 0) * (p.quantity || 0);
+                const pnlPct = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
                 const currentPrice = p.market_price || (p.quantity > 0 ? val / p.quantity : 0);
                 return `<tr class="border-b border-gray-700/30 hover:bg-dark-800/50">
                     <td class="py-2 font-medium">${p.symbol || '--'}<br><span class="text-xs text-gray-500">${(watchlistMap[p.symbol] && watchlistMap[p.symbol].name) || p.name || ''}</span></td>
@@ -596,6 +599,7 @@
                     <td class="text-right py-2">${fmtUSD(currentPrice)}</td>
                     <td class="text-right py-2">${fmtUSD(val)}</td>
                     <td class="text-right py-2 ${pnlClass(pnl)}">${pnlSign(pnl)}${fmtUSD(Math.abs(pnl))}</td>
+                    <td class="text-right py-2 ${pnlClass(pnl)}">${pnlSign(pnl)}${Math.abs(pnlPct).toFixed(2)}%</td>
                 </tr>`;
             }).join('');
         }

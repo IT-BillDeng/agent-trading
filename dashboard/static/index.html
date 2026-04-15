@@ -153,9 +153,12 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
             <!-- P&L -->
             <div class="card lg:col-span-2">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="card-title mb-0">💰 盈亏明细</div>
-                    <span class="text-[11px] text-gray-500">持仓 + 当日成交口径</span>
+                <div class="flex items-start justify-between gap-3 mb-3">
+                    <div>
+                        <div class="card-title mb-0">💰 个股分析</div>
+                        <div class="text-[11px] text-gray-500 mt-1">Tiger orders + 当前持仓聚合</div>
+                    </div>
+                    <div id="stock-analysis-ranges" class="flex flex-wrap justify-end gap-1"></div>
                 </div>
                 <div id="pnl-details" class="space-y-2 max-h-64 overflow-y-auto">
                     <div class="text-gray-500 text-sm">加载中...</div>
@@ -508,7 +511,15 @@
     <script>
         const API_BASE = '';
         let riskConfig = {};
+        let stockAnalysisRange = 'all';
         const REFRESH_MS = 15000; // 15 seconds
+        const STOCK_ANALYSIS_RANGE_OPTIONS = [
+            ['all', '全部'],
+            ['1w', '1周'],
+            ['1m', '1个月'],
+            ['3m', '3个月'],
+            ['6m', '半年'],
+        ];
 
         // --- Helpers ---
         function fmt(n, decimals = 2) {
@@ -531,6 +542,22 @@
             if (diff < 60) return Math.floor(diff) + 's ago';
             if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
             return d.toLocaleTimeString('zh-CN');
+        }
+        function fmtTradeTime(ts) {
+            if (!ts) return '--';
+            return new Date(Number(ts)).toLocaleString('zh-CN', {
+                month: 'numeric',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        function stockAnalysisBtnClass(active) {
+            return 'px-2 py-1 rounded text-xs border transition ' + (
+                active
+                    ? 'bg-tiger-600/30 text-tiger-500 border-tiger-600/40'
+                    : 'border-gray-600 text-gray-400 hover:text-gray-200'
+            );
         }
 
         // --- Render Functions ---
@@ -686,43 +713,81 @@
             }).join('');
         }
 
-        function renderPnl(data) {
+        function renderStockAnalysisRangeButtons() {
+            const el = document.getElementById('stock-analysis-ranges');
+            if (!el) return;
+            el.innerHTML = STOCK_ANALYSIS_RANGE_OPTIONS.map(([value, label]) =>
+                `<button onclick="setStockAnalysisRange('${value}')" class="${stockAnalysisBtnClass(value === stockAnalysisRange)}">${label}</button>`
+            ).join('');
+        }
+
+        function renderStockAnalysis(data) {
             const el = document.getElementById('pnl-details');
             if (!data) {
                 el.innerHTML = '<div class="text-gray-500 text-sm">加载中...</div>';
                 return;
             }
-            const todayUnrealized = data.today_unrealized || 0;
-            const totalRealized = data.total_realized || 0;
+            renderStockAnalysisRangeButtons();
+            const summary = data.summary || {};
+            const realized = summary.realized_pnl || 0;
+            const unrealized = summary.unrealized_pnl || 0;
+            const tradeCount = summary.trade_count || 0;
             let html = `
-                <div class="text-sm mb-2 space-y-1">
-                    <div>
-                        <span class="text-gray-400">今日日内浮动:</span>
-                        <span class="${pnlClass(todayUnrealized)} font-medium ml-1">${pnlSign(todayUnrealized)}${fmtUSD(Math.abs(todayUnrealized))}</span>
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs mb-3">
+                    <div class="rounded border border-gray-700/40 px-2 py-2">
+                        <div class="text-gray-500">跨度</div>
+                        <div class="text-gray-200 mt-1">${data.period_label || '--'}</div>
                     </div>
-                    <div>
-                        <span class="text-gray-400">累计已实现（账户级）:</span>
-                        <span class="${pnlClass(totalRealized)} font-medium ml-1">${pnlSign(totalRealized)}${fmtUSD(Math.abs(totalRealized))}</span>
+                    <div class="rounded border border-gray-700/40 px-2 py-2">
+                        <div class="text-gray-500">区间已实现</div>
+                        <div class="${pnlClass(realized)} mt-1">${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</div>
+                    </div>
+                    <div class="rounded border border-gray-700/40 px-2 py-2">
+                        <div class="text-gray-500">当前未实现</div>
+                        <div class="${pnlClass(unrealized)} mt-1">${pnlSign(unrealized)}${fmtUSD(Math.abs(unrealized))}</div>
+                    </div>
+                    <div class="rounded border border-gray-700/40 px-2 py-2">
+                        <div class="text-gray-500">交易次数</div>
+                        <div class="text-gray-200 mt-1">${tradeCount}</div>
                     </div>
                 </div>`;
             if (data.details && data.details.length > 0) {
                 html += data.details.map(d => {
-                    const today = d.today_pnl || 0;
                     const unrealized = d.unrealized_pnl || 0;
                     const realized = d.realized_pnl || 0;
-                    const status = d.status === 'closed' ? ' (已平仓)' : '';
+                    const total = d.total_pnl || 0;
+                    const tradeTime = fmtTradeTime(d.last_trade_time);
+                    const status = d.status === 'closed'
+                        ? '<span class="text-[11px] px-1.5 py-0.5 rounded bg-gray-700/60 text-gray-300">已平仓</span>'
+                        : '<span class="text-[11px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-400">持仓中</span>';
                     return `
                     <div class="py-2 border-b border-gray-700/30 text-sm">
                         <div class="flex justify-between items-start gap-3">
-                            <span>${d.symbol || '--'}${status} <span class='text-xs text-gray-500'>${(watchlistMap[d.symbol] && watchlistMap[d.symbol].name) || d.name || ''}</span></span>
-                            <span class="${pnlClass(today)} font-medium whitespace-nowrap">今日: ${pnlSign(today)}${fmtUSD(Math.abs(today))}</span>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-medium">${d.symbol || '--'}</span>
+                                    ${status}
+                                </div>
+                                <div class="text-xs text-gray-500 mt-1">${(watchlistMap[d.symbol] && watchlistMap[d.symbol].name) || d.name || '--'}</div>
+                            </div>
+                            <div class="text-right whitespace-nowrap">
+                                <div class="text-[11px] text-gray-500">区间已实现</div>
+                                <div class="${pnlClass(realized)} font-medium">${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</div>
+                            </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-2 text-xs text-gray-400 mt-1">
-                            <span>未实现盈亏: <span class="${pnlClass(unrealized)}">${pnlSign(unrealized)}${fmtUSD(Math.abs(unrealized))}</span></span>
-                            <span>已实现盈亏: <span class="${pnlClass(realized)}">${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</span></span>
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs text-gray-400 mt-2">
+                            <span>当前未实现: <span class="${pnlClass(unrealized)}">${pnlSign(unrealized)}${fmtUSD(Math.abs(unrealized))}</span></span>
+                            <span>总览: <span class="${pnlClass(total)}">${pnlSign(total)}${fmtUSD(Math.abs(total))}</span></span>
+                            <span>交易次数: <span class="text-gray-200">${d.trade_count || 0}</span></span>
+                            <span>最近成交: <span class="text-gray-200">${tradeTime}</span></span>
+                            <span>买/卖次数: <span class="text-gray-200">${d.buy_count || 0}/${d.sell_count || 0}</span></span>
+                            <span>当前市值: <span class="text-gray-200">${fmtUSD(d.market_value || 0)}</span></span>
+                            <span>当前数量: <span class="text-gray-200">${d.quantity || 0}</span></span>
                         </div>
                     </div>`;
                 }).join('');
+            } else {
+                html += '<div class="text-gray-500 text-sm">该时间跨度内暂无可分析个股</div>';
             }
             el.innerHTML = html;
         }
@@ -1136,8 +1201,7 @@
                 renderPositions(positions);
                 renderQuotes(quotes);
                 renderOrders(orders);
-                renderPnl(pnl);
-                                renderSystem(system);
+                renderSystem(system);
                 renderMarketStatus(marketInfo);
                 renderMarketSession(marketInfo);
                 fetchNewSections();
@@ -1147,6 +1211,29 @@
                 document.getElementById('refresh-status').innerHTML =
                     '<span class="w-2 h-2 rounded-full bg-red-500"></span><span class="text-red-400">连接失败</span>';
             }
+        }
+
+        async function fetchStockAnalysis() {
+            const el = document.getElementById('pnl-details');
+            if (el) {
+                el.innerHTML = '<div class="text-gray-500 text-sm">加载中...</div>';
+            }
+            try {
+                const res = await fetch(API_BASE + '/api/stock-analysis?period=' + encodeURIComponent(stockAnalysisRange));
+                const data = await res.json();
+                renderStockAnalysis(data);
+            } catch (e) {
+                console.error('stock analysis fetch error:', e);
+                if (el) {
+                    el.innerHTML = '<div class="text-red-400 text-sm">个股分析加载失败</div>';
+                }
+            }
+        }
+
+        function setStockAnalysisRange(period) {
+            stockAnalysisRange = period;
+            renderStockAnalysisRangeButtons();
+            fetchStockAnalysis();
         }
 
         async function fetchHeaderStatus() {
@@ -1571,6 +1658,8 @@
 
         // --- Init ---
         fetchAll();
+        renderStockAnalysisRangeButtons();
+        fetchStockAnalysis();
         fetchEngine();
         fetchConfig();
         fetchTigerConfig();

@@ -188,6 +188,38 @@ class TigerClient:
         except Exception as e:
             return [{"error": str(e)}]
 
+    def get_transactions(self, start_time: int, end_time: int, limit: int = 200) -> list:
+        """Get transactions with pagination for the given time range."""
+        try:
+            params = {
+                "start_time": start_time,
+                "end_time": end_time,
+                "limit": limit,
+                "page_token": "",
+            }
+            transactions = []
+            while True:
+                response = self._trade_client.get_transactions(**params)
+                page_items = getattr(response, "result", response) or []
+                transactions.extend(self._serialize_transaction(t) for t in page_items)
+
+                next_page_token = getattr(response, "next_page_token", None)
+                if not next_page_token:
+                    break
+                params["page_token"] = next_page_token
+
+            return transactions
+        except Exception as e:
+            return [{"error": str(e)}]
+
+    def get_today_transactions(self) -> list:
+        """Get today's transactions using ET day boundary."""
+        now_et = datetime.now(ET_ZONE)
+        start_et = now_et.replace(hour=0, minute=0, second=0, microsecond=0)
+        start_ms = int(start_et.astimezone(timezone.utc).timestamp() * 1000)
+        end_ms = int(now_et.astimezone(timezone.utc).timestamp() * 1000)
+        return self.get_transactions(start_time=start_ms, end_time=end_ms)
+
     def get_quote(self, symbols: list[str], market: str = "US") -> list:
         """Get quotes for given symbols."""
         try:
@@ -244,8 +276,24 @@ class TigerClient:
             "order_type": str(getattr(order, 'order_type', '')),
             "limit_price": getattr(order, 'limit_price', None),
             "avg_fill_price": getattr(order, 'avg_fill_price', None),
+            "filled_cash_amount": getattr(order, 'filled_cash_amount', None),
+            "total_cash_amount": getattr(order, 'total_cash_amount', None),
             "status": str(getattr(order, 'status', '')),
             "realized_pnl": getattr(order, 'realized_pnl', 0) or 0,
             "submitted_at": str(getattr(order, 'order_time', '') or getattr(order, 'submitted_at', '')),
             "order_time": getattr(order, 'order_time', None),
+        }
+
+    def _serialize_transaction(self, trans) -> dict:
+        contract = getattr(trans, 'contract', None)
+        return {
+            "id": getattr(trans, 'id', None),
+            "order_id": getattr(trans, 'order_id', None),
+            "symbol": getattr(contract, 'symbol', None) if contract else getattr(trans, 'symbol', None),
+            "name": getattr(contract, 'name', None) if contract else getattr(trans, 'name', None),
+            "action": str(getattr(trans, 'action', '')),
+            "filled_quantity": getattr(trans, 'filled_quantity', 0),
+            "filled_price": getattr(trans, 'filled_price', None),
+            "filled_amount": getattr(trans, 'filled_amount', None),
+            "transacted_at": getattr(trans, 'transacted_at', None),
         }

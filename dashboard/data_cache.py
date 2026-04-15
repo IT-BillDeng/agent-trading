@@ -76,6 +76,103 @@ class DataCache:
         with self._lock:
             return list(self._data["orders"])
 
+    @staticmethod
+    def _merge_order_fill_prices(orders: list, filled_orders: list) -> list:
+        """Backfill fill-related fields from filled orders into order list."""
+        if not orders or not filled_orders:
+            return orders
+
+        filled_by_id = {}
+        for filled in filled_orders:
+            if not isinstance(filled, dict):
+                continue
+            fill_fields = {
+                "avg_fill_price": filled.get("avg_fill_price"),
+                "filled_cash_amount": filled.get("filled_cash_amount"),
+                "total_cash_amount": filled.get("total_cash_amount"),
+            }
+            if all(v in (None, "") for v in fill_fields.values()):
+                continue
+            for key in (filled.get("id"), filled.get("order_id")):
+                if key:
+                    filled_by_id[str(key)] = fill_fields
+
+        if not filled_by_id:
+            return orders
+
+        merged = []
+        for order in orders:
+            if not isinstance(order, dict):
+                merged.append(order)
+                continue
+
+            matched_fields = None
+            for key in (order.get("id"), order.get("order_id")):
+                if key and str(key) in filled_by_id:
+                    matched_fields = filled_by_id[str(key)]
+                    break
+
+            if not matched_fields:
+                merged.append(order)
+                continue
+
+            enriched = dict(order)
+            for field, value in matched_fields.items():
+                if enriched.get(field) in (None, "") and value not in (None, ""):
+                    enriched[field] = value
+            merged.append(enriched)
+
+        return merged
+
+    @staticmethod
+    def _merge_order_transactions(orders: list, transactions: list) -> list:
+        """Backfill成交价格 from transaction records into order list."""
+        if not orders or not transactions:
+            return orders
+
+        tx_by_order_id = {}
+        for tx in transactions:
+            if not isinstance(tx, dict) or tx.get("error"):
+                continue
+            order_id = tx.get("order_id")
+            filled_price = tx.get("filled_price")
+            filled_amount = tx.get("filled_amount")
+            if not order_id:
+                continue
+            if filled_price in (None, "") and filled_amount in (None, ""):
+                continue
+            tx_by_order_id[str(order_id)] = {
+                "avg_fill_price": filled_price,
+                "filled_cash_amount": filled_amount,
+            }
+
+        if not tx_by_order_id:
+            return orders
+
+        merged = []
+        for order in orders:
+            if not isinstance(order, dict):
+                merged.append(order)
+                continue
+
+            matched = None
+            for key in (order.get("order_id"), order.get("id")):
+                if key and str(key) in tx_by_order_id:
+                    matched = tx_by_order_id[str(key)]
+                    break
+
+            if not matched:
+                merged.append(order)
+                continue
+
+            enriched = dict(order)
+            for field, value in matched.items():
+                if enriched.get(field) in (None, "") and value not in (None, ""):
+                    enriched[field] = value
+            merged.append(enriched)
+
+        return merged
+
     def get_quotes(self) -> dict:
         with self._lock:
             data = dict(self._data["quotes"])
@@ -297,6 +394,16 @@ class DataCache:
         except Exception as e:
             filled_orders = []
             errors.append(f"filled_orders: {e}")
+
+        orders = self._merge_order_fill_prices(orders, filled_orders)
+
+        try:
+            transactions = self._client.get_today_transactions()
+        except Exception as e:
+            transactions = []
+            errors.append(f"transactions: {e}")
+
+        orders = self._merge_order_transactions(orders, transactions)
 
         # Update core cache first so quote provider stalls don't blank the page.
         with self._lock:

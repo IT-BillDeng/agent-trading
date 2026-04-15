@@ -66,7 +66,7 @@ POSITION_FIELDS = [
 
 ORDER_FIELDS = [
     "id", "symbol", "name", "side", "quantity", "filled_qty",
-    "order_type", "limit_price", "stop_price", "status", "submitted_at",
+    "order_type", "limit_price", "avg_fill_price", "filled_cash_amount", "stop_price", "status", "submitted_at",
 ]
 
 QUOTE_FIELDS = [

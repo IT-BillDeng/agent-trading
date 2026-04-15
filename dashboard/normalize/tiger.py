@@ -47,6 +47,8 @@ class TigerNormalizer:
             "filled_qty": int(raw.get("filled_quantity") or raw.get("filledQuantity") or 0),
             "order_type": str(raw.get("order_type") or raw.get("orderType") or ""),
             "limit_price": raw.get("limit_price") or raw.get("limitPrice"),
+            "avg_fill_price": raw.get("avg_fill_price") or raw.get("avgFillPrice"),
+            "filled_cash_amount": raw.get("filled_cash_amount") or raw.get("filledCashAmount"),
             "stop_price": raw.get("aux_price") or raw.get("auxPrice") or raw.get("stop_price"),
             "status": str(raw.get("status") or ""),
             "submitted_at": str(raw.get("submitted_at") or raw.get("submittedAt") or ""),

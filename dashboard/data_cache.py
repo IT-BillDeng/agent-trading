@@ -539,7 +539,7 @@ class DataCache:
                 continue
             item = ensure_item(symbol)
             item["status"] = "open"
-            item["name"] = pos.get("name") or item["name"]
+            item["name"] = item["name"] or pos.get("name") or ""
             item["quantity"] = pos.get("quantity", 0) or 0
             item["market_value"] = pos.get("market_value", 0) or 0
             item["unrealized_pnl"] = pos.get("unrealized_pnl", 0) or 0

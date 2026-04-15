@@ -134,20 +134,33 @@ class TigerClient:
                 return []
             orders = []
             for o in result:
-                orders.append({
-                    "id": getattr(o, 'id', None) or getattr(o, 'order_id', None),
-                    "symbol": getattr(o, 'contract', None) and getattr(o.contract, 'symbol', None) or getattr(o, 'symbol', None),
-                    "name": getattr(o, 'contract', None) and getattr(o.contract, 'name', None) or getattr(o, 'name', None),
-                    "action": str(getattr(o, 'action', '')),
-                    "quantity": getattr(o, 'quantity', 0),
-                    "filled_quantity": getattr(o, 'filled', 0) or getattr(o, 'filled_quantity', 0),
-                    "order_type": str(getattr(o, 'order_type', '')),
-                    "limit_price": getattr(o, 'limit_price', None),
-                    "avg_fill_price": getattr(o, 'avg_fill_price', None),
-                    "status": str(getattr(o, 'status', '')),
-                    "realized_pnl": getattr(o, 'realized_pnl', 0) or 0,
-                    "submitted_at": str(getattr(o, 'order_time', '') or getattr(o, 'submitted_at', '')),
-                })
+                orders.append(self._serialize_order(o))
+            return orders
+        except Exception as e:
+            return [{"error": str(e)}]
+
+    def get_orders_history(self, start_time, end_time, market: str = "US", limit: int = 300) -> list:
+        """Get historical orders using Tiger page_token pagination."""
+        try:
+            market_enum = Market.US
+            params = {
+                "start_time": start_time,
+                "end_time": end_time,
+                "market": market_enum,
+                "limit": limit,
+                "page_token": "",
+            }
+            orders = []
+            while True:
+                response = self._trade_client.get_orders(**params)
+                page_orders = getattr(response, "result", response) or []
+                orders.extend(self._serialize_order(o) for o in page_orders)
+
+                next_page_token = getattr(response, "next_page_token", None)
+                if not next_page_token:
+                    break
+                params["page_token"] = next_page_token
+
             return orders
         except Exception as e:
             return [{"error": str(e)}]
@@ -170,19 +183,7 @@ class TigerClient:
 
             orders = []
             for o in result:
-                contract = getattr(o, 'contract', None)
-                orders.append({
-                    "id": getattr(o, 'id', None) or getattr(o, 'order_id', None),
-                    "symbol": getattr(contract, 'symbol', None) if contract else None,
-                    "name": getattr(contract, 'name', None) if contract else None,
-                    "action": str(getattr(o, 'action', '')),
-                    "quantity": getattr(o, 'quantity', 0),
-                    "filled_quantity": getattr(o, 'filled_quantity', 0) or getattr(o, 'filled', 0),
-                    "avg_fill_price": getattr(o, 'avg_fill_price', None),
-                    "status": str(getattr(o, 'status', '')),
-                    "realized_pnl": getattr(o, 'realized_pnl', 0) or 0,
-                    "order_time": getattr(o, 'order_time', None),
-                })
+                orders.append(self._serialize_order(o))
             return orders
         except Exception as e:
             return [{"error": str(e)}]
@@ -229,3 +230,22 @@ class TigerClient:
             return {"market": market, "status": str(result)}
         except Exception as e:
             return {"market": market, "error": str(e)}
+
+    def _serialize_order(self, order) -> dict:
+        contract = getattr(order, 'contract', None)
+        return {
+            "id": getattr(order, 'id', None) or getattr(order, 'order_id', None),
+            "order_id": getattr(order, 'order_id', None),
+            "symbol": getattr(contract, 'symbol', None) if contract else getattr(order, 'symbol', None),
+            "name": getattr(contract, 'name', None) if contract else getattr(order, 'name', None),
+            "action": str(getattr(order, 'action', '')),
+            "quantity": getattr(order, 'quantity', 0),
+            "filled_quantity": getattr(order, 'filled_quantity', 0) or getattr(order, 'filled', 0),
+            "order_type": str(getattr(order, 'order_type', '')),
+            "limit_price": getattr(order, 'limit_price', None),
+            "avg_fill_price": getattr(order, 'avg_fill_price', None),
+            "status": str(getattr(order, 'status', '')),
+            "realized_pnl": getattr(order, 'realized_pnl', 0) or 0,
+            "submitted_at": str(getattr(order, 'order_time', '') or getattr(order, 'submitted_at', '')),
+            "order_time": getattr(order, 'order_time', None),
+        }

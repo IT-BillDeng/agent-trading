@@ -156,6 +156,14 @@ async def api_pnl():
     return norm.pnl(cache.get_pnl())
 
 
+@app.get("/api/stock-analysis")
+async def api_stock_analysis(period: str = "all"):
+    """Per-symbol analysis for a selected time range."""
+    if not cache:
+        return JSONResponse({"error": "not ready"}, status_code=503)
+    return cache.get_stock_analysis(period=period)
+
+
 @app.get("/api/lookup/{symbol}")
 async def api_lookup_symbol(symbol: str):
     """Lookup stock name from yfinance."""

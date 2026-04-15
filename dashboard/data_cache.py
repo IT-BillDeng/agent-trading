@@ -5,14 +5,22 @@ import json
 import time
 import threading
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from .tiger_client import TigerClient
+from .tiger_client import TigerClient, ET_ZONE
 from .quote_provider import QuoteProvider
 
 WORKSPACE = Path(os.environ.get("ENGINE_WORKSPACE", str(Path(__file__).parent.parent.parent)))
 WATCHLIST_PATH = Path(os.environ.get("ENGINE_WATCHLIST_PATH", str(WORKSPACE / "data" / "watchlist.json")))
 MARKET_CONTEXT_PATH = Path(os.environ.get("ENGINE_RUNTIME_DIR", str(WORKSPACE / "runtime" / "engine"))) / "market_context.json"
+ANALYSIS_ALL_START = "2000-01-01"
+ANALYSIS_PERIODS = {
+    "all": {"label": "全部", "days": None},
+    "1w": {"label": "1周", "days": 7},
+    "1m": {"label": "1个月", "days": 30},
+    "3m": {"label": "3个月", "days": 90},
+    "6m": {"label": "半年", "days": 180},
+}
 
 
 class DataCache:
@@ -35,6 +43,7 @@ class DataCache:
             "refresh_count": 0,
             "errors": [],
         }
+        self._analysis_cache = {}
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
 
@@ -157,6 +166,38 @@ class DataCache:
                 "details": details,
             }
 
+    def get_stock_analysis(self, period: str = "all") -> dict:
+        """Get per-symbol analysis using historical orders + current positions."""
+        period = period if period in ANALYSIS_PERIODS else "all"
+        with self._lock:
+            refresh_count = self._data["refresh_count"]
+            positions = list(self._data["positions"] or [])
+            cached = self._analysis_cache.get(period)
+            if cached and cached.get("refresh_count") == refresh_count:
+                return cached["data"]
+
+        watchlist = self._load_watchlist()
+        window = self._get_analysis_window(period)
+        orders = self._client.get_orders_history(
+            start_time=window["start_time"],
+            end_time=window["end_time"],
+        )
+        data = self._build_stock_analysis(
+            positions=positions,
+            orders=orders,
+            watchlist=watchlist,
+            period=period,
+            window=window,
+        )
+
+        with self._lock:
+            self._analysis_cache[period] = {
+                "refresh_count": refresh_count,
+                "data": data,
+            }
+
+        return data
+
     def get_agents(self) -> dict:
         """Read agent state from shared context files."""
         agents = {
@@ -269,6 +310,7 @@ class DataCache:
             self._data["quotes"] = quotes
             self._data["last_updated"] = datetime.now().isoformat()
             self._data["refresh_count"] += 1
+            self._analysis_cache = {}
             self._data["errors"].extend([{
                 "time": datetime.now().isoformat(),
                 "error": e,
@@ -318,10 +360,123 @@ class DataCache:
         }
         if item.get("lot_size"):
             new_entry["lot_size"] = item["lot_size"]
-
         symbols.append(new_entry)
         self._save_watchlist()
         return new_entry
+
+    def _get_analysis_window(self, period: str) -> dict:
+        now_et = datetime.now(ET_ZONE)
+        config = ANALYSIS_PERIODS[period]
+        if config["days"] is None:
+            start_time = ANALYSIS_ALL_START
+        else:
+            start_time = (now_et - timedelta(days=config["days"])).strftime("%Y-%m-%d")
+        return {
+            "period": period,
+            "label": config["label"],
+            "start_time": start_time,
+            "end_time": now_et.strftime("%Y-%m-%d %H:%M:%S"),
+            "now_et": now_et.isoformat(),
+        }
+
+    def _build_stock_analysis(self, positions: list, orders: list, watchlist: dict, period: str, window: dict) -> dict:
+        watchlist_names = {
+            item.get("symbol"): item.get("name", "")
+            for item in (watchlist or {}).get("symbols", [])
+            if item.get("symbol")
+        }
+        analysis = {}
+
+        def ensure_item(symbol: str) -> dict:
+            item = analysis.get(symbol)
+            if item is None:
+                item = {
+                    "symbol": symbol,
+                    "name": watchlist_names.get(symbol, ""),
+                    "status": "closed",
+                    "quantity": 0,
+                    "market_value": 0,
+                    "unrealized_pnl": 0,
+                    "realized_pnl": 0,
+                    "total_pnl": 0,
+                    "trade_count": 0,
+                    "buy_count": 0,
+                    "sell_count": 0,
+                    "last_trade_time": None,
+                }
+                analysis[symbol] = item
+            return item
+
+        for pos in positions:
+            symbol = pos.get("symbol")
+            if not symbol:
+                continue
+            item = ensure_item(symbol)
+            item["status"] = "open"
+            item["name"] = pos.get("name") or item["name"]
+            item["quantity"] = pos.get("quantity", 0) or 0
+            item["market_value"] = pos.get("market_value", 0) or 0
+            item["unrealized_pnl"] = pos.get("unrealized_pnl", 0) or 0
+
+        for order in orders:
+            if not isinstance(order, dict) or order.get("error"):
+                continue
+            filled_qty = order.get("filled_quantity", 0) or 0
+            if filled_qty <= 0:
+                continue
+            symbol = order.get("symbol")
+            if not symbol:
+                continue
+            item = ensure_item(symbol)
+            item["name"] = item["name"] or order.get("name") or ""
+            item["trade_count"] += 1
+
+            action = str(order.get("action") or "").upper()
+            if action == "BUY":
+                item["buy_count"] += 1
+            elif action == "SELL":
+                item["sell_count"] += 1
+                item["realized_pnl"] += float(order.get("realized_pnl") or 0)
+
+            order_time = order.get("order_time")
+            if order_time and (item["last_trade_time"] is None or order_time > item["last_trade_time"]):
+                item["last_trade_time"] = order_time
+
+        details = []
+        for item in analysis.values():
+            item["total_pnl"] = float(item["realized_pnl"] or 0) + float(item["unrealized_pnl"] or 0)
+            details.append(item)
+
+        details.sort(
+            key=lambda item: (
+                abs(float(item["realized_pnl"] or 0)) + abs(float(item["unrealized_pnl"] or 0)),
+                item["trade_count"],
+                item["symbol"],
+            ),
+            reverse=True,
+        )
+
+        summary = {
+            "symbol_count": len(details),
+            "open_count": sum(1 for item in details if item["status"] == "open"),
+            "closed_count": sum(1 for item in details if item["status"] == "closed"),
+            "trade_count": sum(int(item["trade_count"] or 0) for item in details),
+            "buy_count": sum(int(item["buy_count"] or 0) for item in details),
+            "sell_count": sum(int(item["sell_count"] or 0) for item in details),
+            "realized_pnl": sum(float(item["realized_pnl"] or 0) for item in details),
+            "unrealized_pnl": sum(float(item["unrealized_pnl"] or 0) for item in details),
+            "total_pnl": sum(float(item["total_pnl"] or 0) for item in details),
+        }
+
+        return {
+            "period": period,
+            "period_label": window["label"],
+            "start_time": window["start_time"],
+            "end_time": window["end_time"],
+            "as_of": window["now_et"],
+            "summary": summary,
+            "details": details,
+        }
 
     def update_symbol(self, symbol: str, updates: dict) -> dict | None:
         """Update a symbol in the watchlist."""

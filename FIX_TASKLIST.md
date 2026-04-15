@@ -1,24 +1,32 @@
 # Agent Trading 修复任务清单
 
-更新时间：2026-04-15
+更新时间：2026-04-16
 
 ## 目标
 
 对 `agent-trading` 项目进行分阶段修复与改进，优先解决数据口径、关键功能 bug、目录漂移与可维护性问题。
+
+## 当前状态
+
+- `Phase 1` 已完成
+- `Phase 2` 进行中
+  - `2.1` 已修复 `/api/backtest/batch` 参数覆盖 `enabled` 开关失效问题
+  - `2.2` 已完成 Tiger 首页口径切换、ET 当日边界修正、缓存刷新阻塞修复
+- `Phase 3-5` 尚未正式展开
 
 ---
 
 ## Phase 1，数据口径与可观测性
 
 ### 1.1 统一盈亏口径
-- [ ] 梳理 Tiger API 各字段真实语义
+- [x] 梳理 Tiger API 各字段真实语义
   - `account.realized_pnl`
   - `account.unrealized_pnl`
   - `position.today_pnl`
   - `position.unrealized_pnl`
   - `filled_order.realized_pnl`
-- [ ] 输出一份项目内统一口径表
-- [ ] 明确 Dashboard 中以下概念：
+- [x] 输出一份项目内统一口径表
+- [x] 明确 Dashboard 中以下概念：
   - 今日盈亏
   - 今日已实现盈亏
   - 今日未实现盈亏
@@ -26,38 +34,38 @@
   - 当前未实现盈亏
 
 ### 1.2 修正 Dashboard 盈亏相关显示
-- [ ] 修正 `/api/pnl` 字段定义与返回结构
-- [ ] 修正“今日盈亏”顶部卡片显示逻辑
-- [ ] 修正“盈亏明细”block，明确展示：
+- [x] 修正 `/api/pnl` 字段定义与返回结构
+- [x] 修正“今日盈亏”顶部卡片显示逻辑
+- [x] 修正“盈亏明细”block，明确展示：
   - symbol
   - status(open/closed)
   - unrealized_pnl
   - realized_pnl
   - today_pnl
-- [ ] 移除或重命名容易混淆的文案（如“总浮动”）
-- [ ] 确认前端显示与 API 字段一一对应
+- [x] 移除或重命名容易混淆的文案（如“总浮动”）
+- [x] 确认前端显示与 API 字段一一对应
 
 ### 1.3 增强可观测性
-- [ ] 为 `/api/pnl` 增加调试字段开关或调试端点
-- [ ] 为关键 API 增加原始来源说明
-- [ ] 增加 PnL 计算链路的最小测试样例
+- [x] 为 `/api/pnl` 增加调试字段开关或调试端点
+- [x] 为关键 API 增加原始来源说明
+- [x] 增加 PnL 计算链路的最小测试样例
 
 ---
 
 ## Phase 2，关键功能 bug 修复
 
 ### 2.1 回测批量 API 异常
-- [ ] 排查 `/api/backtest/batch` 参数变化结果相同问题
+- [x] 排查 `/api/backtest/batch` 参数变化结果相同问题
 - [ ] 验证参数覆盖是否真正写入临时规则文件
 - [ ] 验证回测引擎是否实际读取临时规则文件
 - [ ] 为 batch backtest 增加最小可复现测试
 - [ ] 修复 Strategist 被阻塞的问题
 
 ### 2.2 Dashboard 数据链稳定性
-- [ ] 检查 `data_cache.py` 中业务逻辑是否正确
-- [ ] 检查 `tiger_client.py` 各接口字段提取是否完整
-- [ ] 检查 filled orders / orders / positions 的时间窗口是否一致
-- [ ] 检查缓存刷新与页面渲染之间的数据一致性
+- [x] 检查 `data_cache.py` 中业务逻辑是否正确
+- [x] 检查 `tiger_client.py` 各接口字段提取是否完整
+- [x] 检查 filled orders / orders / positions 的时间窗口是否一致
+- [x] 检查缓存刷新与页面渲染之间的数据一致性
 
 ### 2.3 cron / agent 运行一致性
 - [ ] 排查所有 cron 配置中的旧路径残留
@@ -149,9 +157,9 @@
 
 ## 当前建议执行顺序
 
-1. 先完成 **Phase 1**
-2. 再处理 **Phase 2.1 backtest batch**
-3. 然后做 **Phase 3 目录/产物统一**
+1. 已完成 **Phase 1**
+2. 当前优先处理 **Phase 2.1 backtest batch**
+3. 然后做 **Phase 2.3 / Phase 3 目录与运行产物统一**
 4. 最后推进 **Phase 4-5 结构优化与文档同步**
 
 ---

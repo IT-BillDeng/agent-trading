@@ -285,6 +285,20 @@ class DataCache:
             filled_orders = []
             errors.append(f"filled_orders: {e}")
 
+        # Update core cache first so quote provider stalls don't blank the page.
+        with self._lock:
+            self._data["account"] = account
+            self._data["positions"] = positions
+            self._data["orders"] = orders
+            self._data["filled_orders"] = filled_orders
+            self._data["last_updated"] = datetime.now().isoformat()
+            self._data["refresh_count"] += 1
+            self._analysis_cache = {}
+            self._data["errors"].extend([{
+                "time": datetime.now().isoformat(),
+                "error": e,
+            } for e in errors])
+
         # Quotes (from watchlist) — rebuild each cycle so deleted symbols disappear
         quotes = {}
         try:
@@ -298,23 +312,15 @@ class DataCache:
                     if q.get("symbol"):
                         q["market"] = "US"
                         quotes[q["symbol"]] = q
-        except Exception as e:
-            errors.append(f"quotes: {e}")
 
-        # Update cache
-        with self._lock:
-            self._data["account"] = account
-            self._data["positions"] = positions
-            self._data["orders"] = orders
-            self._data["filled_orders"] = filled_orders
-            self._data["quotes"] = quotes
-            self._data["last_updated"] = datetime.now().isoformat()
-            self._data["refresh_count"] += 1
-            self._analysis_cache = {}
-            self._data["errors"].extend([{
-                "time": datetime.now().isoformat(),
-                "error": e,
-            } for e in errors])
+            with self._lock:
+                self._data["quotes"] = quotes
+        except Exception as e:
+            with self._lock:
+                self._data["errors"].append({
+                    "time": datetime.now().isoformat(),
+                    "error": f"quotes: {e}",
+                })
 
     def _load_watchlist(self) -> dict:
         """Load shared watchlist from file."""

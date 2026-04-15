@@ -139,10 +139,13 @@
             <div class="card flex flex-col h-[32rem] min-h-0">
                 <div class="flex items-center justify-between mb-2">
                     <div class="card-title mb-0">📈 自选行情</div>
-                    <select id="quote-provider" class="bg-dark-900 border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:border-tiger-500" onchange="setQuoteProvider(this.value)">
-                        <option value="yfinance">Yahoo Finance</option>
-                        <option value="tiger">Tiger API</option>
-                    </select>
+                    <div class="flex items-center gap-2">
+                        <div id="quote-sort-controls" class="flex items-center gap-1"></div>
+                        <select id="quote-provider" class="bg-dark-900 border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:border-tiger-500" onchange="setQuoteProvider(this.value)">
+                            <option value="yfinance">Yahoo Finance</option>
+                            <option value="tiger">Tiger API</option>
+                        </select>
+                    </div>
                 </div>
                 <div id="quotes-list" class="flex-1 min-h-0 overflow-auto space-y-2">
                     <div class="text-gray-500 text-sm">加载中...</div>
@@ -518,6 +521,9 @@
         let positionsSortKey = 'default';
         let positionsSortDir = 'asc';
         let positionsData = [];
+        let quoteSortKey = 'watchlist';
+        let quoteSortDir = 'asc';
+        let quotesData = {};
         const REFRESH_MS = 15000; // 15 seconds
         const STOCK_ANALYSIS_RANGE_OPTIONS = [
             ['all', '全部'],
@@ -701,6 +707,67 @@
                     : 'border-gray-600 text-gray-400 hover:text-gray-200'
             );
         }
+        function quoteSortBtnClass(active) {
+            return 'px-2 py-1 rounded text-xs border transition ' + (
+                active
+                    ? 'bg-tiger-600/30 text-tiger-500 border-tiger-600/40'
+                    : 'border-gray-600 text-gray-400 hover:text-gray-200'
+            );
+        }
+        function getWatchlistOrder(symbol) {
+            const item = watchlistMap[symbol] || {};
+            return Number.isFinite(item._order) ? item._order : 9999;
+        }
+        function quoteSortValue(q) {
+            switch (quoteSortKey) {
+                case 'symbol':
+                    return q.sym || '';
+                case 'latest_price':
+                    return Number(q.latest_price || 0);
+                case 'change_rate':
+                    return Number(q.change_rate ?? q.change_pct ?? 0);
+                case 'watchlist':
+                default:
+                    return getWatchlistOrder(q.sym);
+            }
+        }
+        function sortQuoteItems(items) {
+            const dir = quoteSortDir === 'asc' ? 1 : -1;
+            return [...items].sort((a, b) => {
+                const av = quoteSortValue(a);
+                const bv = quoteSortValue(b);
+                if (typeof av === 'string' || typeof bv === 'string') {
+                    const cmp = String(av).localeCompare(String(bv));
+                    if (cmp !== 0) return cmp * dir;
+                } else if (av !== bv) {
+                    return (av > bv ? 1 : -1) * dir;
+                }
+                return (a.sym || '').localeCompare(b.sym || '') * dir;
+            });
+        }
+        function renderQuoteSortControls() {
+            const el = document.getElementById('quote-sort-controls');
+            if (!el) return;
+            const options = [
+                ['watchlist', '顺序'],
+                ['change_rate', '涨跌幅'],
+                ['latest_price', '最新价'],
+                ['symbol', '代码'],
+            ];
+            el.innerHTML = options.map(([key, label]) =>
+                `<button type="button" onclick="setQuoteSort('${key}')" class="${quoteSortBtnClass(quoteSortKey === key)}">${label}</button>`
+            ).join('');
+        }
+        function setQuoteSort(key) {
+            if (quoteSortKey === key) {
+                quoteSortDir = quoteSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                quoteSortKey = key;
+                quoteSortDir = key === 'symbol' || key === 'watchlist' ? 'asc' : 'desc';
+            }
+            renderQuoteSortControls();
+            renderQuotes(quotesData);
+        }
 
         // --- Render Functions ---
         function renderAccount(data, pnlData) {
@@ -750,6 +817,8 @@
 
         function renderQuotes(data) {
             const list = document.getElementById('quotes-list');
+            quotesData = data || {};
+            renderQuoteSortControls();
             // Filter out internal fields (like _fetched_at)
             const symbols = Object.keys(data).filter(k => !k.startsWith('_'));
             if (symbols.length === 0) {
@@ -782,8 +851,9 @@
             ['US'].forEach(mkt => {
                 const items = groups[mkt];
                 if (!items || items.length === 0) return;
+                const sortedItems = sortQuoteItems(items);
                 html += `<div class="text-xs text-gray-500 font-medium mt-2 mb-1">${marketLabel[mkt] || mkt}</div>`;
-                items.forEach(q => {
+                sortedItems.forEach(q => {
                     const price = q.latest_price || '--';
                     const change = q.change || 0;
                     const changeRate = q.change_rate || 0;
@@ -1104,7 +1174,7 @@
         async function fetchWatchlist() {
             try {
                 const data = await fetch(API_BASE + '/api/watchlist').then(r => r.json());
-                (data.symbols || []).forEach(s => { watchlistMap[s.symbol] = s; });
+                (data.symbols || []).forEach((s, idx) => { watchlistMap[s.symbol] = { ...s, _order: idx }; });
                 renderWatchlistMgmt(data);
             } catch (e) {
                 console.error('watchlist fetch error:', e);
@@ -1365,7 +1435,7 @@
                     document.getElementById('risk-input-disable-leverage').checked = !!riskConfig.disable_leverage;
                 }
                 // Populate watchlistMap before rendering
-                if (wlData && wlData.symbols) { wlData.symbols.forEach(s => { watchlistMap[s.symbol] = s; }); }
+                if (wlData && wlData.symbols) { wlData.symbols.forEach((s, idx) => { watchlistMap[s.symbol] = { ...s, _order: idx }; }); }
                 renderWatchlistMgmt(wlData);
 
                 // 顶部概览使用 /api/account（prime assets），明细使用 /api/pnl

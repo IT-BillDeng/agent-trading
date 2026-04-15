@@ -182,6 +182,19 @@ class DataCache:
             start_time=window["start_time"],
             end_time=window["end_time"],
         )
+        # 合并今日成交（Tiger get_orders 历史查询有时漏掉当日数据）
+        try:
+            today_orders = self._client.get_filled_orders()
+            seen_ids = {o.get("id") or o.get("order_id") for o in orders if isinstance(o, dict)}
+            for o in today_orders:
+                if not isinstance(o, dict):
+                    continue
+                oid = o.get("id") or o.get("order_id")
+                if oid and oid not in seen_ids:
+                    orders.append(o)
+                    seen_ids.add(oid)
+        except Exception:
+            pass
         data = self._build_stock_analysis(
             positions=positions,
             orders=orders,

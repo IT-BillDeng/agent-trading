@@ -161,7 +161,7 @@
                     </div>
                     <div id="stock-analysis-ranges" class="flex flex-wrap justify-end gap-1"></div>
                 </div>
-                <div id="pnl-details" class="flex-1 min-h-0 overflow-auto">
+                <div id="pnl-details" class="flex-1 min-h-0 overflow-hidden">
                     <div class="text-gray-500 text-sm">加载中...</div>
                 </div>
             </div>
@@ -624,6 +624,29 @@
             });
             return sorted;
         }
+        function syncStockAnalysisScrollbars() {
+            const top = document.getElementById('stock-analysis-scrollbar-top');
+            const body = document.getElementById('stock-analysis-table-scroll');
+            const spacer = document.getElementById('stock-analysis-scrollbar-spacer');
+            if (!top || !body || !spacer) return;
+
+            spacer.style.width = `${body.scrollWidth}px`;
+            const overflowed = body.scrollWidth > body.clientWidth + 1;
+            top.classList.toggle('hidden', !overflowed);
+
+            let syncing = false;
+            const sync = (source, target) => {
+                source.addEventListener('scroll', () => {
+                    if (syncing) return;
+                    syncing = true;
+                    target.scrollLeft = source.scrollLeft;
+                    requestAnimationFrame(() => { syncing = false; });
+                });
+            };
+            sync(top, body);
+            sync(body, top);
+            top.scrollLeft = body.scrollLeft;
+        }
         function stockAnalysisBtnClass(active) {
             return 'px-2 py-1 rounded text-xs border transition ' + (
                 active
@@ -817,9 +840,13 @@
             if (data.details && data.details.length > 0) {
                 const details = getSortedStockAnalysisDetails(data.details);
                 html += `
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm min-w-[52rem]">
-                        <thead class="sticky top-0" style="background:#2a2a3c">
+                <div class="h-full min-h-0 flex flex-col">
+                    <div id="stock-analysis-scrollbar-top" class="overflow-x-auto overflow-y-hidden pb-2 mb-1">
+                        <div id="stock-analysis-scrollbar-spacer" style="height: 1px;"></div>
+                    </div>
+                    <div id="stock-analysis-table-scroll" class="flex-1 min-h-0 overflow-auto">
+                    <table class="w-full text-sm min-w-[68rem]">
+                        <thead class="sticky top-0 z-10" style="background:#2a2a3c">
                             <tr class="text-gray-500 border-b border-gray-700/50">
                                 <th class="text-left py-2 sticky left-0 z-10" style="background:#2a2a3c; min-width: 14rem;">
                                     <button type="button" class="${stockAnalysisHeaderClass('symbol')}" onclick="setStockAnalysisSort('symbol')">代码/名称${stockAnalysisSortIndicator('symbol')}</button>
@@ -828,16 +855,28 @@
                                     <button type="button" class="${stockAnalysisHeaderClass('status', 'center')}" onclick="setStockAnalysisSort('status')">状态${stockAnalysisSortIndicator('status')}</button>
                                 </th>
                                 <th class="text-right py-2">
-                                    <button type="button" class="${stockAnalysisHeaderClass('realized_pnl', 'right')}" onclick="setStockAnalysisSort('realized_pnl')">区间已实现${stockAnalysisSortIndicator('realized_pnl')}</button>
+                                    <button type="button" class="${stockAnalysisHeaderClass('realized_pnl', 'right')}" onclick="setStockAnalysisSort('realized_pnl')">已实现${stockAnalysisSortIndicator('realized_pnl')}</button>
                                 </th>
                                 <th class="text-right py-2">
-                                    <button type="button" class="${stockAnalysisHeaderClass('unrealized_pnl', 'right')}" onclick="setStockAnalysisSort('unrealized_pnl')">当前未实现${stockAnalysisSortIndicator('unrealized_pnl')}</button>
+                                    <button type="button" class="${stockAnalysisHeaderClass('unrealized_pnl', 'right')}" onclick="setStockAnalysisSort('unrealized_pnl')">未实现${stockAnalysisSortIndicator('unrealized_pnl')}</button>
                                 </th>
                                 <th class="text-right py-2">
                                     <button type="button" class="${stockAnalysisHeaderClass('total_pnl', 'right')}" onclick="setStockAnalysisSort('total_pnl')">总览${stockAnalysisSortIndicator('total_pnl')}</button>
                                 </th>
                                 <th class="text-right py-2">
                                     <button type="button" class="${stockAnalysisHeaderClass('last_trade_time', 'right')}" onclick="setStockAnalysisSort('last_trade_time')">最近成交${stockAnalysisSortIndicator('last_trade_time')}</button>
+                                </th>
+                                <th class="text-right py-2">
+                                    <button type="button" class="${stockAnalysisHeaderClass('trade_count', 'right')}" onclick="setStockAnalysisSort('trade_count')">交易次数${stockAnalysisSortIndicator('trade_count')}</button>
+                                </th>
+                                <th class="text-right py-2">
+                                    <button type="button" class="${stockAnalysisHeaderClass('buy_sell', 'right')}" onclick="setStockAnalysisSort('buy_sell')">买/卖次数${stockAnalysisSortIndicator('buy_sell')}</button>
+                                </th>
+                                <th class="text-right py-2">
+                                    <button type="button" class="${stockAnalysisHeaderClass('market_value', 'right')}" onclick="setStockAnalysisSort('market_value')">当前市值${stockAnalysisSortIndicator('market_value')}</button>
+                                </th>
+                                <th class="text-right py-2">
+                                    <button type="button" class="${stockAnalysisHeaderClass('quantity', 'right')}" onclick="setStockAnalysisSort('quantity')">当前数量${stockAnalysisSortIndicator('quantity')}</button>
                                 </th>
                             </tr>
                         </thead>
@@ -855,7 +894,6 @@
                                     <td class="py-2 px-3 sticky left-0 z-[1]" style="background:#1f1f2e">
                                         <div class="font-medium">${d.symbol || '--'}</div>
                                         <div class="text-xs text-gray-500 mt-1">${(watchlistMap[d.symbol] && watchlistMap[d.symbol].name) || d.name || '--'}</div>
-                                        <div class="text-[11px] text-gray-600 mt-1 whitespace-nowrap">次数 ${d.trade_count || 0} · 买卖 ${d.buy_count || 0}/${d.sell_count || 0} · 持仓 ${d.quantity || 0}</div>
                                     </td>
                                     <td class="py-2 text-center">${status}</td>
                                     <td class="py-2 text-right ${pnlClass(realized)}">${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</td>
@@ -865,15 +903,21 @@
                                         <div class="whitespace-nowrap">${tradeTime.date}</div>
                                         <div class="whitespace-nowrap text-xs text-gray-500 mt-0.5">${tradeTime.time}</div>
                                     </td>
+                                    <td class="py-2 text-right text-gray-200">${d.trade_count || 0}</td>
+                                    <td class="py-2 text-right text-gray-200">${d.buy_count || 0}/${d.sell_count || 0}</td>
+                                    <td class="py-2 text-right text-gray-200">${fmtUSD(d.market_value || 0)}</td>
+                                    <td class="py-2 text-right text-gray-200">${d.quantity || 0}</td>
                                 </tr>`;
                             }).join('')}
                         </tbody>
                     </table>
+                    </div>
                 </div>`;
             } else {
                 html += '<div class="text-gray-500 text-sm">该时间跨度内暂无可分析个股</div>';
             }
             el.innerHTML = html;
+            requestAnimationFrame(syncStockAnalysisScrollbars);
         }
 
         function renderSystem(data) {
@@ -1752,6 +1796,9 @@
         fetchQuoteProviders();
         fetchNewSections();
         fetchHeaderStatus();
+        window.addEventListener('resize', () => {
+            requestAnimationFrame(syncStockAnalysisScrollbars);
+        });
         // Close mode dropdown on outside click
         document.addEventListener('click', function(e) {
             const dd = document.getElementById('mode-dropdown');

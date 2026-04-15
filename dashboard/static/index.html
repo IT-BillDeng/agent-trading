@@ -513,6 +513,9 @@
         const API_BASE = '';
         let riskConfig = {};
         let stockAnalysisRange = 'all';
+        let stockAnalysisSortKey = 'default';
+        let stockAnalysisSortDir = 'desc';
+        let stockAnalysisData = null;
         const REFRESH_MS = 15000; // 15 seconds
         const STOCK_ANALYSIS_RANGE_OPTIONS = [
             ['all', '全部'],
@@ -557,6 +560,69 @@
                     minute: '2-digit'
                 }),
             };
+        }
+        function stockAnalysisSortDefaultDir(key) {
+            return ['symbol', 'status'].includes(key) ? 'asc' : 'desc';
+        }
+        function stockAnalysisSortIndicator(key) {
+            if (stockAnalysisSortKey !== key) return '<span class="text-gray-600 ml-1">↕</span>';
+            return stockAnalysisSortDir === 'asc'
+                ? '<span class="text-tiger-400 ml-1">↑</span>'
+                : '<span class="text-tiger-400 ml-1">↓</span>';
+        }
+        function stockAnalysisHeaderClass(key, align = 'left') {
+            const active = stockAnalysisSortKey === key;
+            const justify = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start';
+            return `w-full flex items-center ${justify} gap-1 hover:text-gray-300 transition ${active ? 'text-tiger-400' : 'text-gray-500'}`;
+        }
+        function setStockAnalysisSort(key) {
+            if (stockAnalysisSortKey === key) {
+                stockAnalysisSortDir = stockAnalysisSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                stockAnalysisSortKey = key;
+                stockAnalysisSortDir = stockAnalysisSortDefaultDir(key);
+            }
+            if (stockAnalysisData) {
+                renderStockAnalysis(stockAnalysisData);
+            } else {
+                fetchStockAnalysis();
+            }
+        }
+        function getSortedStockAnalysisDetails(details) {
+            if (!Array.isArray(details)) return [];
+            if (stockAnalysisSortKey === 'default') return [...details];
+
+            const sorted = [...details];
+            const dir = stockAnalysisSortDir === 'asc' ? 1 : -1;
+            sorted.sort((a, b) => {
+                let av = 0;
+                let bv = 0;
+                switch (stockAnalysisSortKey) {
+                    case 'symbol':
+                        return ((a.symbol || '').localeCompare(b.symbol || '') || (a.name || '').localeCompare(b.name || '')) * dir;
+                    case 'status':
+                        return ((a.status || '').localeCompare(b.status || '') || (a.symbol || '').localeCompare(b.symbol || '')) * dir;
+                    case 'realized_pnl':
+                    case 'unrealized_pnl':
+                    case 'total_pnl':
+                    case 'trade_count':
+                    case 'market_value':
+                    case 'quantity':
+                    case 'last_trade_time':
+                        av = Number(a[stockAnalysisSortKey] || 0);
+                        bv = Number(b[stockAnalysisSortKey] || 0);
+                        break;
+                    case 'buy_sell':
+                        av = Number(a.buy_count || 0) * 100000 + Number(a.sell_count || 0);
+                        bv = Number(b.buy_count || 0) * 100000 + Number(b.sell_count || 0);
+                        break;
+                    default:
+                        return 0;
+                }
+                if (av === bv) return ((a.symbol || '').localeCompare(b.symbol || '')) * dir;
+                return (av > bv ? 1 : -1) * dir;
+            });
+            return sorted;
         }
         function stockAnalysisBtnClass(active) {
             return 'px-2 py-1 rounded text-xs border transition ' + (
@@ -749,25 +815,46 @@
             renderStockAnalysisRangeButtons();
             let html = '';
             if (data.details && data.details.length > 0) {
+                const details = getSortedStockAnalysisDetails(data.details);
                 html += `
                 <div>
                     <table class="w-full text-sm">
                         <thead class="sticky top-0" style="background:#2a2a3c">
                             <tr class="text-gray-500 border-b border-gray-700/50">
-                                <th class="text-left py-2">代码/名称</th>
-                                <th class="text-center py-2">状态</th>
-                                <th class="text-right py-2">区间已实现</th>
-                                <th class="text-right py-2">当前未实现</th>
-                                <th class="text-right py-2">总览</th>
-                                <th class="text-right py-2">交易次数</th>
-                                <th class="text-right py-2">买/卖次数</th>
-                                <th class="text-right py-2">当前市值</th>
-                                <th class="text-right py-2">当前数量</th>
-                                <th class="text-right py-2">最近成交</th>
+                                <th class="text-left py-2">
+                                    <button type="button" class="${stockAnalysisHeaderClass('symbol')}" onclick="setStockAnalysisSort('symbol')">代码/名称${stockAnalysisSortIndicator('symbol')}</button>
+                                </th>
+                                <th class="text-center py-2">
+                                    <button type="button" class="${stockAnalysisHeaderClass('status', 'center')}" onclick="setStockAnalysisSort('status')">状态${stockAnalysisSortIndicator('status')}</button>
+                                </th>
+                                <th class="text-right py-2">
+                                    <button type="button" class="${stockAnalysisHeaderClass('realized_pnl', 'right')}" onclick="setStockAnalysisSort('realized_pnl')">区间已实现${stockAnalysisSortIndicator('realized_pnl')}</button>
+                                </th>
+                                <th class="text-right py-2">
+                                    <button type="button" class="${stockAnalysisHeaderClass('unrealized_pnl', 'right')}" onclick="setStockAnalysisSort('unrealized_pnl')">当前未实现${stockAnalysisSortIndicator('unrealized_pnl')}</button>
+                                </th>
+                                <th class="text-right py-2">
+                                    <button type="button" class="${stockAnalysisHeaderClass('total_pnl', 'right')}" onclick="setStockAnalysisSort('total_pnl')">总览${stockAnalysisSortIndicator('total_pnl')}</button>
+                                </th>
+                                <th class="text-right py-2">
+                                    <button type="button" class="${stockAnalysisHeaderClass('trade_count', 'right')}" onclick="setStockAnalysisSort('trade_count')">交易次数${stockAnalysisSortIndicator('trade_count')}</button>
+                                </th>
+                                <th class="text-right py-2">
+                                    <button type="button" class="${stockAnalysisHeaderClass('buy_sell', 'right')}" onclick="setStockAnalysisSort('buy_sell')">买/卖次数${stockAnalysisSortIndicator('buy_sell')}</button>
+                                </th>
+                                <th class="text-right py-2">
+                                    <button type="button" class="${stockAnalysisHeaderClass('market_value', 'right')}" onclick="setStockAnalysisSort('market_value')">当前市值${stockAnalysisSortIndicator('market_value')}</button>
+                                </th>
+                                <th class="text-right py-2">
+                                    <button type="button" class="${stockAnalysisHeaderClass('quantity', 'right')}" onclick="setStockAnalysisSort('quantity')">当前数量${stockAnalysisSortIndicator('quantity')}</button>
+                                </th>
+                                <th class="text-right py-2">
+                                    <button type="button" class="${stockAnalysisHeaderClass('last_trade_time', 'right')}" onclick="setStockAnalysisSort('last_trade_time')">最近成交${stockAnalysisSortIndicator('last_trade_time')}</button>
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${data.details.map(d => {
+                            ${details.map(d => {
                                 const unrealized = d.unrealized_pnl || 0;
                                 const realized = d.realized_pnl || 0;
                                 const total = d.total_pnl || 0;
@@ -1233,9 +1320,11 @@
             try {
                 const res = await fetch(API_BASE + '/api/stock-analysis?period=' + encodeURIComponent(stockAnalysisRange));
                 const data = await res.json();
+                stockAnalysisData = data;
                 renderStockAnalysis(data);
             } catch (e) {
                 console.error('stock analysis fetch error:', e);
+                stockAnalysisData = null;
                 if (el) {
                     el.innerHTML = '<div class="text-red-400 text-sm">个股分析加载失败</div>';
                 }

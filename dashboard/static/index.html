@@ -545,13 +545,18 @@
             return d.toLocaleTimeString('zh-CN');
         }
         function fmtTradeTime(ts) {
-            if (!ts) return '--';
-            return new Date(Number(ts)).toLocaleString('zh-CN', {
-                month: 'numeric',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
+            if (!ts) return { date: '--', time: '' };
+            const d = new Date(Number(ts));
+            return {
+                date: d.toLocaleDateString('zh-CN', {
+                    month: 'numeric',
+                    day: 'numeric'
+                }),
+                time: d.toLocaleTimeString('zh-CN', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }),
+            };
         }
         function stockAnalysisBtnClass(active) {
             return 'px-2 py-1 rounded text-xs border transition ' + (
@@ -784,7 +789,10 @@
                                     <td class="py-2 text-right text-gray-200">${d.buy_count || 0}/${d.sell_count || 0}</td>
                                     <td class="py-2 text-right text-gray-200">${fmtUSD(d.market_value || 0)}</td>
                                     <td class="py-2 text-right text-gray-200">${d.quantity || 0}</td>
-                                    <td class="py-2 text-right text-gray-200 whitespace-nowrap">${tradeTime}</td>
+                                    <td class="py-2 text-right text-gray-200">
+                                        <div class="whitespace-nowrap">${tradeTime.date}</div>
+                                        <div class="whitespace-nowrap text-xs text-gray-500 mt-0.5">${tradeTime.time}</div>
+                                    </td>
                                 </tr>`;
                             }).join('')}
                         </tbody>

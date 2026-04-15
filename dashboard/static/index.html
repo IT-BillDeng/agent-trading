@@ -151,21 +151,21 @@
 
         <!-- Second Row -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-            <!-- Orders -->
-            <div class="card lg:col-span-2">
-                <div class="card-title">📋 最近订单</div>
-                <div id="orders-list" class="space-y-2 max-h-64 overflow-y-auto">
-                    <div class="text-gray-500 text-sm">加载中...</div>
-                </div>
-            </div>
-
             <!-- P&L -->
-            <div class="card">
+            <div class="card lg:col-span-2">
                 <div class="flex items-center justify-between mb-2">
                     <div class="card-title mb-0">💰 盈亏明细</div>
                     <span class="text-[11px] text-gray-500">持仓 + 当日成交口径</span>
                 </div>
                 <div id="pnl-details" class="space-y-2 max-h-64 overflow-y-auto">
+                    <div class="text-gray-500 text-sm">加载中...</div>
+                </div>
+            </div>
+
+            <!-- Orders -->
+            <div class="card">
+                <div class="card-title">📋 最近订单</div>
+                <div id="orders-list" class="space-y-2 max-h-64 overflow-y-auto">
                     <div class="text-gray-500 text-sm">加载中...</div>
                 </div>
             </div>

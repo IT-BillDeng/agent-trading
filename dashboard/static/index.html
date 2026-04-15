@@ -83,26 +83,30 @@
 
     <main class="p-6 max-w-7xl mx-auto">
         <!-- Account Overview -->
-        <section class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-            <div class="card">
-                <div class="card-title">总资产</div>
-                <div id="total-assets" class="text-2xl font-bold">--</div>
+        <section class="space-y-4 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="card">
+                    <div class="card-title">总资产</div>
+                    <div id="total-assets" class="text-2xl font-bold">--</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">今日盈亏</div>
+                    <div id="today-pnl" class="text-2xl font-bold">--</div>
+                </div>
             </div>
-            <div class="card">
-                <div class="card-title">预估现金额</div>
-                <div id="cash-balance" class="text-2xl font-bold">--</div>
-            </div>
-            <div class="card">
-                <div class="card-title">持仓总价值</div>
-                <div id="position-value" class="text-2xl font-bold">--</div>
-            </div>
-            <div class="card">
-                <div class="card-title">未实现盈亏</div>
-                <div id="unrealized-pnl" class="text-2xl font-bold">--</div>
-            </div>
-            <div class="card">
-                <div class="card-title">今日盈亏</div>
-                <div id="today-pnl" class="text-2xl font-bold">--</div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="card">
+                    <div class="card-title">预估现金额</div>
+                    <div id="cash-balance" class="text-2xl font-bold">--</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">持仓总价值</div>
+                    <div id="position-value" class="text-2xl font-bold">--</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">未实现盈亏</div>
+                    <div id="unrealized-pnl" class="text-2xl font-bold">--</div>
+                </div>
             </div>
         </section>
 

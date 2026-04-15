@@ -686,7 +686,7 @@
             // Sort by time desc, limit to 10
             const sorted = [...data].sort((a, b) => (b.submitted_at || 0) - (a.submitted_at || 0)).slice(0, 10);
             list.innerHTML = sorted.map(o => {
-                const isBuy = o.side === 'BUY';
+                const isBuy = (o.action || o.side) === 'BUY';
                 const icon = isBuy ? '🟢' : '🔴';
                 const actionCls = isBuy ? 'text-green-400' : 'text-red-400';
                 const filled = o.filled_qty || o.quantity || '--';
@@ -700,7 +700,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <span>${icon}</span>
-                            <span class="${actionCls} font-medium ml-1">${o.side || '--'}</span>
+                            <span class="${actionCls} font-medium ml-1">${o.action || o.side || '--'}</span>
                             <span class="ml-1 font-medium">${o.symbol || '--'}</span><span class="text-xs text-gray-500 ml-1">${(watchlistMap[o.symbol] && watchlistMap[o.symbol].name) || ''}</span>
                             <span class="text-gray-400 text-xs ml-1">×${filled}</span>
                             <span class="text-gray-300 text-xs ml-1">${price}</span>
@@ -875,11 +875,11 @@
             }
             container.classList.remove('hidden');
             ordersEl.innerHTML = preview.orders.map(o => {
-                const actionCls = o.side === 'BUY' ? 'text-green-400' : 'text-red-400';
+                const actionCls = (o.action || o.side) === 'BUY' ? 'text-green-400' : 'text-red-400';
                 const priceStr = o.limit_price ? 'LMT @ $' + fmt(o.limit_price) : (o.order_type || '--');
                 const stopStr = o.stop_loss || o.stop_price ? ' 止损$' + fmt(o.stop_loss || o.stop_price) : '';
                 return `<div class="flex justify-between py-1 border-b border-gray-700/30">
-                    <div><span class="${actionCls} font-medium">${o.side || '--'}</span> <span class="ml-1">${o.symbol || '--'}</span> <span class="text-gray-400">${o.quantity || ''}股</span></div>
+                    <div><span class="${actionCls} font-medium">${o.action || o.side || '--'}</span> <span class="ml-1">${o.symbol || '--'}</span> <span class="text-gray-400">${o.quantity || ''}股</span></div>
                     <div class="text-gray-400 text-xs">${priceStr}${stopStr}</div>
                 </div>`;
             }).join('');

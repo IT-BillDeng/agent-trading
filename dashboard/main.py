@@ -933,6 +933,9 @@ def _apply_param_overrides(rules: dict, params: dict):
     """
     # Shorthand → (rule_id, json_path)
     param_map = {
+        "trend_follow_enabled": ("trend_follow_30m", "enabled"),
+        "rsi_enabled": ("rsi_reversal", "enabled"),
+        "bollinger_enabled": ("bollinger_breakout", "enabled"),
         "sma_short": ("trend_follow_30m", "entry.conditions.items.0.params.period"),
         "sma_mid":   ("trend_follow_30m", "entry.conditions.items.1.params.period"),
         "sma_long":  ("trend_follow_30m", "entry.conditions.items.2.params.period"),

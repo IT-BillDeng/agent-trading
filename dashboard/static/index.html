@@ -160,7 +160,7 @@
                     </div>
                     <div id="stock-analysis-ranges" class="flex flex-wrap justify-end gap-1"></div>
                 </div>
-                <div id="pnl-details" class="max-h-80 overflow-y-auto overflow-x-auto">
+                <div id="pnl-details" class="max-h-96 overflow-y-auto">
                     <div class="text-gray-500 text-sm">加载中...</div>
                 </div>
             </div>
@@ -732,9 +732,9 @@
             let html = '';
             if (data.details && data.details.length > 0) {
                 html += `
-                <div class="overflow-x-auto">
+                <div>
                     <table class="w-full text-sm">
-                        <thead>
+                        <thead class="bg-dark-900 sticky top-0 z-10">
                             <tr class="text-gray-500 border-b border-gray-700/50">
                                 <th class="text-left py-2">代码/名称</th>
                                 <th class="text-center py-2">状态</th>

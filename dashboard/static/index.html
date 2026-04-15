@@ -160,7 +160,7 @@
                     </div>
                     <div id="stock-analysis-ranges" class="flex flex-wrap justify-end gap-1"></div>
                 </div>
-                <div id="pnl-details" class="flex-1 min-h-0 overflow-auto">
+                <div id="pnl-details" class="flex-1 min-h-0 overflow-hidden">
                     <div class="text-gray-500 text-sm">加载中...</div>
                 </div>
             </div>
@@ -816,7 +816,7 @@
             if (data.details && data.details.length > 0) {
                 const details = getSortedStockAnalysisDetails(data.details);
                 html += `
-                <div class="overflow-x-auto">
+                <div class="h-full min-h-0 overflow-auto">
                     <table class="w-full min-w-max table-auto text-sm">
                         <thead class="sticky top-0 z-10" style="background:#2a2a3c">
                             <tr class="text-gray-500 border-b border-gray-700/50">

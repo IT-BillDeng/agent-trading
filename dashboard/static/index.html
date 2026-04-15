@@ -41,9 +41,6 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 2px; }
         ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
-        .stock-analysis-top-scroll::-webkit-scrollbar { height: 6px; }
-        .stock-analysis-body-scroll::-webkit-scrollbar:horizontal { height: 0; }
-        .stock-analysis-body-scroll::-webkit-scrollbar-thumb:horizontal { background: transparent; }
         input[type="number"]::-webkit-outer-spin-button,
         input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type="number"] { -moz-appearance: textfield; }
@@ -160,11 +157,10 @@
                 <div class="flex items-start justify-between gap-3 mb-3">
                     <div>
                         <div class="card-title mb-0">💰 个股分析</div>
-                        <div class="text-[11px] text-gray-500 mt-1">Tiger orders + 当前持仓聚合</div>
                     </div>
                     <div id="stock-analysis-ranges" class="flex flex-wrap justify-end gap-1"></div>
                 </div>
-                <div id="pnl-details" class="flex-1 min-h-0 overflow-hidden">
+                <div id="pnl-details" class="flex-1 min-h-0 overflow-auto">
                     <div class="text-gray-500 text-sm">加载中...</div>
                 </div>
             </div>
@@ -627,29 +623,6 @@
             });
             return sorted;
         }
-        function syncStockAnalysisScrollbars() {
-            const top = document.getElementById('stock-analysis-scrollbar-top');
-            const body = document.getElementById('stock-analysis-table-scroll');
-            const spacer = document.getElementById('stock-analysis-scrollbar-spacer');
-            if (!top || !body || !spacer) return;
-
-            spacer.style.width = `${body.scrollWidth}px`;
-            const overflowed = body.scrollWidth > body.clientWidth + 1;
-            top.classList.toggle('hidden', !overflowed);
-
-            let syncing = false;
-            const sync = (source, target) => {
-                source.addEventListener('scroll', () => {
-                    if (syncing) return;
-                    syncing = true;
-                    target.scrollLeft = source.scrollLeft;
-                    requestAnimationFrame(() => { syncing = false; });
-                });
-            };
-            sync(top, body);
-            sync(body, top);
-            top.scrollLeft = body.scrollLeft;
-        }
         function stockAnalysisBtnClass(active) {
             return 'px-2 py-1 rounded text-xs border transition ' + (
                 active
@@ -843,15 +816,11 @@
             if (data.details && data.details.length > 0) {
                 const details = getSortedStockAnalysisDetails(data.details);
                 html += `
-                <div class="h-full min-h-0 flex flex-col">
-                    <div id="stock-analysis-scrollbar-top" class="stock-analysis-top-scroll overflow-x-auto overflow-y-hidden pb-2 mb-1">
-                        <div id="stock-analysis-scrollbar-spacer" style="height: 1px;"></div>
-                    </div>
-                    <div id="stock-analysis-table-scroll" class="stock-analysis-body-scroll flex-1 min-h-0 overflow-auto">
-                    <table class="w-full text-sm min-w-[68rem]">
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-max table-auto text-sm">
                         <thead class="sticky top-0 z-10" style="background:#2a2a3c">
                             <tr class="text-gray-500 border-b border-gray-700/50">
-                                <th class="text-left py-2 sticky left-0 z-10" style="background:#2a2a3c; min-width: 11rem;">
+                                <th class="text-left py-2">
                                     <button type="button" class="${stockAnalysisHeaderClass('symbol')}" onclick="setStockAnalysisSort('symbol')">代码/名称${stockAnalysisSortIndicator('symbol')}</button>
                                 </th>
                                 <th class="text-center py-2">
@@ -894,9 +863,9 @@
                                     : '<span class="text-[11px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-400">持仓中</span>';
                                 return `
                                 <tr class="border-b border-gray-700/30 hover:bg-dark-800/40">
-                                    <td class="py-2 px-3 sticky left-0 z-[1]" style="background:#1f1f2e; min-width: 11rem;">
+                                    <td class="py-2 px-3">
                                         <div class="font-medium">${d.symbol || '--'}</div>
-                                        <div class="text-xs text-gray-500 mt-1 truncate max-w-[9rem]">${(watchlistMap[d.symbol] && watchlistMap[d.symbol].name) || d.name || '--'}</div>
+                                        <div class="text-xs text-gray-500 mt-1">${(watchlistMap[d.symbol] && watchlistMap[d.symbol].name) || d.name || '--'}</div>
                                     </td>
                                     <td class="py-2 text-center">${status}</td>
                                     <td class="py-2 text-right ${pnlClass(realized)}">${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</td>
@@ -914,13 +883,11 @@
                             }).join('')}
                         </tbody>
                     </table>
-                    </div>
                 </div>`;
             } else {
                 html += '<div class="text-gray-500 text-sm">该时间跨度内暂无可分析个股</div>';
             }
             el.innerHTML = html;
-            requestAnimationFrame(syncStockAnalysisScrollbars);
         }
 
         function renderSystem(data) {
@@ -1799,9 +1766,6 @@
         fetchQuoteProviders();
         fetchNewSections();
         fetchHeaderStatus();
-        window.addEventListener('resize', () => {
-            requestAnimationFrame(syncStockAnalysisScrollbars);
-        });
         // Close mode dropdown on outside click
         document.addEventListener('click', function(e) {
             const dd = document.getElementById('mode-dropdown');

@@ -690,11 +690,11 @@
             let html = `
                 <div class="text-sm mb-2 space-y-1">
                     <div>
-                        <span class="text-gray-400">今日未实现:</span>
+                        <span class="text-gray-400">今日日内浮动:</span>
                         <span class="${pnlClass(todayUnrealized)} font-medium ml-1">${pnlSign(todayUnrealized)}${fmtUSD(Math.abs(todayUnrealized))}</span>
                     </div>
                     <div>
-                        <span class="text-gray-400">累计已实现:</span>
+                        <span class="text-gray-400">累计已实现（账户级）:</span>
                         <span class="${pnlClass(totalRealized)} font-medium ml-1">${pnlSign(totalRealized)}${fmtUSD(Math.abs(totalRealized))}</span>
                     </div>
                 </div>`;
@@ -711,8 +711,8 @@
                             <span class="${pnlClass(today)} font-medium whitespace-nowrap">今日: ${pnlSign(today)}${fmtUSD(Math.abs(today))}</span>
                         </div>
                         <div class="grid grid-cols-2 gap-2 text-xs text-gray-400 mt-1">
-                            <span>未实现: <span class="${pnlClass(unrealized)}">${pnlSign(unrealized)}${fmtUSD(Math.abs(unrealized))}</span></span>
-                            <span>已实现: <span class="${pnlClass(realized)}">${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</span></span>
+                            <span>未实现盈亏: <span class="${pnlClass(unrealized)}">${pnlSign(unrealized)}${fmtUSD(Math.abs(unrealized))}</span></span>
+                            <span>已实现盈亏: <span class="${pnlClass(realized)}">${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</span></span>
                         </div>
                     </div>`;
                 }).join('');

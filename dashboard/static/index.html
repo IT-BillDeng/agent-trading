@@ -820,34 +820,34 @@
                     <table class="w-full min-w-max table-auto text-sm">
                         <thead class="sticky top-0 z-10" style="background:#2a2a3c">
                             <tr class="text-gray-500 border-b border-gray-700/50">
-                                <th class="text-left py-2">
+                                <th class="text-left py-2 min-w-[11rem]">
                                     <button type="button" class="${stockAnalysisHeaderClass('symbol')}" onclick="setStockAnalysisSort('symbol')">代码/名称${stockAnalysisSortIndicator('symbol')}</button>
                                 </th>
-                                <th class="text-center py-2">
+                                <th class="text-center py-2 min-w-[5.5rem]">
                                     <button type="button" class="${stockAnalysisHeaderClass('status', 'center')}" onclick="setStockAnalysisSort('status')">状态${stockAnalysisSortIndicator('status')}</button>
                                 </th>
-                                <th class="text-right py-2">
+                                <th class="text-right py-2 min-w-[7rem] whitespace-nowrap">
                                     <button type="button" class="${stockAnalysisHeaderClass('realized_pnl', 'right')}" onclick="setStockAnalysisSort('realized_pnl')">已实现${stockAnalysisSortIndicator('realized_pnl')}</button>
                                 </th>
-                                <th class="text-right py-2">
+                                <th class="text-right py-2 min-w-[7rem] whitespace-nowrap">
                                     <button type="button" class="${stockAnalysisHeaderClass('unrealized_pnl', 'right')}" onclick="setStockAnalysisSort('unrealized_pnl')">未实现${stockAnalysisSortIndicator('unrealized_pnl')}</button>
                                 </th>
-                                <th class="text-right py-2">
+                                <th class="text-right py-2 min-w-[7rem] whitespace-nowrap">
                                     <button type="button" class="${stockAnalysisHeaderClass('total_pnl', 'right')}" onclick="setStockAnalysisSort('total_pnl')">总览${stockAnalysisSortIndicator('total_pnl')}</button>
                                 </th>
-                                <th class="text-right py-2">
+                                <th class="text-right py-2 min-w-[7rem] whitespace-nowrap">
                                     <button type="button" class="${stockAnalysisHeaderClass('last_trade_time', 'right')}" onclick="setStockAnalysisSort('last_trade_time')">最近成交${stockAnalysisSortIndicator('last_trade_time')}</button>
                                 </th>
-                                <th class="text-right py-2">
+                                <th class="text-right py-2 min-w-[6rem] whitespace-nowrap">
                                     <button type="button" class="${stockAnalysisHeaderClass('trade_count', 'right')}" onclick="setStockAnalysisSort('trade_count')">交易次数${stockAnalysisSortIndicator('trade_count')}</button>
                                 </th>
-                                <th class="text-right py-2">
+                                <th class="text-right py-2 min-w-[6.5rem] whitespace-nowrap">
                                     <button type="button" class="${stockAnalysisHeaderClass('buy_sell', 'right')}" onclick="setStockAnalysisSort('buy_sell')">买/卖次数${stockAnalysisSortIndicator('buy_sell')}</button>
                                 </th>
-                                <th class="text-right py-2">
+                                <th class="text-right py-2 min-w-[7rem] whitespace-nowrap">
                                     <button type="button" class="${stockAnalysisHeaderClass('market_value', 'right')}" onclick="setStockAnalysisSort('market_value')">当前市值${stockAnalysisSortIndicator('market_value')}</button>
                                 </th>
-                                <th class="text-right py-2">
+                                <th class="text-right py-2 min-w-[5.5rem] whitespace-nowrap">
                                     <button type="button" class="${stockAnalysisHeaderClass('quantity', 'right')}" onclick="setStockAnalysisSort('quantity')">当前数量${stockAnalysisSortIndicator('quantity')}</button>
                                 </th>
                             </tr>
@@ -863,22 +863,22 @@
                                     : '<span class="text-[11px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-400">持仓中</span>';
                                 return `
                                 <tr class="border-b border-gray-700/30 hover:bg-dark-800/40">
-                                    <td class="py-2 px-3">
+                                    <td class="py-2 px-3 min-w-[11rem]">
                                         <div class="font-medium">${d.symbol || '--'}</div>
                                         <div class="text-xs text-gray-500 mt-1">${(watchlistMap[d.symbol] && watchlistMap[d.symbol].name) || d.name || '--'}</div>
                                     </td>
-                                    <td class="py-2 text-center">${status}</td>
-                                    <td class="py-2 text-right ${pnlClass(realized)}">${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</td>
-                                    <td class="py-2 text-right ${pnlClass(unrealized)}">${pnlSign(unrealized)}${fmtUSD(Math.abs(unrealized))}</td>
-                                    <td class="py-2 text-right ${pnlClass(total)}">${pnlSign(total)}${fmtUSD(Math.abs(total))}</td>
-                                    <td class="py-2 text-right text-gray-200">
+                                    <td class="py-2 text-center min-w-[5.5rem]">${status}</td>
+                                    <td class="py-2 text-right min-w-[7rem] whitespace-nowrap ${pnlClass(realized)}">${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</td>
+                                    <td class="py-2 text-right min-w-[7rem] whitespace-nowrap ${pnlClass(unrealized)}">${pnlSign(unrealized)}${fmtUSD(Math.abs(unrealized))}</td>
+                                    <td class="py-2 text-right min-w-[7rem] whitespace-nowrap ${pnlClass(total)}">${pnlSign(total)}${fmtUSD(Math.abs(total))}</td>
+                                    <td class="py-2 text-right text-gray-200 min-w-[7rem] whitespace-nowrap">
                                         <div class="whitespace-nowrap">${tradeTime.date}</div>
                                         <div class="whitespace-nowrap text-xs text-gray-500 mt-0.5">${tradeTime.time}</div>
                                     </td>
-                                    <td class="py-2 text-right text-gray-200">${d.trade_count || 0}</td>
-                                    <td class="py-2 text-right text-gray-200">${d.buy_count || 0}/${d.sell_count || 0}</td>
-                                    <td class="py-2 text-right text-gray-200">${fmtUSD(d.market_value || 0)}</td>
-                                    <td class="py-2 text-right text-gray-200">${d.quantity || 0}</td>
+                                    <td class="py-2 text-right text-gray-200 min-w-[6rem] whitespace-nowrap">${d.trade_count || 0}</td>
+                                    <td class="py-2 text-right text-gray-200 min-w-[6.5rem] whitespace-nowrap">${d.buy_count || 0}/${d.sell_count || 0}</td>
+                                    <td class="py-2 text-right text-gray-200 min-w-[7rem] whitespace-nowrap">${fmtUSD(d.market_value || 0)}</td>
+                                    <td class="py-2 text-right text-gray-200 min-w-[5.5rem] whitespace-nowrap">${d.quantity || 0}</td>
                                 </tr>`;
                             }).join('')}
                         </tbody>

@@ -160,7 +160,7 @@
                     </div>
                     <div id="stock-analysis-ranges" class="flex flex-wrap justify-end gap-1"></div>
                 </div>
-                <div id="pnl-details" class="max-h-80 overflow-auto">
+                <div id="pnl-details" class="max-h-80 overflow-y-auto overflow-x-auto">
                     <div class="text-gray-500 text-sm">加载中...</div>
                 </div>
             </div>
@@ -728,34 +728,12 @@
                 return;
             }
             renderStockAnalysisRangeButtons();
-            const summary = data.summary || {};
-            const realized = summary.realized_pnl || 0;
-            const unrealized = summary.unrealized_pnl || 0;
-            const tradeCount = summary.trade_count || 0;
-            let html = `
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs mb-3">
-                    <div class="rounded border border-gray-700/40 px-2 py-2">
-                        <div class="text-gray-500">跨度</div>
-                        <div class="text-gray-200 mt-1">${data.period_label || '--'}</div>
-                    </div>
-                    <div class="rounded border border-gray-700/40 px-2 py-2">
-                        <div class="text-gray-500">区间已实现</div>
-                        <div class="${pnlClass(realized)} mt-1">${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</div>
-                    </div>
-                    <div class="rounded border border-gray-700/40 px-2 py-2">
-                        <div class="text-gray-500">当前未实现</div>
-                        <div class="${pnlClass(unrealized)} mt-1">${pnlSign(unrealized)}${fmtUSD(Math.abs(unrealized))}</div>
-                    </div>
-                    <div class="rounded border border-gray-700/40 px-2 py-2">
-                        <div class="text-gray-500">交易次数</div>
-                        <div class="text-gray-200 mt-1">${tradeCount}</div>
-                    </div>
-                </div>`;
+            let html = '';
             if (data.details && data.details.length > 0) {
                 html += `
-                <div class="overflow-x-auto rounded border border-gray-700/40">
+                <div class="rounded border border-gray-700/40 overflow-hidden">
                     <table class="w-full min-w-[980px] text-sm">
-                        <thead class="bg-dark-900/80 sticky top-0">
+                        <thead class="bg-dark-900 sticky top-0 z-10 shadow-[0_1px_0_rgba(55,65,81,0.6)]">
                             <tr class="text-gray-400 border-b border-gray-700/50">
                                 <th class="text-left py-2 px-3">代码/名称</th>
                                 <th class="text-center py-2 px-3">状态</th>

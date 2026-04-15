@@ -160,7 +160,7 @@
                     </div>
                     <div id="stock-analysis-ranges" class="flex flex-wrap justify-end gap-1"></div>
                 </div>
-                <div id="pnl-details" class="space-y-2 max-h-64 overflow-y-auto">
+                <div id="pnl-details" class="max-h-80 overflow-auto">
                     <div class="text-gray-500 text-sm">加载中...</div>
                 </div>
             </div>
@@ -752,40 +752,52 @@
                     </div>
                 </div>`;
             if (data.details && data.details.length > 0) {
-                html += data.details.map(d => {
-                    const unrealized = d.unrealized_pnl || 0;
-                    const realized = d.realized_pnl || 0;
-                    const total = d.total_pnl || 0;
-                    const tradeTime = fmtTradeTime(d.last_trade_time);
-                    const status = d.status === 'closed'
-                        ? '<span class="text-[11px] px-1.5 py-0.5 rounded bg-gray-700/60 text-gray-300">已平仓</span>'
-                        : '<span class="text-[11px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-400">持仓中</span>';
-                    return `
-                    <div class="py-2 border-b border-gray-700/30 text-sm">
-                        <div class="flex justify-between items-start gap-3">
-                            <div>
-                                <div class="flex items-center gap-2">
-                                    <span class="font-medium">${d.symbol || '--'}</span>
-                                    ${status}
-                                </div>
-                                <div class="text-xs text-gray-500 mt-1">${(watchlistMap[d.symbol] && watchlistMap[d.symbol].name) || d.name || '--'}</div>
-                            </div>
-                            <div class="text-right whitespace-nowrap">
-                                <div class="text-[11px] text-gray-500">区间已实现</div>
-                                <div class="${pnlClass(realized)} font-medium">${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</div>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs text-gray-400 mt-2">
-                            <span>当前未实现: <span class="${pnlClass(unrealized)}">${pnlSign(unrealized)}${fmtUSD(Math.abs(unrealized))}</span></span>
-                            <span>总览: <span class="${pnlClass(total)}">${pnlSign(total)}${fmtUSD(Math.abs(total))}</span></span>
-                            <span>交易次数: <span class="text-gray-200">${d.trade_count || 0}</span></span>
-                            <span>最近成交: <span class="text-gray-200">${tradeTime}</span></span>
-                            <span>买/卖次数: <span class="text-gray-200">${d.buy_count || 0}/${d.sell_count || 0}</span></span>
-                            <span>当前市值: <span class="text-gray-200">${fmtUSD(d.market_value || 0)}</span></span>
-                            <span>当前数量: <span class="text-gray-200">${d.quantity || 0}</span></span>
-                        </div>
-                    </div>`;
-                }).join('');
+                html += `
+                <div class="overflow-x-auto rounded border border-gray-700/40">
+                    <table class="w-full min-w-[980px] text-sm">
+                        <thead class="bg-dark-900/80 sticky top-0">
+                            <tr class="text-gray-400 border-b border-gray-700/50">
+                                <th class="text-left py-2 px-3">代码/名称</th>
+                                <th class="text-center py-2 px-3">状态</th>
+                                <th class="text-right py-2 px-3">区间已实现</th>
+                                <th class="text-right py-2 px-3">当前未实现</th>
+                                <th class="text-right py-2 px-3">总览</th>
+                                <th class="text-right py-2 px-3">交易次数</th>
+                                <th class="text-right py-2 px-3">买/卖次数</th>
+                                <th class="text-right py-2 px-3">当前市值</th>
+                                <th class="text-right py-2 px-3">当前数量</th>
+                                <th class="text-right py-2 px-3">最近成交</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.details.map(d => {
+                                const unrealized = d.unrealized_pnl || 0;
+                                const realized = d.realized_pnl || 0;
+                                const total = d.total_pnl || 0;
+                                const tradeTime = fmtTradeTime(d.last_trade_time);
+                                const status = d.status === 'closed'
+                                    ? '<span class="text-[11px] px-1.5 py-0.5 rounded bg-gray-700/60 text-gray-300">已平仓</span>'
+                                    : '<span class="text-[11px] px-1.5 py-0.5 rounded bg-green-500/15 text-green-400">持仓中</span>';
+                                return `
+                                <tr class="border-b border-gray-700/30 hover:bg-dark-800/40">
+                                    <td class="py-2 px-3">
+                                        <div class="font-medium">${d.symbol || '--'}</div>
+                                        <div class="text-xs text-gray-500 mt-1">${(watchlistMap[d.symbol] && watchlistMap[d.symbol].name) || d.name || '--'}</div>
+                                    </td>
+                                    <td class="py-2 px-3 text-center">${status}</td>
+                                    <td class="py-2 px-3 text-right ${pnlClass(realized)}">${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</td>
+                                    <td class="py-2 px-3 text-right ${pnlClass(unrealized)}">${pnlSign(unrealized)}${fmtUSD(Math.abs(unrealized))}</td>
+                                    <td class="py-2 px-3 text-right ${pnlClass(total)}">${pnlSign(total)}${fmtUSD(Math.abs(total))}</td>
+                                    <td class="py-2 px-3 text-right text-gray-200">${d.trade_count || 0}</td>
+                                    <td class="py-2 px-3 text-right text-gray-200">${d.buy_count || 0}/${d.sell_count || 0}</td>
+                                    <td class="py-2 px-3 text-right text-gray-200">${fmtUSD(d.market_value || 0)}</td>
+                                    <td class="py-2 px-3 text-right text-gray-200">${d.quantity || 0}</td>
+                                    <td class="py-2 px-3 text-right text-gray-200 whitespace-nowrap">${tradeTime}</td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>`;
             } else {
                 html += '<div class="text-gray-500 text-sm">该时间跨度内暂无可分析个股</div>';
             }

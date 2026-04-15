@@ -14,6 +14,7 @@ class TigerNormalizer:
             "position_value": raw.get("gross_position_value") or raw.get("grossPositionValue") or 0,
             "unrealized_pnl": raw.get("unrealized_pnl") or raw.get("unrealizedPnl") or 0,
             "realized_pnl": raw.get("realized_pnl") or raw.get("realizedPnl") or 0,
+            "total_today_pnl": raw.get("total_today_pnl") or raw.get("totalTodayPnl") or 0,
             "available_funds": raw.get("available_funds") or raw.get("availableFunds") or 0,
             "currency": raw.get("currency") or "USD",
         }

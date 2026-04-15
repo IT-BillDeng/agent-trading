@@ -87,6 +87,7 @@ class DataCache:
             # Account-level P&L
             account_realized = float(account.get("realized_pnl") or account.get("realizedPnl") or 0)
             account_unrealized = float(account.get("unrealized_pnl") or account.get("unrealizedPnl") or 0)
+            account_total_today = float(account.get("total_today_pnl") or account.get("totalTodayPnl") or 0)
 
             # 当前持仓 symbols
             position_symbols = {pos.get("symbol") for pos in positions}
@@ -142,12 +143,13 @@ class DataCache:
                     "today_pnl_pct": 0,
                 })
 
-            # 今日总盈亏 = 今日已实现 + 持仓今日浮动
-            today_total = today_realized + today_unrealized
+            # Tiger 客户端首页口径优先使用 account.total_today_pnl
+            today_total = account_total_today if account_total_today or account_total_today == 0 else (today_realized + today_unrealized)
+            today_realized_effective = today_total - today_unrealized
 
             return {
                 "total_today": today_total,
-                "today_realized": today_realized,
+                "today_realized": today_realized_effective,
                 "today_unrealized": today_unrealized,
                 "total_unrealized": account_unrealized or total_unrealized,
                 "total_realized": account_realized,

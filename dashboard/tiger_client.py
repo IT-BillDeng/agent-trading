@@ -58,21 +58,12 @@ class TigerClient:
             return {"error": str(e)}
 
     def get_account_info(self) -> dict:
-        """Get account assets and buying power."""
+        """Get account assets using prime account segment S as primary source."""
         try:
-            result = self._trade_client.get_assets()
+            result = self._trade_client.get_prime_assets()
             if not result:
                 return {}
-            # get_assets() returns list of PortfolioAccount
-            if isinstance(result, list) and len(result) > 0:
-                pa = result[0]
-            else:
-                pa = result
-
-            # Extract from PortfolioAccount.summary (Account object)
-            summary = getattr(pa, 'summary', None)
-            if not summary:
-                return {"raw": str(pa)}
+            pa = result
 
             def safe_val(obj, attr, default=None):
                 v = getattr(obj, attr, default)
@@ -83,34 +74,28 @@ class TigerClient:
                         return default
                     if str(v).lower() == 'inf':
                         return default
-                except:
+                except Exception:
                     pass
                 return v
 
-            # Extract segment-level fields
-            segments = getattr(pa, 'segments', {})
-            seg_s = segments.get('S')  # Securities segment
-
-            gross_pos = safe_val(summary, 'gross_position_value', 0)
-            available_funds = safe_val(summary, 'available_funds', 0)
-            if seg_s:
-                if not gross_pos:
-                    gross_pos = safe_val(seg_s, 'gross_position_value', 0)
-                if not available_funds:
-                    available_funds = safe_val(seg_s, 'available_funds', 0)
+            segments = getattr(pa, '_segments', {}) or getattr(pa, 'segments', {})
+            seg_s = segments.get('S')
+            if not seg_s:
+                return {"error": "prime assets missing securities segment S"}
 
             return {
-                "account": safe_val(pa, 'account', self.account),
-                "net_liquidation": safe_val(summary, 'net_liquidation', 0),
-                "cash": safe_val(summary, 'cash', 0),
-                "buying_power": safe_val(summary, 'buying_power', 0),
-                "unrealized_pnl": safe_val(summary, 'unrealized_pnl', 0),
-                "realized_pnl": safe_val(summary, 'realized_pnl', 0),
-                "currency": safe_val(summary, 'currency', 'USD'),
-                "available_funds": available_funds,
-                "gross_position_value": gross_pos,
-                "equity_with_loan": safe_val(summary, 'equity_with_loan', 0),
-                "excess_liquidity": safe_val(summary, 'excess_liquidity', 0),
+                "account": getattr(pa, 'account', self.account),
+                "net_liquidation": safe_val(seg_s, 'net_liquidation', 0),
+                "cash": safe_val(seg_s, 'cash_balance', 0),
+                "buying_power": safe_val(seg_s, 'buying_power', 0),
+                "unrealized_pnl": safe_val(seg_s, 'unrealized_pl', 0),
+                "realized_pnl": safe_val(seg_s, 'realized_pl', 0),
+                "total_today_pnl": safe_val(seg_s, 'total_today_pl', 0),
+                "currency": safe_val(seg_s, 'currency', 'USD'),
+                "available_funds": safe_val(seg_s, 'cash_available_for_trade', 0),
+                "gross_position_value": safe_val(seg_s, 'gross_position_value', 0),
+                "equity_with_loan": safe_val(seg_s, 'equity_with_loan', 0),
+                "excess_liquidity": safe_val(seg_s, 'excess_liquidation', 0),
             }
         except Exception as e:
             return {"error": str(e)}

@@ -685,14 +685,18 @@
                 el.innerHTML = '<div class="text-gray-500 text-sm">加载中...</div>';
                 return;
             }
-            const unrealized = data.total_unrealized || 0;
-            const realized = data.total_realized || 0;
+            const todayUnrealized = data.today_unrealized || 0;
+            const totalRealized = data.total_realized || 0;
             let html = `
-                <div class="text-sm mb-2">
-                    <span class="text-gray-400">总浮动:</span>
-                    <span class="${pnlClass(unrealized)} font-medium ml-1">${pnlSign(unrealized)}${fmtUSD(Math.abs(unrealized))}</span>
-                    <span class="text-gray-400 ml-3">总已实现:</span>
-                    <span class="${pnlClass(realized)} font-medium ml-1">${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</span>
+                <div class="text-sm mb-2 space-y-1">
+                    <div>
+                        <span class="text-gray-400">今日未实现:</span>
+                        <span class="${pnlClass(todayUnrealized)} font-medium ml-1">${pnlSign(todayUnrealized)}${fmtUSD(Math.abs(todayUnrealized))}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-400">累计已实现:</span>
+                        <span class="${pnlClass(totalRealized)} font-medium ml-1">${pnlSign(totalRealized)}${fmtUSD(Math.abs(totalRealized))}</span>
+                    </div>
                 </div>`;
             if (data.details && data.details.length > 0) {
                 html += data.details.map(d => {
@@ -701,14 +705,14 @@
                     const realized = d.realized_pnl || 0;
                     const status = d.status === 'closed' ? ' (已平仓)' : '';
                     return `
-                    <div class="py-1 border-b border-gray-700/30 text-sm">
-                        <div class="flex justify-between">
+                    <div class="py-2 border-b border-gray-700/30 text-sm">
+                        <div class="flex justify-between items-start gap-3">
                             <span>${d.symbol || '--'}${status} <span class='text-xs text-gray-500'>${(watchlistMap[d.symbol] && watchlistMap[d.symbol].name) || d.name || ''}</span></span>
-                            <span class="${pnlClass(today)} font-medium">${pnlSign(today)}${fmtUSD(Math.abs(today))}</span>
+                            <span class="${pnlClass(today)} font-medium whitespace-nowrap">今日: ${pnlSign(today)}${fmtUSD(Math.abs(today))}</span>
                         </div>
-                        <div class="flex justify-between text-xs text-gray-500 mt-1">
-                            <span>浮动: ${pnlSign(unrealized)}${fmtUSD(Math.abs(unrealized))}</span>
-                            <span>已实现: ${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</span>
+                        <div class="grid grid-cols-2 gap-2 text-xs text-gray-400 mt-1">
+                            <span>未实现: <span class="${pnlClass(unrealized)}">${pnlSign(unrealized)}${fmtUSD(Math.abs(unrealized))}</span></span>
+                            <span>已实现: <span class="${pnlClass(realized)}">${pnlSign(realized)}${fmtUSD(Math.abs(realized))}</span></span>
                         </div>
                     </div>`;
                 }).join('');

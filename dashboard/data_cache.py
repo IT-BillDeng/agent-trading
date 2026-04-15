@@ -27,6 +27,7 @@ class DataCache:
             "account": None,
             "positions": [],
             "orders": [],
+            "filled_orders": [],
             "quotes": {},
             "market_status": {},
             "watchlist": None,

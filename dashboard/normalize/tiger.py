@@ -82,6 +82,8 @@ class TigerNormalizer:
                 continue
             details.append({
                 "symbol": d.get("symbol") or "",
+                "name": d.get("name") or "",
+                "status": d.get("status") or "open",
                 "unrealized_pnl": float(d.get("unrealized_pnl") or 0),
                 "realized_pnl": float(d.get("realized_pnl") or 0),
                 "market_value": float(d.get("market_value") or 0),
@@ -90,6 +92,8 @@ class TigerNormalizer:
             })
         return {
             "total_today": float(raw.get("total_today") or 0),
+            "today_realized": float(raw.get("today_realized") or 0),
+            "today_unrealized": float(raw.get("today_unrealized") or 0),
             "total_unrealized": float(raw.get("total_unrealized") or 0),
             "total_realized": float(raw.get("total_realized") or 0),
             "details": details,

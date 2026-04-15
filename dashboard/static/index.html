@@ -716,8 +716,6 @@
                     return Number(q.latest_price || 0);
                 case 'change_rate':
                     return Number(q.change_rate ?? q.change_pct ?? 0);
-                case 'volume':
-                    return Number(q.volume || 0);
                 case 'watchlist':
                 default:
                     return getWatchlistOrder(q.sym);
@@ -841,9 +839,6 @@
                             <th class="px-3 text-right py-2 whitespace-nowrap">
                                 <button type="button" class="${quoteHeaderClass('change_rate', 'right')}" onclick="setQuoteSort('change_rate')">涨跌幅${quoteSortIndicator('change_rate')}</button>
                             </th>
-                            <th class="px-3 text-right py-2 whitespace-nowrap">
-                                <button type="button" class="${quoteHeaderClass('volume', 'right')}" onclick="setQuoteSort('volume')">成交量${quoteSortIndicator('volume')}</button>
-                            </th>
                         </tr>
                     </thead>
                     <tbody>
@@ -852,23 +847,15 @@
                             const changeRate = q.change_rate ?? q.change_pct ?? 0;
                             const cls = pnlClass(q.change || 0);
                             const priceStr = '$' + fmt(price);
-                            const vol = q.volume != null ? fmtVolume(q.volume) : '--';
                             return `<tr class="border-b border-gray-700/30 hover:bg-dark-800/40">
                                 <td class="px-3 py-2 font-medium">${q.sym}<br><span class="text-xs text-gray-500">${(watchlistMap[q.sym] && watchlistMap[q.sym].name) || q.name || ''}</span></td>
                                 <td class="px-3 py-2 text-right whitespace-nowrap">${priceStr}</td>
                                 <td class="px-3 py-2 text-right whitespace-nowrap ${cls}">${pnlSign(changeRate * 100)}${fmt(Math.abs(changeRate * 100))}%</td>
-                                <td class="px-3 py-2 text-right whitespace-nowrap text-gray-200">${vol}</td>
                             </tr>`;
                         }).join('')}
                     </tbody>
                 </table>`;
             list.innerHTML = html || '<div class="text-gray-500 text-sm">无行情数据</div>';
-        }
-        function fmtVolume(n) {
-            if (n == null) return '--';
-            if (n >= 1e8) return fmt(n / 1e8, 1) + '亿';
-            if (n >= 1e4) return fmt(n / 1e4, 1) + '万';
-            return fmt(n, 0);
         }
 
         function renderOrders(data) {

@@ -83,18 +83,22 @@
 
     <main class="p-6 max-w-7xl mx-auto">
         <!-- Account Overview -->
-        <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <section class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
             <div class="card">
                 <div class="card-title">总资产</div>
                 <div id="total-assets" class="text-2xl font-bold">--</div>
             </div>
             <div class="card">
-                <div class="card-title" id="buying-power-label">可用资金</div>
-                <div id="buying-power" class="text-2xl font-bold">--</div>
+                <div class="card-title">预估现金额</div>
+                <div id="cash-balance" class="text-2xl font-bold">--</div>
             </div>
             <div class="card">
-                <div class="card-title">持仓市值</div>
+                <div class="card-title">持仓总价值</div>
                 <div id="position-value" class="text-2xl font-bold">--</div>
+            </div>
+            <div class="card">
+                <div class="card-title">未实现盈亏</div>
+                <div id="unrealized-pnl" class="text-2xl font-bold">--</div>
             </div>
             <div class="card">
                 <div class="card-title">今日盈亏</div>
@@ -153,7 +157,10 @@
 
             <!-- P&L -->
             <div class="card">
-                <div class="card-title">💰 盈亏明细</div>
+                <div class="flex items-center justify-between mb-2">
+                    <div class="card-title mb-0">💰 盈亏明细</div>
+                    <span class="text-[11px] text-gray-500">持仓 + 当日成交口径</span>
+                </div>
                 <div id="pnl-details" class="space-y-2 max-h-64 overflow-y-auto">
                     <div class="text-gray-500 text-sm">加载中...</div>
                 </div>
@@ -525,21 +532,20 @@
         // --- Render Functions ---
         function renderAccount(data, pnlData) {
             document.getElementById('total-assets').textContent = fmtUSD(data.total_assets);
+            document.getElementById('cash-balance').textContent = fmtUSD(data.cash_balance);
+            document.getElementById('position-value').textContent = fmtUSD(data.position_value);
+            const unrealized = data.unrealized_pnl || 0;
+            const unrealizedEl = document.getElementById('unrealized-pnl');
+            unrealizedEl.textContent = pnlSign(unrealized) + fmtUSD(Math.abs(unrealized));
+            unrealizedEl.className = 'text-2xl font-bold ' + pnlClass(unrealized);
             const totalAssets = data.total_assets || 0;
-            const todayPnl = (pnlData && pnlData.total_today != null) ? pnlData.total_today : 0;
+            const todayPnl = (data && data.total_today_pnl != null)
+                ? data.total_today_pnl
+                : ((pnlData && pnlData.total_today != null) ? pnlData.total_today : 0);
             const pnlPct = totalAssets > 0 ? (todayPnl / (totalAssets - todayPnl) * 100) : 0;
             const pnlEl = document.getElementById('today-pnl');
             pnlEl.innerHTML = pnlSign(todayPnl) + fmtUSD(Math.abs(todayPnl)) + ' <span class="text-base font-normal ' + pnlClass(todayPnl) + '">' + pnlSign(todayPnl) + Math.abs(pnlPct).toFixed(2) + '%</span>';
             pnlEl.className = 'text-2xl font-bold ' + pnlClass(todayPnl);
-            if (riskConfig.disable_leverage) {
-                // Use cashValue directly — it's the actual cash, no leverage
-                const cashOnly = data.cash_balance;
-                document.getElementById('buying-power').textContent = fmtUSD(Math.max(cashOnly, 0));
-                document.getElementById('buying-power-label').textContent = '可用现金（禁用杠杆）';
-            } else {
-                document.getElementById('buying-power').textContent = fmtUSD(data.buying_power);
-                document.getElementById('buying-power-label').textContent = '可用资金';
-            }
         }
 
         function renderPositions(data) {
@@ -548,10 +554,8 @@
                 tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-gray-500">无持仓</td></tr>';
                 return;
             }
-            let totalValue = 0;
             tbody.innerHTML = data.map(p => {
                 const val = p.market_value || 0;
-                totalValue += val;
                 const pnl = p.unrealized_pnl;
                 const currentPrice = p.market_price || (p.quantity > 0 ? val / p.quantity : 0);
                 return `<tr class="border-b border-gray-700/30 hover:bg-dark-800/50">
@@ -563,7 +567,6 @@
                     <td class="text-right py-2 ${pnlClass(pnl)}">${pnlSign(pnl)}${fmtUSD(Math.abs(pnl))}</td>
                 </tr>`;
             }).join('');
-            document.getElementById('position-value').textContent = fmtUSD(totalValue);
         }
 
         function renderQuotes(data) {
@@ -1124,7 +1127,7 @@
                 if (wlData && wlData.symbols) { wlData.symbols.forEach(s => { watchlistMap[s.symbol] = s; }); }
                 renderWatchlistMgmt(wlData);
 
-                // 今日盈亏 — 由后端 /api/pnl 统一提供 total_today
+                // 顶部概览使用 /api/account（prime assets），明细使用 /api/pnl
                 renderAccount(account, pnl);
                 renderPositions(positions);
                 renderQuotes(quotes);

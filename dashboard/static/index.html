@@ -638,7 +638,7 @@
                 items.forEach(q => {
                     const price = q.latest_price || '--';
                     const change = q.change || 0;
-                    const changeRate = q.change_pct || 0;
+                    const changeRate = q.change_rate || 0;
                     const cls = pnlClass(change);
                     const priceStr = '$' + fmt(price);
                     const vol = q.volume != null ? fmtVolume(q.volume) : '--';
@@ -731,7 +731,7 @@
             let html = '';
             if (data.details && data.details.length > 0) {
                 html += `
-                <div class="rounded border border-gray-700/40 overflow-hidden">
+                <div class="rounded border border-gray-700/40">
                     <table class="w-full min-w-[980px] text-sm">
                         <thead class="bg-dark-900 sticky top-0 z-10 shadow-[0_1px_0_rgba(55,65,81,0.6)]">
                             <tr class="text-gray-400 border-b border-gray-700/50">

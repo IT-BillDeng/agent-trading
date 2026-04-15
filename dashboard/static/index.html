@@ -701,9 +701,9 @@
                     : null;
                 const limitPriceVal = o.limit_price;
                 const price = (fillPriceVal || derivedFillPrice)
-                    ? `成交价 $${Number(fillPriceVal || derivedFillPrice).toFixed(2)}`
+                    ? `@ $${Number(fillPriceVal || derivedFillPrice).toFixed(2)}`
                     : limitPriceVal
-                        ? `委托价 $${Number(limitPriceVal).toFixed(2)}`
+                        ? `@ $${Number(limitPriceVal).toFixed(2)}`
                         : '';
                 const ts = o.submitted_at ? Number(o.submitted_at) : null;
                 const time = ts ? new Date(ts).toLocaleString('zh-CN', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';

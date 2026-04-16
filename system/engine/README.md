@@ -65,10 +65,10 @@ v1 的 30min 策略以 **K 线历史** 为主输入。
 
 ## 运行方式
 ```bash
-python3 run_readonly_cycle.py /path/to/app_config.json /path/to/tiger_openapi_config.properties
-python3 run_strategy_cycle.py /path/to/app_config.json /path/to/tiger_openapi_config.properties
-python3 run_dry_run_cycle.py /path/to/app_config.json /path/to/tiger_openapi_config.properties
-python3 run_execution_cycle.py /path/to/app_config.json /path/to/tiger_openapi_config.properties
+python3 run_readonly_cycle.py /path/to/app_config.json /path/to/broker_props.properties
+python3 run_strategy_cycle.py /path/to/app_config.json /path/to/broker_props.properties
+python3 run_dry_run_cycle.py /path/to/app_config.json /path/to/broker_props.properties
+python3 run_execution_cycle.py /path/to/app_config.json /path/to/broker_props.properties
 python3 control_state.py /path/to/app_config.json status
 python3 control_state.py /path/to/app_config.json lock "manual review"
 python3 control_state.py /path/to/app_config.json unlock "resume after review"

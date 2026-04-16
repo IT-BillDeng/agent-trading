@@ -8,7 +8,7 @@
 项目现在已经做到：
 - 行情层可以通过 provider 切换
 - 展示层和调度说明已经 broker-neutral
-- 运行时仍然直接依赖 `TigerClient` 做账户、持仓、订单与交易执行
+- 运行时仍然直接依赖默认 broker 实现做账户、持仓、订单与交易执行
 
 也就是说：
 - **可替换已部分成立**
@@ -72,9 +72,9 @@ cancel_order
 
 ## 4. 当前实现与目标接口的关系
 
-### 4.1 现在的 `TigerClient`
+### 4.1 现在的默认 broker 实现
 
-现在 `TigerClient` 已经同时承担：
+现在默认 broker 实现已经同时承担：
 - 原始 API 调用
 - 账户/持仓/订单查询
 - 下单 / 预检 / 撤单
@@ -91,9 +91,9 @@ cancel_order
 ```text
 BrokerClient (protocol / interface)
     ↓
-TigerBrokerClient (default implementation)
+DefaultBrokerClient (default implementation)
     ↓
-Tiger SDK / Open API
+当前 broker SDK / Open API
 ```
 
 这样以后切换 broker 时，只需要新增：
@@ -105,13 +105,12 @@ Tiger SDK / Open API
 
 ## 5. 建议迁移顺序
 
-1. 先冻结当前 `TigerClient` 的对外方法集合，不再随意扩展
+1. 先冻结当前默认 broker 实现的对外方法集合，不再随意扩展
 2. 新增 `BrokerClient` 协议或抽象基类
-3. 把 `TigerClient` 标记为默认实现
+3. 把当前 broker 实现标记为默认实现
 4. 逐步让 `dashboard/main.py`、`system/engine/src/engine/runtime.py`、`live_execution.py` 依赖接口而不是具体类
 5. 最后再考虑是否重命名文件
 
 ## 6. 结论
 
 **当前项目已经 broker-neutral 到“文档和部分数据层”，但执行层还需要一个真正的 BrokerClient 接口才能算完成抽象。**
-

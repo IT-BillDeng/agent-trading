@@ -1,4 +1,4 @@
-"""Broker data provider — wraps TigerClient into DataProvider interface."""
+"""Broker data provider — wraps the default broker client into DataProvider interface."""
 
 from __future__ import annotations
 

@@ -7,6 +7,7 @@
 约定：
 
 - `cron/*.json` 只保留调度、投递和 `taskFile` 引用
+- `name` 是仓库侧稳定标识，`id` 只是 live 映射的可选字段
 - `docs/tasks/cron/*.md` 保存真正会变化的任务正文
 - 当任务步骤更新时，只改这里，不改 cron 配置
 

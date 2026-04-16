@@ -1,4 +1,4 @@
-# US 盘中异常监控（q15min，omni 模型）
+# US 盘中异常监控（1h，omni 模型）
 
 - 来源 cron: `strategist-intraday.json`
 - taskFile: `docs/tasks/cron/strategist-intraday.md`

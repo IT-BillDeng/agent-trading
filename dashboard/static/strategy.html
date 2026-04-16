@@ -112,6 +112,19 @@
             </div>
         </section>
 
+        <section class="card">
+            <div class="flex items-center justify-between gap-3 mb-3">
+                <div>
+                    <div class="card-title mb-0">📝 最新策略调整</div>
+                    <div id="latest-strategy-meta" class="text-xs text-gray-500 mt-1">--</div>
+                </div>
+                <div id="latest-strategy-badge" class="text-xs text-gray-500">--</div>
+            </div>
+            <div id="latest-strategy-adjustment" class="space-y-3">
+                <div class="text-gray-500 text-sm">加载中...</div>
+            </div>
+        </section>
+
         <section class="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <div class="card flex flex-col h-[34rem] min-h-0">
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
@@ -150,8 +163,8 @@
             </div>
 
             <div class="card flex flex-col h-[34rem] min-h-0">
-                <div class="card-title mb-2">✍️ Strategist 调整日志</div>
-                <div id="latest-plan" class="flex-1 min-h-0 overflow-auto space-y-3">
+                <div class="card-title mb-2">🕒 Strategist 调整时间线</div>
+                <div id="strategist-timeline" class="flex-1 min-h-0 overflow-auto space-y-3">
                     <div class="text-gray-500 text-sm">加载中...</div>
                 </div>
             </div>
@@ -328,10 +341,13 @@
         }
 
         function renderStrategist(data) {
-            const box = document.getElementById('latest-plan');
-            const latest = (data?.plan_history || [])[0] || data?.latest_plan || {};
+            const latest = data?.latest_plan || (data?.plan_history || [])[0] || {};
             const history = data?.plan_history || [];
             const iterations = data?.iterations || [];
+            const latestBox = document.getElementById('latest-strategy-adjustment');
+            const latestMeta = document.getElementById('latest-strategy-meta');
+            const latestBadge = document.getElementById('latest-strategy-badge');
+            const timelineBox = document.getElementById('strategist-timeline');
 
             const recommendations = Array.isArray(latest.strategy_recommendations) ? latest.strategy_recommendations : [];
             const actionItems = Array.isArray(latest.action_items) ? latest.action_items : [];
@@ -366,7 +382,10 @@
                 return bt - at;
             }).slice(0, 10);
 
-            box.innerHTML = `
+            latestMeta.textContent = [latest.generated_at ? fmtDateTime(latest.generated_at) : null, latest.shift || latest.type || null].filter(Boolean).join(' | ') || '--';
+            latestBadge.innerHTML = `<span class="badge ${history.length > 0 ? 'bg-tiger-500/15 text-tiger-300 border-tiger-500/30' : 'bg-gray-700/60 text-gray-300 border-gray-600/40'}">${history.length > 0 ? '有历史记录' : '无历史记录'}</span>`;
+
+            latestBox.innerHTML = `
                 <div class="space-y-4">
                     <div class="rounded border border-gray-700/60 bg-dark-900 p-4">
                         <div class="flex flex-wrap items-start justify-between gap-3">
@@ -401,34 +420,30 @@
                             </details>
                         ` : ''}
                     </div>
+                </div>
+            `;
 
-                    <div class="rounded border border-gray-700/60 bg-dark-900 p-4">
-                        <div class="flex items-center justify-between gap-3 mb-3">
-                            <div class="text-sm font-medium text-gray-100">🕒 Strategist 调整时间线</div>
-                            <div class="text-xs text-gray-500">计划历史 + 参数迭代</div>
-                        </div>
-                        <div class="relative pl-6 max-h-[28rem] overflow-auto">
-                            <div class="absolute left-2 top-0 bottom-0 w-px bg-gray-700/70"></div>
-                            <div class="space-y-4">
-                                ${(timelineEntries.map((item, idx) => `
-                                    <details class="relative pl-5">
-                                        <div class="absolute left-[-0.25rem] top-2 h-2.5 w-2.5 rounded-full ${item.kind === 'plan' ? 'bg-tiger-500' : 'bg-cyan-400'} border border-gray-900"></div>
-                                        <summary class="cursor-pointer list-none rounded border border-gray-700/50 bg-gray-800/35 px-3 py-2 hover:bg-gray-800/55">
-                                            <div class="flex flex-wrap items-center justify-between gap-2">
-                                                <div class="flex items-center gap-2">
-                                                    <span class="badge ${item.kind === 'plan' ? 'bg-tiger-500/15 text-tiger-300 border-tiger-500/30' : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'}">${item.kind === 'plan' ? '计划' : '迭代'}</span>
-                                                    <span class="text-xs font-medium text-gray-200">${escapeHtml(item.title)}</span>
-                                                </div>
-                                                <div class="text-xs text-gray-500">${fmtDateTime(item.time)}</div>
-                                            </div>
-                                            <div class="text-xs text-gray-500 mt-1">${escapeHtml(item.subtitle || '')}</div>
-                                            <div class="text-xs text-gray-400 mt-1">${escapeHtml(item.summary || '')}</div>
-                                        </summary>
-                                        <pre class="mt-2 ml-1 text-[11px] text-gray-400 whitespace-pre-wrap break-all">${escapeHtml(item.detail || '')}</pre>
-                                    </details>
-                                `).join('') || '<div class="text-gray-500 text-sm">暂无调整记录</div>')}
-                            </div>
-                        </div>
+            timelineBox.innerHTML = `
+                <div class="relative pl-6 max-h-[28rem] overflow-auto">
+                    <div class="absolute left-2 top-0 bottom-0 w-px bg-gray-700/70"></div>
+                    <div class="space-y-4">
+                        ${(timelineEntries.map((item) => `
+                            <details class="relative pl-5">
+                                <div class="absolute left-[-0.25rem] top-2 h-2.5 w-2.5 rounded-full ${item.kind === 'plan' ? 'bg-tiger-500' : 'bg-cyan-400'} border border-gray-900"></div>
+                                <summary class="cursor-pointer list-none rounded border border-gray-700/50 bg-gray-800/35 px-3 py-2 hover:bg-gray-800/55">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <div class="flex items-center gap-2">
+                                            <span class="badge ${item.kind === 'plan' ? 'bg-tiger-500/15 text-tiger-300 border-tiger-500/30' : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'}">${item.kind === 'plan' ? '计划' : '迭代'}</span>
+                                            <span class="text-xs font-medium text-gray-200">${escapeHtml(item.title)}</span>
+                                        </div>
+                                        <div class="text-xs text-gray-500">${fmtDateTime(item.time)}</div>
+                                    </div>
+                                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(item.subtitle || '')}</div>
+                                    <div class="text-xs text-gray-400 mt-1">${escapeHtml(item.summary || '')}</div>
+                                </summary>
+                                <pre class="mt-2 ml-1 text-[11px] text-gray-400 whitespace-pre-wrap break-all">${escapeHtml(item.detail || '')}</pre>
+                            </details>
+                        `).join('') || '<div class="text-gray-500 text-sm">暂无调整记录</div>')}
                     </div>
                 </div>
             `;

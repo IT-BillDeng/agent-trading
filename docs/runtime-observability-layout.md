@@ -9,7 +9,7 @@
 - 日志、状态、agent 产物混放
 - 同类信息散落在多个目录
 - 巡检系统状态时缺少统一入口
-- `runtime/engine/` 与历史 runtime 路径之间存在漂移
+- `runtime/engine/` 与历史 runtime 路径之间存在漂移（历史兼容）
 
 本文档的核心建议是：
 
@@ -25,12 +25,12 @@
 
 ### 1. 审计日志
 
-当前主要位于：
+当前主落点仍以历史兼容路径为主，建议逐步迁移到：
 
 - `runtime/engine/logs/execution.jsonl`
 - `runtime/engine/logs/dispatch_queue.jsonl`
 
-代码来源：
+历史来源：
 
 - `system/engine/src/engine/audit.py`
 - `system/engine/src/engine/runtime.py`
@@ -39,11 +39,11 @@
 
 ### 2. 组件日志
 
-当前可见：
+当前主落点仍以历史兼容路径为主，建议逐步迁移到：
 
 - `runtime/engine/logs/watcher_YYYYMMDD.jsonl`
 
-代码来源：
+历史来源：
 
 - `system/engine/src/engine/watcher.py`
 

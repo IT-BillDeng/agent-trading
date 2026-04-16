@@ -101,7 +101,7 @@
 | 产物 | 当前路径 | 当前用途 | 建议归类 | 建议目标位置 |
 |------|----------|----------|----------|--------------|
 | watcher 运行日志 | `logs/service/watcher.jsonl` | 记录每次 watcher 检查结果 | `logs` | `logs/service/watcher.jsonl` |
-| watcher 兼容旧日志 | `runtime/engine/logs/watcher_YYYYMMDD.jsonl` | 旧路径兼容 | `logs` | 兼容保留，后续下线 |
+| watcher 兼容旧日志 | `runtime/engine/logs/watcher_YYYYMMDD.jsonl` | 历史兼容路径 | `logs` | 兼容保留，后续下线 |
 | watcher 最新结果 | `artifacts/watcher/latest.json` | 给人工/脚本读取最近检查结果 | `artifacts` | `artifacts/watcher/latest.json` |
 | watcher 历史结果 | `artifacts/watcher/history.jsonl` | 结构化巡检历史 | `artifacts` | `artifacts/watcher/history.jsonl` |
 | watcher 内部状态 | `runtime/engine/state/watcher_state.json` | 记录连续错误、冷却等内部状态 | `state` | `runtime/state/watcher_state.json` |
@@ -152,7 +152,7 @@
 - 盘中异常监控
 - 盘后迭代与参数回测
 
-本节以 `artifacts/strategist/` 作为 strategist 的主产物目录；`runtime/engine/` 与 `logs/` 中的相关文件仅作为兼容镜像或历史遗留。
+本节以 `artifacts/strategist/` 作为 strategist 的主产物目录；`runtime/engine/` 与 `logs/` 中的相关文件仅作为兼容镜像或历史遗留，不应再作为新增产物入口。
 
 当前已知产物：
 
@@ -284,9 +284,9 @@
 | 文件 | 问题 |
 |------|------|
 | `agents/strategist.yaml` | `backtest_endpoint` 仍指向 `/api/backtest`，与当前 batch 迭代方向不一致 |
-| `agents/watcher.yaml` | 输入日志路径仍指向旧 `runtime/engine/logs/*` |
+| `agents/watcher.yaml` | 已切到 `logs/latest/*` 与 `artifacts/watcher/*`，不再依赖旧 `runtime/engine/logs/*` 作为主输入 |
 | `agents/README.md` | 旧的停止脚本入口已移除，改为直接使用 `subagents action=kill` |
-| 多个 `*.yaml` | 输出文件仍大多指向旧 `runtime/engine/...` 路径，尚未反映新的 `logs/` 入口或未来的 `artifacts/` 设计 |
+| 多个 `*.yaml` | 部分历史说明仍保留旧路径字样，需继续收口为 `logs/` / `artifacts/` / `runtime/state/` |
 
 ### 当前建议定位
 

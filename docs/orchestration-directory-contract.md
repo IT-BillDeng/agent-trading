@@ -243,7 +243,7 @@
 - `artifacts/newswire/*`
 - `artifacts/strategist/*`
 
-这些路径里有些已经开始迁移到根目录 `logs/`，有些仍然是兼容态。
+这些路径里有些已经开始迁移到根目录 `logs/` / `artifacts/` / `runtime/state/`，有些仍然是兼容态，不应再作为新增产物入口。
 
 当前建议是：
 

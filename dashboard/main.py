@@ -208,6 +208,12 @@ async def logs_page():
     return FileResponse(STATIC_DIR / "logs.html")
 
 
+@app.get("/strategy")
+async def strategy_page():
+    """Serve strategy hub HTML."""
+    return FileResponse(STATIC_DIR / "strategy.html")
+
+
 # --- Health ---
 
 @app.get("/health")
@@ -609,6 +615,235 @@ def _build_logs_overview() -> dict[str, Any]:
         "agents_status": agent_status,
     }
     _write_json_file(LATEST_LOG_DIR / "logs_overview.json", overview)
+    return overview
+
+
+def _read_jsonl_tail_entries(path: Path, limit: int = 10) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    try:
+        text = path.read_text()
+    except Exception:
+        return []
+    entries: list[dict[str, Any]] = []
+    decoder = json.JSONDecoder()
+    idx = 0
+    while idx < len(text):
+        while idx < len(text) and text[idx].isspace():
+            idx += 1
+        if idx >= len(text):
+            break
+        try:
+            item, next_idx = decoder.raw_decode(text, idx)
+        except json.JSONDecodeError:
+            next_obj = text.find("{", idx + 1)
+            if next_obj == -1:
+                break
+            idx = next_obj
+            continue
+        if isinstance(item, dict):
+            item["_source"] = path.name
+            entries.append(item)
+        else:
+            entries.append({"_raw": str(item), "_source": path.name})
+        idx = next_idx
+    if limit <= 0:
+        return []
+    return list(reversed(entries[-limit:]))
+
+
+def _sorted_json_files(directory: Path) -> list[Path]:
+    if not directory.exists():
+        return []
+    try:
+        return sorted(directory.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    except Exception:
+        return list(directory.glob("*.json"))
+
+
+def _build_strategy_overview() -> dict[str, Any]:
+    config_file = CONFIG_DIR_PATH / "app_config.docker.json"
+    config = _safe_read_json(config_file) or {}
+    rules_doc = _safe_read_json(RULES_FILE) or {"rules": [], "global_settings": {}}
+    cycle = _safe_read_json(RUNTIME_DIR / ".last_execution_cycle.json") or {}
+    control = _read_control_state()
+    latest_plan = _safe_read_json(RUNTIME_DIR / "strategy_plan_latest.json") or {}
+
+    rules = rules_doc.get("rules", []) if isinstance(rules_doc, dict) else []
+    rules_by_id = {
+        rule.get("rule_id"): rule
+        for rule in rules
+        if isinstance(rule, dict) and rule.get("rule_id")
+    }
+
+    symbol_name_map = {
+        item.get("symbol"): item.get("name")
+        for item in (config.get("strategy", {}).get("symbols", []) if isinstance(config, dict) else [])
+        if isinstance(item, dict) and item.get("symbol")
+    }
+
+    raw_signals = cycle.get("strategy", {}).get("signals", []) if isinstance(cycle, dict) else []
+    signal_records: list[dict[str, Any]] = []
+    signal_counts_by_rule: dict[str, dict[str, int]] = {}
+    signal_totals = {"BUY": 0, "EXIT": 0, "HOLD": 0, "total": 0}
+
+    for index, signal in enumerate(raw_signals if isinstance(raw_signals, list) else []):
+        if not isinstance(signal, dict):
+            continue
+        rule_id = signal.get("rule_id") or "unknown"
+        action = (signal.get("action") or "HOLD").upper()
+        rule = rules_by_id.get(rule_id, {})
+        bucket = signal_counts_by_rule.setdefault(rule_id, {"BUY": 0, "EXIT": 0, "HOLD": 0, "total": 0})
+        bucket[action if action in bucket else "HOLD"] += 1
+        bucket["total"] += 1
+        signal_totals[action if action in signal_totals else "HOLD"] += 1
+        signal_totals["total"] += 1
+        signal_records.append({
+            "index": index,
+            "rule_id": rule_id,
+            "rule_name": rule.get("name"),
+            "rule_enabled": bool(rule.get("enabled", True)),
+            "rule_priority": rule.get("priority"),
+            "timeframe": rule.get("timeframe") or cycle.get("strategy", {}).get("timeframe"),
+            "symbol": signal.get("symbol"),
+            "symbol_name": symbol_name_map.get(signal.get("symbol")),
+            "market": signal.get("market"),
+            "action": action,
+            "score": signal.get("score"),
+            "reason": signal.get("reason"),
+            "order_type": signal.get("order_type"),
+            "last_close": signal.get("last_close"),
+            "diagnostics": signal.get("diagnostics") if isinstance(signal.get("diagnostics"), dict) else {},
+        })
+
+    signal_records.sort(
+        key=lambda item: (
+            0 if item["action"] == "BUY" else 1 if item["action"] == "EXIT" else 2,
+            0 if item["rule_enabled"] else 1,
+            item["rule_priority"] if item["rule_priority"] is not None else 999,
+            item["symbol"] or "",
+            item["rule_id"] or "",
+        )
+    )
+
+    rules_summary: list[dict[str, Any]] = []
+    for rule in rules if isinstance(rules, list) else []:
+        if not isinstance(rule, dict):
+            continue
+        rule_id = rule.get("rule_id") or ""
+        counts = signal_counts_by_rule.get(rule_id, {"BUY": 0, "EXIT": 0, "HOLD": 0, "total": 0})
+        rules_summary.append({
+            "rule_id": rule_id,
+            "name": rule.get("name"),
+            "description": rule.get("description"),
+            "enabled": bool(rule.get("enabled", True)),
+            "priority": rule.get("priority"),
+            "timeframe": rule.get("timeframe"),
+            "markets": rule.get("markets", []),
+            "symbols": rule.get("symbols", []),
+            "entry_action": rule.get("entry", {}).get("action") if isinstance(rule.get("entry"), dict) else None,
+            "exit_action": rule.get("exit", {}).get("action") if isinstance(rule.get("exit"), dict) else None,
+            "signal_counts": counts,
+        })
+
+    rules_summary.sort(key=lambda item: (0 if item["enabled"] else 1, item["priority"] if item["priority"] is not None else 999, item["rule_id"]))
+
+    latest_plan_summary = {
+        "plan_id": latest_plan.get("plan_id") or latest_plan.get("timestamp") or latest_plan.get("cycle_id"),
+        "generated_at": latest_plan.get("generated_at") or latest_plan.get("timestamp"),
+        "generator": latest_plan.get("generator"),
+        "data_quality": latest_plan.get("data_quality"),
+        "summary": latest_plan.get("summary") or latest_plan.get("notes") or latest_plan.get("type"),
+        "timestamp": latest_plan.get("timestamp"),
+        "shift": latest_plan.get("shift"),
+        "type": latest_plan.get("type"),
+        "actions": latest_plan.get("actions", []),
+        "notes": latest_plan.get("notes", []),
+        "strategy_recommendations": latest_plan.get("strategy_recommendations", []),
+        "risk_management": latest_plan.get("risk_management"),
+        "action_items": latest_plan.get("action_items", []),
+    } if isinstance(latest_plan, dict) else {}
+
+    plan_history = []
+    for entry in _read_jsonl_tail_entries(RUNTIME_DIR / "strategy_plan_history.jsonl", limit=6):
+        if "_raw" in entry:
+            continue
+        plan_history.append({
+            "source": entry.get("_source"),
+            "plan_id": entry.get("plan_id") or entry.get("iteration_id"),
+            "generated_at": entry.get("generated_at") or entry.get("timestamp") or entry.get("date"),
+            "shift": entry.get("shift") or entry.get("type"),
+            "summary": entry.get("summary") or entry.get("notes") or entry.get("data_notes", {}).get("recommendation"),
+            "data_quality": entry.get("data_quality"),
+            "raw": entry,
+        })
+
+    iterations = []
+    iter_dirs = [RUNTIME_DIR / "strategist_iterations", STRATEGIST_ITERATIONS_LOG_DIR]
+    seen_iteration_ids: set[str] = set()
+    for directory in iter_dirs:
+        for path in _sorted_json_files(directory):
+            payload = _safe_read_json(path)
+            if not isinstance(payload, dict):
+                continue
+            iteration_id = payload.get("iteration_id") or path.stem
+            if iteration_id in seen_iteration_ids:
+                continue
+            seen_iteration_ids.add(iteration_id)
+            results = payload.get("results", []) if isinstance(payload.get("results"), list) else []
+            iterations.append({
+                "iteration_id": iteration_id,
+                "timestamp": payload.get("timestamp"),
+                "symbols": payload.get("symbols", []),
+                "period": payload.get("period"),
+                "best": payload.get("best"),
+                "result_count": len(results),
+                "wins": sum(1 for item in results if isinstance(item, dict) and item.get("trades", 0) > 0 and item.get("return_pct", 0) > 0),
+                "losses": sum(1 for item in results if isinstance(item, dict) and item.get("trades", 0) > 0 and item.get("return_pct", 0) <= 0),
+                "source_path": str(path),
+            })
+            if len(iterations) >= 8:
+                break
+        if len(iterations) >= 8:
+            break
+
+    latest_cycle = {
+        "cycle_id": cycle.get("cycle_id"),
+        "timeframe": cycle.get("strategy", {}).get("timeframe") if isinstance(cycle.get("strategy"), dict) else None,
+        "trading_mode": cycle.get("trading_mode"),
+        "signal_count": signal_totals["total"],
+        "buy_count": signal_totals["BUY"],
+        "exit_count": signal_totals["EXIT"],
+        "hold_count": signal_totals["HOLD"],
+        "quote_access": cycle.get("quote_access"),
+        "market_state": cycle.get("market_state"),
+    }
+
+    overview = {
+        "generated_at": datetime.now().isoformat(),
+        "config": {
+            "mode": config.get("mode"),
+            "markets": config.get("markets", []),
+            "timeframe": config.get("strategy", {}).get("timeframe") if isinstance(config.get("strategy"), dict) else None,
+            "watchlist_file": config.get("strategy", {}).get("watchlist_file") if isinstance(config.get("strategy"), dict) else None,
+            "rules_path": config.get("strategy", {}).get("rules_path") if isinstance(config.get("strategy"), dict) else None,
+        },
+        "control": {
+            "locked": control.get("locked", False),
+            "trading_mode": control.get("trading_mode", "off"),
+            "reason": control.get("reason"),
+        },
+        "latest_cycle": latest_cycle,
+        "rules_meta": _file_meta(RULES_FILE),
+        "rules_summary": rules_summary,
+        "signal_records": signal_records,
+        "latest_plan": latest_plan_summary,
+        "plan_history": plan_history,
+        "iterations": iterations,
+    }
+
+    _ensure_logs_layout()
+    _write_json_file(LATEST_LOG_DIR / "strategy_overview.json", overview)
     return overview
 
 
@@ -1791,6 +2026,15 @@ async def api_logs_overview():
     """Return a debugging-oriented overview of logs and latest runtime snapshots."""
     try:
         return _build_logs_overview()
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/strategy-overview")
+async def api_strategy_overview():
+    """Return strategy switches, signal trace, and strategist adjustment history."""
+    try:
+        return _build_strategy_overview()
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 

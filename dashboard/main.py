@@ -1476,7 +1476,7 @@ async def api_backtest(body: dict):
     timeframe = body.get("timeframe", "30min")
     initial_capital = body.get("initial_capital", 100000.0)
 
-    data_source = body.get("data_source", "tiger")
+    data_source = body.get("data_source") or _current_broker_platform()
 
     config = BacktestConfig(
         symbols=symbols,
@@ -1529,7 +1529,7 @@ async def api_backtest_batch(body: dict):
     start_date = body.get("start_date", "2026-01-07")
     end_date = body.get("end_date", "2026-04-07")
     timeframe = body.get("timeframe", "30min")
-    data_source = body.get("data_source", "tiger")
+    data_source = body.get("data_source") or _current_broker_platform()
     param_sets = body.get("param_sets", [])
 
     if not param_sets:

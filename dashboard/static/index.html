@@ -408,7 +408,7 @@
                         <div class="flex items-center gap-2">
                             <label class="text-gray-400 w-24 shrink-0">券商平台</label>
                             <select id="broker-platform-select" class="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm">
-                                <option value="tiger">tiger</option>
+                                <option value="">加载中...</option>
                             </select>
                         </div>
                         <div class="flex gap-2 items-center">
@@ -1675,7 +1675,7 @@
                 const current = data.current || 'tiger';
                 select.innerHTML = available.map(p => `<option value="${p}">${p}</option>`).join('');
                 if (available.length === 0) {
-                    select.innerHTML = '<option value="tiger">tiger</option>';
+                    select.innerHTML = `<option value="${current}">${current}</option>`;
                 }
                 select.value = current;
                 const platformEl = document.getElementById('tc-broker-platform');

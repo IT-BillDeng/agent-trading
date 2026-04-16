@@ -197,22 +197,33 @@ async def log_service_exceptions(request, call_next):
 STATIC_DIR = Path(__file__).parent / "static"
 
 
+def serve_static_html(filename: str):
+    return FileResponse(
+        STATIC_DIR / filename,
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
+
+
 @app.get("/")
 async def index():
     """Serve dashboard HTML."""
-    return FileResponse(STATIC_DIR / "index.html")
+    return serve_static_html("index.html")
 
 
 @app.get("/logs")
 async def logs_page():
     """Serve logs dashboard HTML."""
-    return FileResponse(STATIC_DIR / "logs.html")
+    return serve_static_html("logs.html")
 
 
 @app.get("/strategy")
 async def strategy_page():
     """Serve strategy hub HTML."""
-    return FileResponse(STATIC_DIR / "strategy.html")
+    return serve_static_html("strategy.html")
 
 
 # --- Health ---

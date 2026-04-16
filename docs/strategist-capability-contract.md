@@ -6,6 +6,8 @@
 
 目标不是限制 strategist 的学习能力，而是把“能观察什么、能改什么、不能碰什么”说清楚。
 
+如需规划从 `L2` 升级到 `L3`，参见：`docs/strategist-l3-evolution-plan.md`
+
 ---
 
 ## 当前等级

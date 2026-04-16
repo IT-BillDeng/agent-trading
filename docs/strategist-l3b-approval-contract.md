@@ -165,7 +165,7 @@
 4. proposal 进入 `approval_queue/`
 5. 人工或上层 agent 审批
 6. 审批结果写入 `approval_decisions.jsonl`
-7. 如通过，再由 apply 执行者应用更新
+7. 如通过，再由 `applier` 这类独立执行者应用更新
 8. 应用结果写入 `deployment_records.jsonl`
 
 注意：
@@ -253,7 +253,7 @@
 
 - 人工
 - 主 agent
-- 或专门的 apply/deployer agent
+- 或专门的 `applier` agent
 
 不要默认由 strategist 自己直接应用。
 

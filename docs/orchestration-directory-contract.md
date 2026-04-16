@@ -217,6 +217,12 @@
 - 允许写什么
 - 结果该落到哪里
 
+例如：
+
+- `strategist`：研究、验证、提案
+- `applier`：应用已批准的变更
+- `executor`：交易执行检查与执行链审查
+
 ### Dashboard / Operator
 
 优先读：

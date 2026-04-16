@@ -212,7 +212,7 @@
 同时还需要明确：
 
 - 谁负责批准
-- 谁负责真正 apply 更新
+- 谁负责真正 apply 更新（建议由 `applier` 角色承担）
 - 哪些 proposal 可热更新
 - 哪些 proposal 必须冷更新
 

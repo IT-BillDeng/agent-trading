@@ -24,6 +24,16 @@ ANALYSIS_PERIODS = {
 }
 
 
+def _seed_watchlist_if_missing() -> None:
+    if WATCHLIST_PATH.exists():
+        return
+    example_path = WATCHLIST_PATH.with_name("watchlist.json.example")
+    if not example_path.exists():
+        return
+    WATCHLIST_PATH.parent.mkdir(parents=True, exist_ok=True)
+    WATCHLIST_PATH.write_text(example_path.read_text())
+
+
 class DataCache:
     """Caches Tiger API responses with periodic refresh."""
 
@@ -487,6 +497,7 @@ class DataCache:
 
     def _load_watchlist(self) -> dict:
         """Load shared watchlist from file."""
+        _seed_watchlist_if_missing()
         if self._data["watchlist"] is None or (
             self._data.get("_watchlist_mtime", 0) <
             WATCHLIST_PATH.stat().st_mtime if WATCHLIST_PATH.exists() else 0

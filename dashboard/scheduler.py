@@ -12,6 +12,16 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def _audit_log_dir(app) -> Path:
+    env_logs_dir = os.environ.get("ENGINE_LOGS_DIR")
+    if env_logs_dir:
+        return Path(env_logs_dir) / "audit"
+    log_dir = Path(app.raw.get("system", {}).get("audit_log_dir", "./logs"))
+    if not log_dir.is_absolute():
+        log_dir = Path(__file__).parent.parent / log_dir
+    return log_dir
+
+
 class SignalScheduler:
     """Runs engine signal generation on a configurable interval."""
 
@@ -189,9 +199,7 @@ class SignalScheduler:
         summary["scheduler_provider"] = self._provider_name
         summary["trading_mode"] = mode
 
-        # Write to runtime (same file the dashboard API reads)
-        cycle_file = self._runtime_dir / ".last_execution_cycle.json"
-        cycle_file.write_text(json.dumps(summary, indent=2, ensure_ascii=False, default=str))
+        self._persist_cycle_outputs(summary, app)
 
         # Update state
         with self._lock:
@@ -209,6 +217,26 @@ class SignalScheduler:
             for item in summary["execution_submit"].get("items", []):
                 status = "SUBMITTED" if item.get("submitted") else f"BLOCKED({item.get('reason')})"
                 logger.info(f"Order: {item.get('symbol')} {status}")
+
+    def _persist_cycle_outputs(self, summary: dict[str, Any], app):
+        """Persist the latest cycle snapshot and append structured audit logs."""
+        # Write to runtime (same file the dashboard API reads)
+        cycle_file = self._runtime_dir / ".last_execution_cycle.json"
+        cycle_file.write_text(json.dumps(summary, indent=2, ensure_ascii=False, default=str))
+
+        try:
+            import sys
+
+            engine_src = str(Path(__file__).parent.parent / "system" / "engine" / "src")
+            if engine_src not in sys.path:
+                sys.path.insert(0, engine_src)
+
+            from engine.audit import AuditLogger
+
+            logger_obj = AuditLogger(_audit_log_dir(app))
+            summary["audit_logs"] = logger_obj.write_summary(summary)
+        except Exception as e:
+            logger.warning(f"Failed to write audit logs: {e}")
 
     def _submit_orders(self, summary: dict, app):
         """Preview and submit orders via Tiger API."""

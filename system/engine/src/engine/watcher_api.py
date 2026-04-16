@@ -1,4 +1,4 @@
-"""Tiger Watcher API 版本 - 通过 Dashboard API 监控系统健康"""
+"""Watcher API 版本 - 通过 Dashboard API 监控系统健康"""
 
 from __future__ import annotations
 
@@ -97,12 +97,19 @@ class DashboardAPIClient:
 
 
 class TigerWatcherAPI:
-    """Tiger Watcher API 版本"""
+    """Watcher API 版本"""
     
     def __init__(self, base_url: str = "http://host.docker.internal:8088", state_file: Path | None = None):
         self.client = DashboardAPIClient(base_url)
-        self.state_file = state_file or Path("/tmp/tiger_watcher_state.json")
+        self.state_file = state_file or self._default_state_file()
         self.state = self._load_state()
+
+    def _default_state_file(self) -> Path:
+        broker_path = Path("/tmp/broker_watcher_state.json")
+        legacy_path = Path("/tmp/tiger_watcher_state.json")
+        if broker_path.exists() or not legacy_path.exists():
+            return broker_path
+        return legacy_path
     
     def _load_state(self) -> dict[str, Any]:
         if self.state_file.exists():

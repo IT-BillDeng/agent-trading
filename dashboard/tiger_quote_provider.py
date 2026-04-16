@@ -1,4 +1,4 @@
-"""Default API quote provider — requires market quote permissions."""
+"""Default broker quote provider — requires market quote permissions."""
 
 from tigeropen.quote.quote_client import QuoteClient
 from tigeropen.tiger_open_config import TigerOpenClientConfig
@@ -8,7 +8,7 @@ from .quote_provider import QuoteProvider
 
 
 class TigerQuoteProvider(QuoteProvider):
-    """Quote data from the current default API."""
+    """Quote data from the current default broker API."""
 
     def __init__(self, config_dir: str):
         self._client_config = TigerOpenClientConfig(props_path=config_dir)

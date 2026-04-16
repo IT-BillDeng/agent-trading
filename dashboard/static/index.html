@@ -394,9 +394,9 @@
                 <!-- Current Config -->
                 <div>
                     <div class="text-xs text-gray-500 mb-2">当前配置</div>
-                    <div id="tiger-config-info" class="text-sm space-y-1">
+                    <div id="broker-config-info" class="text-sm space-y-1">
                         <div>账户: <span id="tc-account">--</span></div>
-                        <div>API ID: <span id="tc-tiger-id">--</span></div>
+                        <div>API ID: <span id="tc-api-id">--</span></div>
                         <div>License: <span id="tc-license">--</span></div>
                         <div>API 类型: <span id="tc-account-type" class="text-gray-500">--</span></div>
                     </div>
@@ -406,9 +406,9 @@
             <div class="mt-4 flex gap-2 items-center">
                 <label class="bg-tiger-600 hover:bg-tiger-700 text-white px-3 py-2 rounded text-sm font-medium transition cursor-pointer">
                     📤 选择配置文件
-                    <input id="tiger-config-file" type="file" accept=".properties,.txt,.cfg,.conf" class="hidden" onchange="uploadTigerConfig()">
+                    <input id="broker-config-file" type="file" accept=".properties,.txt,.cfg,.conf" class="hidden" onchange="uploadBrokerConfig()">
                 </label>
-                <span id="tiger-config-filename" class="text-xs text-gray-500">未选择文件</span>
+                <span id="broker-config-filename" class="text-xs text-gray-500">未选择文件</span>
             </div>
             <div id="tc-upload-msg" class="text-xs mt-1 hidden"></div>
         </section>
@@ -1617,12 +1617,12 @@
         }
 
         // --- API Config ---
-        async function fetchTigerConfig() {
+        async function fetchBrokerConfig() {
             try {
-                const data = await fetch(API_BASE + '/api/tiger-config').then(r => r.json());
+                const data = await fetch(API_BASE + '/api/broker-config').then(r => r.json());
                 if (!data.exists) {
                     document.getElementById('tc-account').textContent = '未配置';
-                    document.getElementById('tc-tiger-id').textContent = '--';
+                    document.getElementById('tc-api-id').textContent = '--';
                     document.getElementById('tc-license').textContent = '--';
                     document.getElementById('tc-account-type').textContent = '--';
                     return;
@@ -1631,7 +1631,7 @@
                 const info = data.account_info || {};
                 const mode = data.mode || 'paper';
                 document.getElementById('tc-account').textContent = f.account || info.account || '--';
-                document.getElementById('tc-tiger-id').textContent = f.tiger_id || '--';
+                document.getElementById('tc-api-id').textContent = f.tiger_id || '--';
                 document.getElementById('tc-license').textContent = f.license || '--';
                 document.getElementById('tc-account-type').textContent = info.account_type || '--';
 
@@ -1668,15 +1668,15 @@
             setTimeout(() => el.className = 'text-xs mt-1 hidden', 5000);
         }
 
-        async function uploadTigerConfig() {
-            const fileInput = document.getElementById('tiger-config-file');
+        async function uploadBrokerConfig() {
+            const fileInput = document.getElementById('broker-config-file');
             const file = fileInput.files[0];
             if (!file) { showTcMsg('请先选择文件', true); return; }
-            document.getElementById('tiger-config-filename').textContent = file.name;
+            document.getElementById('broker-config-filename').textContent = file.name;
             try {
                 const formData = new FormData();
                 formData.append('file', file);
-                const res = await fetch(API_BASE + '/api/tiger-config/upload', {
+                const res = await fetch(API_BASE + '/api/broker-config/upload', {
                     method: 'POST',
                     body: formData,
                 });
@@ -1684,8 +1684,8 @@
                 if (data.error) { showTcMsg(data.error, true); return; }
                 showTcMsg('配置上传成功', false);
                 fileInput.value = '';
-                document.getElementById('tiger-config-filename').textContent = '未选择文件';
-                fetchTigerConfig();
+                document.getElementById('broker-config-filename').textContent = '未选择文件';
+                fetchBrokerConfig();
                 fetchConfig();
             } catch (e) { showTcMsg('上传失败', true); }
         }
@@ -1780,7 +1780,7 @@
         fetchStockAnalysis();
         fetchEngine();
         fetchConfig();
-        fetchTigerConfig();
+        fetchBrokerConfig();
         fetchQuoteProviders();
         fetchNewSections();
         fetchHeaderStatus();

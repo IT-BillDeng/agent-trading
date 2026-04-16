@@ -12,7 +12,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from .tiger_client import TigerClient
+from .broker_client import BrokerClient
+from .tiger_client import TigerClient as DefaultBrokerClient
 from .data_cache import DataCache
 from .quote_provider import get_quote_provider
 from .scheduler import SignalScheduler
@@ -25,7 +26,7 @@ norm = get_normalizer(BROKER)
 
 # --- App lifecycle ---
 
-tiger_client: TigerClient | None = None
+broker_client: BrokerClient | None = None
 cache: DataCache | None = None
 scheduler: SignalScheduler | None = None
 
@@ -33,41 +34,41 @@ scheduler: SignalScheduler | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Start/stop the data cache on app lifecycle."""
-    global tiger_client, cache
+    global broker_client, cache
 
     config_dir = os.environ.get(
         "ENGINE_CONFIG_DIR",
         str(Path(__file__).parent.parent / "config"),
     )
 
-    # TigerClient may fail if credentials are invalid - don't crash the app
+    # Broker client may fail if credentials are invalid - don't crash the app
     try:
-        tiger_client = TigerClient(config_dir=str(PROPERTIES_DIR))
+        broker_client = DefaultBrokerClient(config_dir=str(BROKER_PROPERTIES_DIR))
         append_service_log(
             "dashboard",
             "info",
-            "Tiger client initialized",
+            "Broker client initialized",
             kind="startup",
-            config_dir=str(PROPERTIES_DIR),
+            config_dir=str(BROKER_PROPERTIES_DIR),
         )
     except Exception as e:
-        tiger_client = None
-        print(f"[dashboard] TigerClient init failed: {e}")
+        broker_client = None
+        print(f"[dashboard] BrokerClient init failed: {e}")
         append_service_log(
             "dashboard",
             "warning",
-            "Tiger client init failed",
+            "Broker client init failed",
             kind="startup_warning",
             error=str(e),
-            config_dir=str(PROPERTIES_DIR),
+            config_dir=str(BROKER_PROPERTIES_DIR),
         )
 
     # Quote provider: ENGINE_QUOTE_PROVIDER env var (default: yfinance)
     provider_name = os.environ.get("ENGINE_QUOTE_PROVIDER", "yfinance")
     quote_provider = get_quote_provider(provider_name, config_dir=config_dir)
 
-    if tiger_client:
-        cache = DataCache(tiger_client, quote_provider, refresh_interval=30)
+    if broker_client:
+        cache = DataCache(broker_client, quote_provider, refresh_interval=30)
         cache.start()
         append_service_log(
             "dashboard",
@@ -79,13 +80,13 @@ async def lifespan(app: FastAPI):
         )
     else:
         cache = None
-        print("[dashboard] DataCache not started (no TigerClient)")
+        print("[dashboard] DataCache not started (no broker client)")
         append_service_log(
             "dashboard",
             "warning",
             "Data cache not started",
             kind="startup_warning",
-            reason="no_tiger_client",
+            reason="no_broker_client",
             provider=provider_name,
         )
 
@@ -425,7 +426,12 @@ RUNTIME_DIR = Path(os.environ.get("ENGINE_RUNTIME_DIR", str(Path(__file__).paren
 CONFIG_DIR_PATH = Path(os.environ.get("ENGINE_CONFIG_DIR", str(Path(__file__).parent.parent / "config")))
 RULES_DIR = Path(os.environ.get("ENGINE_RULES_DIR", str(Path(__file__).parent.parent / "rules")))
 NEWS_DIR_PATH = Path(os.environ.get("ENGINE_NEWS_DIR", str(Path(__file__).parent.parent / "news")))
-PROPERTIES_DIR = Path(os.environ.get("TIGER_PROPERTIES_DIR", str(Path(__file__).parent.parent / "properties")))
+BROKER_PROPERTIES_DIR = Path(
+    os.environ.get(
+        "BROKER_PROPERTIES_DIR",
+        os.environ.get("TIGER_PROPERTIES_DIR", str(Path(__file__).parent.parent / "properties")),
+    )
+)
 LOGS_ROOT = Path(os.environ.get("ENGINE_LOGS_DIR", str(Path(__file__).parent.parent / "logs")))
 AUDIT_LOG_DIR = LOGS_ROOT / "audit"
 SERVICE_LOG_DIR = LOGS_ROOT / "service"
@@ -1318,7 +1324,7 @@ def _clean_nan_values(obj):
 
 @app.post("/api/backtest")
 async def api_backtest(body: dict):
-    """Run a full backtest (data source: Tiger API)."""
+    """Run a full backtest (data source: configured market data provider)."""
     import sys
     backtest_src = str(Path(__file__).parent.parent / "system" / "engine" / "src")
     if backtest_src not in sys.path:
@@ -1643,7 +1649,7 @@ async def api_quote_providers():
     return {
         "providers": [
             {"id": "yfinance", "name": "Yahoo Finance", "desc": "免费,有延迟"},
-            {"id": "tiger", "name": "Tiger API", "desc": "需要行情权限"},
+            {"id": "tiger", "name": "Broker API", "desc": "需要行情权限"},
         ],
         "current": cache._quote_provider.name if cache else None,
     }
@@ -1696,9 +1702,9 @@ async def api_quote_provider(body: dict):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
-# --- Tiger config management ---
+# --- Broker config management ---
 
-TIGER_PROPS_FILE = PROPERTIES_DIR / "tiger_openapi_config.properties"
+BROKER_PROPS_FILE = BROKER_PROPERTIES_DIR / "tiger_openapi_config.properties"
 
 def _parse_properties(text: str) -> dict:
     """Parse a .properties file into a dict."""
@@ -1720,11 +1726,11 @@ def _mask_value(val: str, visible: int = 6) -> str:
     return "*" * (len(val) - visible) + val[-visible:]
 
 
-def _get_api_account_info(config_dir: str) -> dict:
-    """Get account info from Tiger API (matches config account)."""
+def _get_broker_account_info(config_dir: str) -> dict:
+    """Get account info from the configured broker API (matches config account)."""
     try:
-        from .tiger_client import TigerClient
-        client = TigerClient(config_dir=config_dir)
+        from .tiger_client import TigerClient as DefaultBrokerClient
+        client = DefaultBrokerClient(config_dir=config_dir)
         return client.get_account_type()
     except Exception as e:
         return {"error": str(e)}
@@ -1740,12 +1746,13 @@ def _account_type_to_mode(account_type: str) -> str | None:
     return None
 
 
+@app.get("/api/broker-config")
 @app.get("/api/tiger-config")
-async def api_tiger_config_get():
-    """Get current Tiger API config (sensitive fields masked)."""
-    if not TIGER_PROPS_FILE.exists():
+async def api_broker_config_get():
+    """Get current broker API config (sensitive fields masked)."""
+    if not BROKER_PROPS_FILE.exists():
         return {"exists": False, "mode": "paper", "fields": {}, "account_info": None}
-    props = _parse_properties(TIGER_PROPS_FILE.read_text())
+    props = _parse_properties(BROKER_PROPS_FILE.read_text())
     masked = {}
     sensitive = {"private_key_pk1", "private_key_pk8", "secret_key"}
     for k, v in props.items():
@@ -1764,7 +1771,7 @@ async def api_tiger_config_get():
     # Try API detection (non-fatal if fails)
     account_info = None
     try:
-        account_info = _get_api_account_info(str(PROPERTIES_DIR))
+        account_info = _get_broker_account_info(str(BROKER_PROPERTIES_DIR))
         detected = _account_type_to_mode(account_info.get("account_type", ""))
         if detected:
             mode = detected
@@ -1781,11 +1788,12 @@ async def api_tiger_config_get():
     return {"exists": True, "mode": mode, "fields": masked, "account_info": account_info}
 
 
+@app.post("/api/broker-config/upload")
 @app.post("/api/tiger-config/upload")
-async def api_tiger_config_upload_file(file: UploadFile = File(...)):
-    """Upload Tiger config file.
+async def api_broker_config_upload_file(file: UploadFile = File(...)):
+    """Upload broker config file.
 
-    Validates content, renames to tiger_openapi_config.properties,
+    Validates content, writes to tiger_openapi_config.properties for compatibility,
     replaces existing file, then detects trading mode via API.
     """
     # Read file
@@ -1818,14 +1826,14 @@ async def api_tiger_config_upload_file(file: UploadFile = File(...)):
         return JSONResponse({"error": "missing private key (private_key_pk8 or private_key_pk1)"}, status_code=400)
 
     # Backup existing file
-    if TIGER_PROPS_FILE.exists():
+    if BROKER_PROPS_FILE.exists():
         from datetime import datetime
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup = PROPERTIES_DIR / f"tiger_openapi_config.properties.bak.{ts}"
-        backup.write_text(TIGER_PROPS_FILE.read_text())
+        backup = BROKER_PROPERTIES_DIR / f"tiger_openapi_config.properties.bak.{ts}"
+        backup.write_text(BROKER_PROPS_FILE.read_text())
 
-    # Write new config (always as tiger_openapi_config.properties)
-    TIGER_PROPS_FILE.write_text(content)
+    # Write new config (compatibility filename retained for the current broker SDK)
+    BROKER_PROPS_FILE.write_text(content)
 
     # Clear execution state (idempotency keys) — account changed, old tracking is stale
     state_file = RUNTIME_DIR / "state" / "execution_state.json"
@@ -1850,28 +1858,28 @@ async def api_tiger_config_upload_file(file: UploadFile = File(...)):
         except Exception:
             pass
 
-    # Reinitialize TigerClient and DataCache with new credentials
-    global tiger_client, cache
+    # Reinitialize broker client and DataCache with new credentials
+    global broker_client, cache
     if cache:
         cache.stop()
     try:
-        from .tiger_client import TigerClient as TC
+        from .tiger_client import TigerClient as DefaultBrokerClientImpl
         from .data_cache import DataCache as DC
-        tiger_client = TC(config_dir=str(PROPERTIES_DIR))
+        broker_client = DefaultBrokerClientImpl(config_dir=str(BROKER_PROPERTIES_DIR))
         provider_name = os.environ.get("ENGINE_QUOTE_PROVIDER", "yfinance")
         quote_provider = get_quote_provider(provider_name, config_dir=str(CONFIG_DIR_PATH))
-        cache = DC(tiger_client, quote_provider, refresh_interval=30)
+        cache = DC(broker_client, quote_provider, refresh_interval=30)
         cache.start()
     except Exception as e:
-        tiger_client = None
+        broker_client = None
         cache = None
 
     # Detect mode from API (non-fatal)
     account_info = None
     detected = None
-    if tiger_client:
+    if broker_client:
         try:
-            account_info = _get_api_account_info(str(PROPERTIES_DIR))
+            account_info = _get_broker_account_info(str(BROKER_PROPERTIES_DIR))
             detected = _account_type_to_mode(account_info.get("account_type", ""))
             if detected:
                 config_file = CONFIG_DIR_PATH / "app_config.docker.json"
@@ -1884,7 +1892,7 @@ async def api_tiger_config_upload_file(file: UploadFile = File(...)):
 
     return {
         "status": "ok",
-        "filename": TIGER_PROPS_FILE.name,
+        "filename": BROKER_PROPS_FILE.name,
         "tiger_id": props.get("tiger_id"),
         "account": props.get("account"),
         "has_private_key": has_key,

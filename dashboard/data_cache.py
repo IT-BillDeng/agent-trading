@@ -7,7 +7,8 @@ import threading
 from pathlib import Path
 from datetime import datetime, timedelta
 
-from .tiger_client import TigerClient, ET_ZONE
+from .broker_client import BrokerClient
+from .tiger_client import ET_ZONE
 from .quote_provider import QuoteProvider
 from .service_logs import append_service_log
 
@@ -37,8 +38,8 @@ def _seed_watchlist_if_missing() -> None:
 class DataCache:
     """Caches API responses with periodic refresh."""
 
-    def __init__(self, tiger_client: TigerClient, quote_provider: QuoteProvider, refresh_interval: int = 30):
-        self._client = tiger_client
+    def __init__(self, broker_client: BrokerClient, quote_provider: QuoteProvider, refresh_interval: int = 30):
+        self._client = broker_client
         self._quote_provider = quote_provider
         self._interval = refresh_interval
         self._lock = threading.Lock()

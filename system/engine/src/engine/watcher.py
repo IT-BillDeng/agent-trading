@@ -1,4 +1,4 @@
-"""Tiger Watcher - 系统健康监护人"""
+"""Watcher - 系统健康监护人"""
 
 from __future__ import annotations
 
@@ -63,7 +63,7 @@ class WatcherReport:
 
 
 def _logs_root(runtime_dir: str | Path) -> Path:
-    env_logs_dir = os.environ.get("ENGINE_LOGS_DIR") or os.environ.get("TIGER_LOGS_DIR")
+    env_logs_dir = os.environ.get("ENGINE_LOGS_DIR") or os.environ.get("BROKER_LOGS_DIR") or os.environ.get("TIGER_LOGS_DIR")
     if env_logs_dir:
         return Path(env_logs_dir)
 
@@ -155,7 +155,7 @@ class WatcherState:
 
 
 class TigerWatcher:
-    """Tiger 系统健康监护人"""
+    """系统健康监护人"""
     
     def __init__(self, runtime_dir: str | Path, config_dir: str | Path):
         self.runtime_dir = Path(runtime_dir)

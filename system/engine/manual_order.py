@@ -8,14 +8,14 @@ from pathlib import Path
 
 # Add engine source to path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
-from engine.tiger_client import TigerClient
+from engine.tiger_client import TigerClient as DefaultBrokerClient
 from engine.config import load_tiger_props
 
 
 def main():
     if len(sys.argv) != 6:
         print("usage: python3 manual_order.py <broker_props> <symbol> <quantity> <sl_pct> <tp_pct>")
-        print("example: python3 manual_order.py properties/tiger.properties NVDA 100 5 5")
+        print("example: python3 manual_order.py properties/broker.properties NVDA 100 5 5")
         return 1
 
     props_path = sys.argv[1]
@@ -25,7 +25,7 @@ def main():
     tp_pct = float(sys.argv[5])
 
     props = load_tiger_props(props_path)
-    client = TigerClient(props)
+    client = DefaultBrokerClient(props)
 
     # 1. Get quote (yfinance fallback)
     print(f"[1/4] Getting quote for {symbol}...")

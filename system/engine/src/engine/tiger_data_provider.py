@@ -1,4 +1,4 @@
-"""Tiger API data provider — wraps TigerClient into DataProvider interface."""
+"""Broker data provider — wraps TigerClient into DataProvider interface."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from .tiger_client import TigerClient
 
 
 class TigerDataProvider(DataProvider):
-    """Market data from Tiger Open API."""
+    """Market data from the configured broker API."""
 
     def __init__(self, props: TigerProps):
         self._client = TigerClient(props)

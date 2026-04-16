@@ -1,4 +1,4 @@
-"""Tiger Closer - 收盘总结生成器"""
+"""Closer - 收盘总结生成器"""
 
 from __future__ import annotations
 
@@ -91,7 +91,7 @@ def check_has_trading_data(client: DashboardAPIClient, market: str) -> bool:
 
 
 class TigerCloser:
-    """Tiger 收盘总结生成器"""
+    """收盘总结生成器"""
     
     def __init__(self, base_url: str = "http://host.docker.internal:8088"):
         self.client = DashboardAPIClient(base_url)
@@ -220,7 +220,7 @@ class TigerCloser:
         # 关注标的
         focus_str = ", ".join(summary.focus_symbols) if summary.focus_symbols else "暂无"
         
-        report = f"""📊 Tiger 收盘总结 {summary.date} {summary.market}
+        report = f"""📊 收盘总结 {summary.date} {summary.market}
 
 ═══ 执行概况 ═══
 • 信号: BUY {summary.signals['buy']} / EXIT {summary.signals['exit']} / HOLD {summary.signals['hold']}

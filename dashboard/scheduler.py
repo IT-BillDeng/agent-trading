@@ -191,7 +191,7 @@ class SignalScheduler:
 
         from engine.config import load_app_config, load_tiger_props
         from engine.data_provider import create_data_provider
-        from engine.tiger_client import TigerClient
+        from engine.tiger_client import TigerClient as DefaultBrokerClient
         from engine.runtime import (
             fetch_cycle_raw_with_provider,
             build_strategy_summary,
@@ -205,27 +205,33 @@ class SignalScheduler:
 
         app = load_app_config(str(self._app_config_path))
 
-        # Create data provider (yfinance or tiger)
+        # Create data provider (yfinance or broker API)
         provider = create_data_provider(self._provider_name)
 
-        # Create Tiger client for account/position data
-        tiger_client = None
+        # Create broker client for account/position data
+        broker_client = None
         try:
             config_dir = self._app_config_path.parent
-            props_file = Path(os.environ.get("TIGER_PROPERTIES_DIR", str(config_dir.parent / "properties"))) / "tiger_openapi_config.properties"
-            logger.info(f"Tiger props file: {props_file} (exists={props_file.exists()})")
+            props_root = Path(
+                os.environ.get(
+                    "BROKER_PROPERTIES_DIR",
+                    os.environ.get("TIGER_PROPERTIES_DIR", str(config_dir.parent / "properties")),
+                )
+            )
+            props_file = props_root / "tiger_openapi_config.properties"
+            logger.info(f"Broker props file: {props_file} (exists={props_file.exists()})")
             if props_file.exists():
                 props = load_tiger_props(str(props_file))
-                tiger_client = TigerClient(props)
-                logger.info(f"Tiger client created (account={props.account})")
+                broker_client = DefaultBrokerClient(props)
+                logger.info(f"Broker client created (account={props.account})")
             else:
-                logger.warning("Tiger credentials not found, account data will be empty")
+                logger.warning("Broker credentials not found, account data will be empty")
         except Exception as e:
-            logger.warning(f"Failed to create Tiger client: {e}")
+            logger.warning(f"Failed to create broker client: {e}")
 
         # Fetch data
-        logger.info(f"Fetching cycle data (client={'yes' if tiger_client else 'no'}, provider={self._provider_name})")
-        raw = fetch_cycle_raw_with_provider(client=tiger_client, data=provider, app=app)
+        logger.info(f"Fetching cycle data (client={'yes' if broker_client else 'no'}, provider={self._provider_name})")
+        raw = fetch_cycle_raw_with_provider(client=broker_client, data=provider, app=app)
 
         # Build summary based on mode
         if mode == "signals":
@@ -300,23 +306,29 @@ class SignalScheduler:
         )
 
     def _submit_orders(self, summary: dict, app):
-        """Preview and submit orders via Tiger API."""
+        """Preview and submit orders via broker API."""
         try:
-            from engine.tiger_client import TigerClient
+            from engine.tiger_client import TigerClient as DefaultBrokerClient
             from engine.config import load_tiger_props
             from engine.live_execution import LiveExecutionAdapter
             from engine.control import ControlPlane
 
-            # Load Tiger credentials
+            # Load broker credentials
             config_dir = self._app_config_path.parent
-            props_file = Path(os.environ.get("TIGER_PROPERTIES_DIR", str(config_dir.parent / "properties"))) / "tiger_openapi_config.properties"
+            props_root = Path(
+                os.environ.get(
+                    "BROKER_PROPERTIES_DIR",
+                    os.environ.get("TIGER_PROPERTIES_DIR", str(config_dir.parent / "properties")),
+                )
+            )
+            props_file = props_root / "tiger_openapi_config.properties"
             if not props_file.exists():
-                logger.warning("Tiger credentials not found, skipping order submission")
+                logger.warning("Broker credentials not found, skipping order submission")
                 summary["execution_submit"] = {"items": [], "count": 0, "error": "no_credentials"}
                 return
 
             props = load_tiger_props(str(props_file))
-            client = TigerClient(props)
+            client = DefaultBrokerClient(props)
             adapter = LiveExecutionAdapter(app.raw, client)
             control = ControlPlane(str(self._runtime_dir / "state"))
 

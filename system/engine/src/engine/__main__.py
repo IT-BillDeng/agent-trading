@@ -1,4 +1,4 @@
-"""Tiger Engine CLI entry point."""
+"""Engine CLI entry point."""
 
 from __future__ import annotations
 
@@ -8,18 +8,18 @@ from pathlib import Path
 
 
 def main() -> int:
-    # Parse args: [--provider tiger|yfinance] <mode> <app_config.json> [tiger_props.properties]
+    # Parse args: [--provider broker|yfinance] <mode> <app_config.json> [broker_props.properties]
     args = sys.argv[1:]
-    provider = "tiger"
+    provider = "broker"
 
     if args and args[0] == "--provider" and len(args) >= 3:
         provider = args[1]
         args = args[2:]
 
     if len(args) < 2:
-        print("Usage: python -m engine [--provider tiger|yfinance] <mode> <app_config.json> [tiger_props.properties]")
+        print("Usage: python -m engine [--provider broker|yfinance] <mode> <app_config.json> [broker_props.properties]")
         print("Modes: readonly | strategy | dry-run | execution")
-        print("Providers: tiger (default, needs props file) | yfinance (no props needed)")
+        print("Providers: broker (default, needs props file) | yfinance (no props needed)")
         return 2
 
     mode = args[0]
@@ -28,7 +28,7 @@ def main() -> int:
 
     from .config import load_app_config, load_tiger_props
     from .data_provider import create_data_provider
-    from .tiger_client import TigerClient
+    from .tiger_client import TigerClient as DefaultBrokerClient
 
     app = load_app_config(config_path)
 
@@ -39,13 +39,13 @@ def main() -> int:
         client = None
         if props_path:
             props = load_tiger_props(props_path)
-            client = TigerClient(props)
-    elif provider == "tiger":
+            client = DefaultBrokerClient(props)
+    elif provider == "broker":
         if not props_path:
-            print("Error: tiger provider requires tiger_props.properties file")
+            print("Error: broker provider requires broker_props.properties file")
             return 2
         props = load_tiger_props(props_path)
-        client = TigerClient(props)
+        client = DefaultBrokerClient(props)
         data = create_data_provider("tiger", props=props)
     else:
         print(f"Unknown provider: {provider}")

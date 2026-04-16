@@ -101,7 +101,7 @@ class BacktestConfig:
     commission_rate: float = 0.001  # 0.1%
     slippage_rate: float = 0.001  # 0.1%
     max_position_pct: float = 0.2  # 单标的最大仓位比例
-    data_source: str = 'tiger'  # 固定使用 Tiger API（免费历史K线）
+    data_source: str = 'tiger'  # 默认使用当前 broker 的历史数据提供器（兼容 tiger provider）
     
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -193,15 +193,15 @@ class DataFetcher:
     @staticmethod
     def _fetch_from_tiger(symbol: str, start_date: str, end_date: str,
                           interval: str = '30min') -> list[Bar]:
-        """从 Tiger API 获取历史数据"""
+        """从当前 broker 的历史数据提供器获取历史数据"""
         try:
-            from .tiger_client import TigerClient
+            from .tiger_client import TigerClient as DefaultBrokerClient
             from .config import load_tiger_props
             import os
             from pathlib import Path
             
-            # 查找 Tiger 配置文件（优先 properties 目录，兼容 config 目录）
-            props_dir = os.environ.get('TIGER_PROPERTIES_DIR', None)
+            # 查找 broker 配置文件（优先专用目录，兼容旧 config 目录）
+            props_dir = os.environ.get('BROKER_PROPERTIES_DIR') or os.environ.get('TIGER_PROPERTIES_DIR', None)
             if props_dir:
                 props_file = Path(props_dir) / 'tiger_openapi_config.properties'
             else:
@@ -211,17 +211,17 @@ class DataFetcher:
                 props_file = Path(__file__).parents[2] / 'properties' / 'tiger_openapi_config.properties'
             
             if not props_file.exists():
-                print(f"[DataFetcher] Tiger config not found: {props_file}")
+                print(f"[DataFetcher] Broker config not found: {props_file}")
                 return []
             
             props = load_tiger_props(props_file)
-            client = TigerClient(props)
+            client = DefaultBrokerClient(props)
             
             # 转换时间格式
             begin_time = f"{start_date} 00:00:00"
             end_time = f"{end_date} 23:59:59"
             
-            # Tiger API 单次最多返回 500 根 K 线
+            # 当前数据源单次最多返回 500 根 K 线
             # 如果时间跨度大，需要分批获取
             all_bars = []
             current_begin = begin_time
@@ -261,7 +261,7 @@ class DataFetcher:
                     break
                 
                 for item in items:
-                    # Tiger K线格式可能是列表或字典
+                    # 数据源 K 线格式可能是列表或字典
                     if isinstance(item, dict):
                         # 字典格式: {'time': timestamp, 'open': ..., 'high': ..., 'low': ..., 'close': ..., 'volume': ...}
                         bar = Bar(
@@ -314,11 +314,11 @@ class DataFetcher:
             
             unique_bars.sort(key=lambda b: b.timestamp)
             
-            print(f"[DataFetcher] Tiger: {len(unique_bars)} bars for {symbol}")
+            print(f"[DataFetcher] Broker: {len(unique_bars)} bars for {symbol}")
             return unique_bars
             
         except Exception as e:
-            print(f"[DataFetcher] Tiger failed for {symbol}: {e}")
+            print(f"[DataFetcher] Broker failed for {symbol}: {e}")
             return []
     
     @staticmethod

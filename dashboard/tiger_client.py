@@ -1,4 +1,4 @@
-"""Tiger API client wrapper for dashboard."""
+"""Broker API client wrapper for dashboard."""
 
 from pathlib import Path
 from datetime import datetime, timezone
@@ -15,7 +15,7 @@ ET_ZONE = ZoneInfo("America/New_York")
 
 
 class TigerClient:
-    """Unified Tiger API client for dashboard data."""
+    """Unified broker API client for dashboard data."""
 
     def __init__(self, config_dir: str | None = None):
         self._config_dir = config_dir or CONFIG_DIR
@@ -58,7 +58,7 @@ class TigerClient:
             return {"error": str(e)}
 
     def get_account_info(self) -> dict:
-        """Get account assets using prime account segment S as primary source."""
+        """Get account assets using the prime account segment S as primary source."""
         try:
             result = self._trade_client.get_prime_assets()
             if not result:
@@ -140,7 +140,7 @@ class TigerClient:
             return [{"error": str(e)}]
 
     def get_orders_history(self, start_time, end_time, market: str = "US", limit: int = 300) -> list:
-        """Get historical orders using Tiger page_token pagination."""
+        """Get historical orders using page_token pagination."""
         try:
             market_enum = Market.US
             params = {
@@ -166,7 +166,7 @@ class TigerClient:
             return [{"error": str(e)}]
 
     def get_filled_orders(self) -> list:
-        """Get today's filled orders with realized_pnl from Tiger API."""
+        """Get today's filled orders with realized_pnl from the broker API."""
         try:
             now_et = datetime.now(ET_ZONE)
             start_et = now_et.replace(hour=0, minute=0, second=0, microsecond=0)

@@ -40,7 +40,6 @@ agent-trading/
   system/
     engine/
       README.md
-      config.example.json
       run_strategy_cycle.py
       run_dry_run_cycle.py
       run_readonly_cycle.py
@@ -62,6 +61,11 @@ agent-trading/
 - `specs/`：规格文档与设计草案
 - `system/engine/`：核心执行引擎代码
 - `runtime/engine/`：运行时产物、状态、日志
+
+说明：
+
+- `config/` 是当前推荐的配置分层入口
+- `system/engine/app_config.paper.json` 与 `system/engine/config.example.json` 仅保留兼容用途，不建议新流程继续引用
 
 ---
 

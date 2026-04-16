@@ -39,8 +39,8 @@ v1 的 30min 策略以 **K 线历史** 为主输入。
 - `../../config/app.defaults.json`：项目默认配置
 - `../../config/app_config.docker.json`：Docker/容器覆盖入口
 - `../../config/user.settings.json`：本地用户设置（可选，不进 git）
-- `config.example.json`：旧示例文件，保留为兼容参考
-- `app_config.paper.json`：旧 paper 入口，保留为兼容入口
+- `config.example.json`：旧示例文件，仅保留兼容参考，不建议新流程使用
+- `app_config.paper.json`：旧 paper 入口，仅保留兼容参考，不建议新流程使用
 - `../../data/watchlist.json`：Operator + subagents 共用本地股票清单
 - `src/engine/config.py`：配置加载
 - `src/engine/tiger_client.py`：当前默认 broker API 请求封装
@@ -136,3 +136,8 @@ python3 control_state.py ../../config/app_config.docker.json unlock "resume afte
 2. 增加 cron/调度接入
 3. 增加实盘前的多重确认与总开关
 4. 增加更精细的恢复策略（只恢复读取，不恢复提交）
+
+## 兼容说明
+- 新流程优先使用 `../../config/app_config.docker.json`
+- 旧的 `config.example.json` 与 `app_config.paper.json` 仅用于历史脚本兼容
+- 后续如继续迁移，可逐步移除这些旧入口引用

@@ -18,3 +18,13 @@
 当前 Docker 运行入口仍保持为：
 
 - `config/app_config.docker.json`
+
+## 兼容与退役
+
+- 保留：
+  - `config/app.defaults.json`
+  - `config/app_config.docker.json`
+  - `config/user.settings.example.json`
+- 退役为兼容参考：
+  - `system/engine/app_config.paper.json`
+  - `system/engine/config.example.json`

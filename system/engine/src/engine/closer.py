@@ -11,6 +11,8 @@ from typing import Any
 import urllib.request
 import urllib.error
 
+from .artifacts import append_jsonl, resolve_artifacts_root, write_json
+
 
 # 时区定义
 TZ_US = timezone(timedelta(hours=-4))  # ET (假设 EDT)
@@ -241,23 +243,30 @@ class TigerCloser:
     
     def run(self, market: str = "US") -> dict[str, Any]:
         """运行收盘总结"""
+        artifacts_dir = resolve_artifacts_root() / "closer"
+
         # 检查是否有交易数据（判断是否交易日）
         if not check_has_trading_data(self.client, market):
-            return {
+            result = {
                 "status": "skipped",
                 "reason": "今日无交易数据（可能休市）",
                 "market": market,
                 "date": datetime.now().strftime("%Y-%m-%d")
             }
+            write_json(artifacts_dir / "summary_latest.json", result)
+            append_jsonl(artifacts_dir / "summary_history.jsonl", result)
+            return result
         
         summary = self.generate_summary(market)
         report = self.format_report(summary)
-        
-        return {
+        result = {
             "status": "ok",
             "summary": summary.to_dict(),
             "report": report
         }
+        write_json(artifacts_dir / "summary_latest.json", result)
+        append_jsonl(artifacts_dir / "summary_history.jsonl", result)
+        return result
 
 
 def run_closer(market: str = "US", base_url: str = "http://host.docker.internal:8088") -> dict[str, Any]:

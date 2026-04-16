@@ -1644,12 +1644,19 @@ def _apply_param_overrides(rules: dict, params: dict):
 async def api_backtest_results():
     """Get recent backtest results."""
     import json
-    results_dir = RUNTIME_DIR / "backtest_results"
-    if not results_dir.exists():
+    results_dir = STRATEGIST_ITERATIONS_ARTIFACT_DIR
+    legacy_results_dir = RUNTIME_DIR / "backtest_results"
+    if not results_dir.exists() and not legacy_results_dir.exists():
         return {"results": []}
 
     results = []
-    for result_file in sorted(results_dir.glob("*.json"), reverse=True)[:10]:
+    candidate_files = []
+    if results_dir.exists():
+        candidate_files.extend(sorted(results_dir.glob("*.json"), reverse=True))
+    if legacy_results_dir.exists():
+        candidate_files.extend(sorted(legacy_results_dir.glob("*.json"), reverse=True))
+
+    for result_file in candidate_files[:10]:
         try:
             content = json.loads(result_file.read_text())
             results.append({

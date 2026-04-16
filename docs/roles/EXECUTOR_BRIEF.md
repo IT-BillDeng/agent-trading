@@ -14,10 +14,11 @@
 1. `./data/watchlist.json`（本地用户状态）
 2. `./system/engine/README.md`
 3. `./system/engine/app_config.paper.json`
-4. `./runtime/engine/.last_execution_cycle.json`
-5. `./runtime/engine/logs/execution.jsonl`
-6. `./runtime/engine/logs/dispatch_queue.jsonl`
-7. `./runtime/engine/state/control_state.json`
+4. `./logs/latest/engine_cycle.json`
+5. `./logs/audit/execution.jsonl`
+6. `./logs/audit/dispatch_queue.jsonl`
+7. `./runtime/state/control_state.json`
+8. `./artifacts/strategist/strategy_plan_latest.json`
 
 ## 关注重点
 - 本地清单里 `enabled=true` 的标的是否与当前执行输出一致

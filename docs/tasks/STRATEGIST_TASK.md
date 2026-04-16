@@ -15,10 +15,10 @@
 **Step 1: 读取输入**
 - `./rules/rules.json` — 当前规则配置
 - `./artifacts/newswire/latest.json` — 盘前新闻（优先）
-- `./runtime/engine/` 旧新闻镜像（兼容读取）
 - `./data/watchlist.json` — 本地标的清单（缺失时由 `watchlist.json.example` 种子生成）
 - `./logs/latest/engine_cycle.json` — 最近周期快照（优先）
-- `./runtime/engine/.last_execution_cycle.json` — 兼容旧路径
+- `./logs/latest/market_context.json` — 当前市场上下文
+- `./artifacts/strategist/memory/latest.json` — strategist 最新记忆摘要
 
 **Step 2: 复盘昨日信号**
 分析 last_cycle 中的信号数量、方向、风控结果。总结问题。

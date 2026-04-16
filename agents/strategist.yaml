@@ -24,7 +24,7 @@ input_files:
   - /workspace/agent-trading/artifacts/strategist/memory/latest.json
   - /workspace/agent-trading/artifacts/strategist/strategy_plan_history.jsonl
   - /workspace/agent-trading/rules/rules.json
-  - /workspace/agent-trading/runtime/engine/backtest_results/
+  - /workspace/agent-trading/artifacts/strategist/iterations/
 
 # 输出文件
 output_files:

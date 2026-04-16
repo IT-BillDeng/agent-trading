@@ -12,7 +12,8 @@
 - `./data/watchlist.json`（本地用户状态，缺失时由 `watchlist.json.example` 种子生成）
 - `./specs/agent-trading-spec-v1-30min.md`
 - `./system/engine/app_config.paper.json`
-- `./runtime/engine/.last_execution_cycle.json`
+- `./logs/latest/engine_cycle.json`
+- `./logs/latest/market_context.json`
 
 要求：
 - 优先只看本地清单中 `enabled=true` 的标的

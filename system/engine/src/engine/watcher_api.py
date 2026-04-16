@@ -12,6 +12,8 @@ from typing import Any
 import urllib.request
 import urllib.error
 
+from .artifacts import append_jsonl, resolve_artifacts_root, write_json
+
 
 class AlertLevel(str, Enum):
     INFO = "info"
@@ -401,7 +403,13 @@ def run_watcher_check(base_url: str = "http://host.docker.internal:8088") -> dic
     """运行 watcher 检查"""
     watcher = TigerWatcherAPI(base_url)
     report = watcher.run_all_checks()
-    return report.to_dict()
+    record = report.to_dict()
+
+    artifacts_dir = resolve_artifacts_root() / "watcher"
+    write_json(artifacts_dir / "latest.json", record)
+    append_jsonl(artifacts_dir / "history.jsonl", record)
+
+    return record
 
 
 if __name__ == "__main__":

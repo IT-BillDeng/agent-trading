@@ -15,7 +15,10 @@
 1. `./data/watchlist.json`（本地用户状态）
 2. `./specs/agent-trading-spec-v1-30min.md`
 3. `./system/engine/app_config.paper.json`
-4. `./runtime/engine/.last_execution_cycle.json`
+4. `./logs/latest/engine_cycle.json`
+5. `./logs/latest/market_context.json`
+6. `./artifacts/newswire/latest.json`
+7. `./artifacts/strategist/memory/latest.json`
 
 ## 关注重点
 - 本地清单里 `enabled=true` 的标的

@@ -12,7 +12,7 @@
 
 ## 步骤
 1. 读取 ./artifacts/newswire/latest.json（优先）
-2. 兼容读取旧新闻镜像
+2. 读取 ./logs/latest/market_context.json — 当前市场上下文
 3. 检查异常：high importance 新闻、波动率突增、连续 false signal
 4. 如有异常，暂停相关规则（不改参数）
 5. 如无异常，回复"盘中正常，无需操作"后结束

@@ -17,12 +17,15 @@
 
 ## 默认输入顺序
 1. `./data/watchlist.json`（本地用户状态）
-2. `./runtime/engine/.last_execution_cycle.json`
-3. `./runtime/engine/logs/execution.jsonl`
-4. `./runtime/engine/logs/notifications.jsonl`
-5. `./runtime/engine/logs/dispatch_queue.jsonl`
-6. `./runtime/engine/state/control_state.json`
-7. 如需新闻补充，可使用 web_search / web_fetch 做简要新闻与催化整理（不要求逐条穷尽）
+2. `./logs/latest/engine_cycle.json`
+3. `./logs/latest/market_context.json`
+4. `./logs/audit/execution.jsonl`
+5. `./logs/audit/notifications.jsonl`
+6. `./logs/audit/dispatch_queue.jsonl`
+7. `./runtime/state/control_state.json`
+8. `./artifacts/newswire/latest.json`
+9. `./artifacts/strategist/strategy_plan_latest.json`
+10. 如需新闻补充，可使用 web_search / web_fetch 做简要新闻与催化整理（不要求逐条穷尽）
 
 ## 总结内容
 ### 1) 行情与信号

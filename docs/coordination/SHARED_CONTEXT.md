@@ -36,7 +36,7 @@
 2. newswire 写 newswire_summary
 3. strategist 读取全部字段，不覆盖 newswire/watcher 内容
 4. closer 只读并汇总，不回写策略结论
-5. 不在这个文件里放订单、成交、资产快照；这些继续走 agent-trading/runtime/engine/logs 与 agent-trading/runtime/engine/state
+5. 不在这个文件里放订单、成交、资产快照；这些继续走 `logs/`、`artifacts/`、`runtime/state/` 与 `runtime/outbox/`
 
 ## 更新时间
 

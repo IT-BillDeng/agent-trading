@@ -10,6 +10,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from .artifacts import append_jsonl, resolve_artifacts_root, write_json
+
 
 class AlertLevel(str, Enum):
     INFO = "info"
@@ -161,6 +163,7 @@ class TigerWatcher:
         self.runtime_dir = Path(runtime_dir)
         self.config_dir = Path(config_dir)
         self.service_log_dir = _service_log_dir(self.runtime_dir)
+        self.artifacts_dir = resolve_artifacts_root(self.runtime_dir) / "watcher"
         self.state_file = self.runtime_dir / "state" / "watcher_state.json"
         self.state = WatcherState(self.state_file)
         
@@ -436,6 +439,10 @@ def run_watcher_check(runtime_dir: str | Path, config_dir: str | Path) -> dict[s
     service_log_file = watcher.service_log_dir / "watcher.jsonl"
     with service_log_file.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+    # 新目录：根目录 artifacts/watcher/latest.json + history.jsonl
+    write_json(watcher.artifacts_dir / "latest.json", record)
+    append_jsonl(watcher.artifacts_dir / "history.jsonl", record)
 
     # 旧目录：runtime/.../logs/watcher_YYYYMMDD.jsonl，保留兼容
     legacy_log_dir = Path(runtime_dir) / "logs"

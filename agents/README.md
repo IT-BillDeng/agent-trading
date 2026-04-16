@@ -15,7 +15,8 @@
 - `docs/tasks/cron/`：cron 任务正文
 - `docs/tasks/` 与 `docs/roles/`：agent 实际执行模板与上下文
 - `logs/`：运行状态与诊断日志
-- `runtime/engine/` 与 `runtime/outbox/`：状态、历史产物与待发送消息
+- `artifacts/`：agent 业务产物与学习成果
+- `runtime/state/` 与 `runtime/outbox/`：控制状态与待发送消息
 - `docs/agent-artifacts-inventory.md`：各 agent 产物的语义归类
 
 如果 `agents/*.yaml` 与上述位置冲突，应优先以实际运行链路和新文档为准，再回头校准 yaml。
@@ -87,7 +88,7 @@
 截至 `2026-04-16`，至少有这些位置仍未完全校准：
 
 - 多个 `yaml` 和 `docs/roles/*` 仍在引用旧的 `runtime/engine/logs/*` 路径，而系统正在把运行日志收口到根目录 `logs/`
-- agent 业务产物和运行日志的目录边界仍在整理中，后续应逐步区分 `logs/` 与 `artifacts/`
+- agent 业务产物和运行日志的目录边界仍在整理中，后续应逐步区分 `logs/`、`artifacts/`、`runtime/state/` 与 `runtime/outbox/`
 - `agents/` 仍包含少量历史路径引用，需要继续校准到 `docs/tasks/cron/` 与根目录 `logs/`
 
 更完整的盘点见：

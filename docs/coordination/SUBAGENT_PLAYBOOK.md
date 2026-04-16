@@ -69,8 +69,8 @@
 目标：检查本地清单中的标的最近一轮候选与市场状态是否有变化。
 输入：
 - `./data/watchlist.json`
-- `./runtime/engine/.last_execution_cycle.json`
-- `./runtime/engine/logs/dispatch_queue.jsonl`
+- `./logs/latest/engine_cycle.json`
+- `./logs/audit/dispatch_queue.jsonl`
 边界：只读，不运行 Python，不对外发消息。
 输出：
 - 一句话结论
@@ -92,7 +92,8 @@
 - `./data/watchlist.json`
 - 策略草案
 - app_config
-- 上次执行结果
+- `./logs/latest/engine_cycle.json`
+- `./logs/audit/execution.jsonl`
 边界：不直接执行 Python，不提交真实订单。
 输出：检查步骤、命令建议、验证点、最短错误点。
 

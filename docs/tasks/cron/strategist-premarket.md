@@ -14,10 +14,10 @@
 ## 步骤
 1. 读取 ./rules/rules.json — 当前规则
 2. 读取 ./artifacts/newswire/latest.json — 盘前新闻（优先）
-3. 兼容读取旧新闻镜像
+3. 读取 ./logs/latest/market_context.json — 当前市场上下文
 4. 读取 ./data/watchlist.json — 标的白名单
 5. 读取 ./logs/latest/engine_cycle.json（优先）
-6. 兼容读取 ./runtime/engine/.last_execution_cycle.json
+6. 如有必要，可兼容读取旧快照
 7. 复盘昨日信号质量
 8. 从 newswire 提取 high importance 新闻，判断对规则的影响
 9. 如需调整，用 exec 调回测 API 验证（curl http://host.docker.internal:8088/api/backtest）

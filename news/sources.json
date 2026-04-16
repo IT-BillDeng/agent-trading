@@ -40,8 +40,8 @@
     }
   ],
   "output": {
-    "path": "runtime/engine/newswire/latest.json",
-    "history_path": "runtime/engine/newswire/history.jsonl",
+    "path": "artifacts/newswire/latest.json",
+    "history_path": "artifacts/newswire/history.jsonl",
     "max_items": 50,
     "dedupe_window_hours": 24
   },

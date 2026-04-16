@@ -14,9 +14,9 @@
 ## 步骤
 1. 读取 ./rules/rules.json
 2. 读取 ./artifacts/newswire/latest.json（优先）
-3. 兼容读取旧新闻镜像
+3. 读取 ./logs/latest/market_context.json — 当前市场上下文
 4. 读取 ./logs/latest/engine_cycle.json（优先）
-5. 兼容读取 ./runtime/engine/.last_execution_cycle.json（如存在）
+5. 如有必要，可兼容读取旧快照（如存在）
 6. 分析今日信号质量：总信号数、胜率、PnL、false signal、missed opportunity
 7. 提出明日策略迭代方案（参数/因子调整）
 8. 对每个方案用 exec 调回测 API 验证：

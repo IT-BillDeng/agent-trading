@@ -83,7 +83,7 @@ python3 control_state.py /path/to/app_config.json unlock "resume after review"
 ## Telegram 开关
 - `telegram_preview_only=true`：只生成通知预览
 - `telegram_send_enabled=true`：生成可直接投递的 dispatch plan
-- `telegram_target=REDACTED`：默认目标
+- `ENGINE_TELEGRAM_TARGET`：默认目标（由环境变量注入）
 
 说明：当前代码层生成的是 **dispatch plan / dispatch queue**，后续可由 OpenClaw `message` 工具实际投递。
 

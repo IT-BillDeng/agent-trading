@@ -14,7 +14,7 @@
 2. 解析输出的 JSON：
    - 如果 status 是 'skipped' 且 reason 是 '非交易日'，直接回复 HEARTBEAT_OK
    - 否则提取 report 字段
-3. 将报告内容通过 message 工具发送到 Telegram（channel: telegram, target: 8132228056）
+3. 将报告内容通过 message 工具发送到 Telegram（channel: telegram, target: ${ENGINE_TELEGRAM_TARGET}）
 4. 如果有异常或风险，在报告末尾添加 ⚠️ 标记
 
 注意：API 地址 http://host.docker.internal:8088

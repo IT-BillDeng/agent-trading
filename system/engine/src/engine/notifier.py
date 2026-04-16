@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import asdict, dataclass
 from typing import Any
 
@@ -24,7 +25,16 @@ class NotificationBuilder:
         self.telegram_enabled = bool(notify.get('telegram', False))
         self.telegram_preview_only = bool(notify.get('telegram_preview_only', True))
         self.telegram_send_enabled = bool(notify.get('telegram_send_enabled', False))
-        self.telegram_target = notify.get('telegram_target')
+        self.telegram_target = self._resolve_target(notify.get('telegram_target'))
+
+    @staticmethod
+    def _resolve_target(value: Any) -> Any:
+        if not isinstance(value, str):
+            return value
+        if value.startswith('${') and value.endswith('}'):
+            env_key = value[2:-1].strip()
+            return os.environ.get(env_key)
+        return value
 
     def build_from_summary(self, summary: dict[str, Any]) -> list[NotificationPreview]:
         previews: list[NotificationPreview] = []

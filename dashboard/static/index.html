@@ -837,6 +837,7 @@
                 const icon = isBuy ? '🟢' : '🔴';
                 const actionCls = isBuy ? 'text-green-400' : 'text-red-400';
                 const filled = o.filled_qty || o.quantity || '--';
+                const orderId = o.order_id || o.id || '--';
                 const fillPriceVal = o.avg_fill_price;
                 const filledCashAmount = o.filled_cash_amount;
                 const derivedFillPrice = (!fillPriceVal && filledCashAmount && Number(filled) > 0)
@@ -850,8 +851,19 @@
                         : '';
                 const ts = o.submitted_at ? Number(o.submitted_at) : null;
                 const time = ts ? new Date(ts).toLocaleString('zh-CN', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
-                const status = (o.status || '').replace('OrderStatus.', '');
-                const statusIcon = status === 'FILLED' ? ' ✓' : status === 'CANCELLED' ? ' ✗' : ' ⏳';
+                const status = String(o.status || '').replace('OrderStatus.', '').toUpperCase();
+                const statusMeta = {
+                    FILLED: { text: '已成交', cls: 'bg-green-500/15 text-green-400', icon: '✓' },
+                    CANCELLED: { text: '已撤单', cls: 'bg-gray-500/15 text-gray-300', icon: '✗' },
+                    CANCELED: { text: '已撤单', cls: 'bg-gray-500/15 text-gray-300', icon: '✗' },
+                    REJECTED: { text: '已拒单', cls: 'bg-red-500/15 text-red-300', icon: '!' },
+                    EXPIRED: { text: '已过期', cls: 'bg-yellow-500/15 text-yellow-300', icon: '⏳' },
+                    INITIAL: { text: '待成交', cls: 'bg-blue-500/15 text-blue-300', icon: '⏳' },
+                    SUBMITTED: { text: '已提交', cls: 'bg-blue-500/15 text-blue-300', icon: '⏳' },
+                    PENDING: { text: '待成交', cls: 'bg-blue-500/15 text-blue-300', icon: '⏳' },
+                    PARTIAL: { text: '部分成交', cls: 'bg-amber-500/15 text-amber-300', icon: '◔' },
+                    PARTIALLY_FILLED: { text: '部分成交', cls: 'bg-amber-500/15 text-amber-300', icon: '◔' },
+                }[status] || { text: status || '未知', cls: 'bg-gray-500/15 text-gray-300', icon: '⏳' };
                 return `<div class="py-1.5 border-b border-gray-700/30">
                     <div class="flex items-center justify-between">
                         <div>
@@ -859,11 +871,14 @@
                             <span class="${actionCls} font-medium ml-1">${o.action || o.side || '--'}</span>
                             <span class="ml-1 font-medium">${o.symbol || '--'}</span>
                             <span class="text-gray-400 text-xs ml-1">×${filled}</span>
+                            <span class="text-gray-500 text-xs ml-1">#${orderId}</span>
                             <span class="text-gray-300 text-xs ml-1">${price}</span>
                         </div>
-                        <div class="text-xs">
+                        <div class="text-xs flex items-center gap-1">
                             <span class="text-gray-500">${time}</span>
-                            <span class="text-gray-400 ml-1">${statusIcon}</span>
+                            <span class="text-[11px] px-1.5 py-0.5 rounded ${statusMeta.cls}">
+                                ${statusMeta.icon} ${statusMeta.text}
+                            </span>
                         </div>
                     </div>
                 </div>`;

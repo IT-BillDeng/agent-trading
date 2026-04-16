@@ -1,0 +1,12 @@
+{
+  "_comment": "Docker runtime overlay - keep environment-specific paths here",
+  "extends": "./app.defaults.json",
+  "strategy": {
+    "watchlist_file": "/app/data/watchlist.json",
+    "rules_path": "/app/rules/rules.json"
+  },
+  "system": {
+    "audit_log_dir": "/app/logs/audit",
+    "state_dir": "/app/runtime/state"
+  }
+}

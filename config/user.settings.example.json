@@ -1,0 +1,13 @@
+{
+  "_comment": "Copy to config/user.settings.json for local user preferences",
+  "mode": "paper",
+  "markets": [
+    "US"
+  ],
+  "notify": {
+    "telegram": true,
+    "telegram_preview_only": false,
+    "telegram_send_enabled": true,
+    "telegram_target": "${ENGINE_TELEGRAM_TARGET}"
+  }
+}

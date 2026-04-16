@@ -11,7 +11,9 @@
 输入：
 - `./data/watchlist.json`（本地用户状态）
 - `./system/engine/README.md`
-- `./system/engine/app_config.paper.json`
+- `./config/app.defaults.json`
+- `./config/app_config.docker.json`
+- `./config/user.settings.json`（如存在）
 - `./logs/latest/engine_cycle.json`
 - `./logs/audit/execution.jsonl`
 - `./logs/audit/dispatch_queue.jsonl`

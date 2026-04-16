@@ -1,96 +1,11 @@
 {
+  "_comment": "Legacy example overlay - copy preferred user overrides to config/user.settings.json",
+  "extends": "../../config/app.defaults.json",
   "mode": "paper",
   "markets": [
     "US"
   ],
-  "strategy": {
-    "timeframe": "30min",
-    "watchlist_file": "/app/data/watchlist.json",
-    "signal": {
-      "lookback_bars": 30,
-      "fast_sma": 5,
-      "slow_sma": 10,
-      "trend_sma": 20,
-      "min_momentum_3bars": 0.003,
-      "max_bar_range_pct": 0.04
-    },
-    "sessions": {
-      "US": {
-        "entry_window_start": "10:00",
-        "entry_window_end": "15:15"
-      }
-    },
-    "symbols": [
-      {
-        "symbol": "AAPL",
-        "market": "US",
-        "name": "Apple"
-      },
-      {
-        "symbol": "MSFT",
-        "market": "US",
-        "name": "Microsoft"
-      },
-      {
-        "symbol": "NVDA",
-        "market": "US",
-        "name": "NVIDIA"
-      },
-      {
-        "symbol": "AMZN",
-        "market": "US",
-        "name": "Amazon"
-      },
-      {
-        "symbol": "SMCI",
-        "market": "US",
-        "name": "Super Micro Computer"
-      },
-      {
-        "symbol": "GOOGL",
-        "market": "US",
-        "name": "Alphabet Class A"
-      }
-    ]
-  },
-  "risk": {
-    "max_order_notional_usd": 10000,
-    "daily_loss_limit_pct": 5,
-    "max_total_exposure_usd": 10000,
-    "fx_rates_to_usd": {
-      "USD": 1.0
-    },
-    "allow_short": false,
-    "allow_margin": false,
-    "allow_options": false
-  },
-  "execution": {
-    "allowed_order_types": [
-      "MKT",
-      "LMT",
-      "STP",
-      "STP_LMT"
-    ],
-    "tif": "DAY",
-    "allow_prepost": false,
-    "dedupe": true,
-    "preview_check": true,
-    "submit_mode": "guarded",
-    "live_submit": false,
-    "live_cancel": false
-  },
   "notify": {
-    "telegram": true,
-    "telegram_preview_only": false,
-    "telegram_send_enabled": true,
-    "telegram_target": "${ENGINE_TELEGRAM_TARGET}",
-    "ntfy": false
-  },
-  "system": {
-    "stop_on_exception": true,
-    "auto_resume": false,
-    "resume_requires_manual_unlock": true,
-    "audit_log_dir": "/app/logs/audit",
-    "state_dir": "/app/runtime/state"
+    "telegram_target": "${ENGINE_TELEGRAM_TARGET}"
   }
 }

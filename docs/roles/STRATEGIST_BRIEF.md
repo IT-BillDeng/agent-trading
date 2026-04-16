@@ -14,11 +14,13 @@
 ## 默认输入顺序
 1. `./data/watchlist.json`（本地用户状态）
 2. `./specs/agent-trading-spec-v1-30min.md`
-3. `./system/engine/app_config.paper.json`
-4. `./logs/latest/engine_cycle.json`
-5. `./logs/latest/market_context.json`
-6. `./artifacts/newswire/latest.json`
-7. `./artifacts/strategist/memory/latest.json`
+3. `./config/app.defaults.json`
+4. `./config/app_config.docker.json`
+5. `./config/user.settings.json`（如存在）
+6. `./logs/latest/engine_cycle.json`
+7. `./logs/latest/market_context.json`
+8. `./artifacts/newswire/latest.json`
+9. `./artifacts/strategist/memory/latest.json`
 
 ## 关注重点
 - 本地清单里 `enabled=true` 的标的

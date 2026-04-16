@@ -13,12 +13,14 @@
 ## 默认输入顺序
 1. `./data/watchlist.json`（本地用户状态）
 2. `./system/engine/README.md`
-3. `./system/engine/app_config.paper.json`
-4. `./logs/latest/engine_cycle.json`
-5. `./logs/audit/execution.jsonl`
-6. `./logs/audit/dispatch_queue.jsonl`
-7. `./runtime/state/control_state.json`
-8. `./artifacts/strategist/strategy_plan_latest.json`
+3. `./config/app.defaults.json`
+4. `./config/app_config.docker.json`
+5. `./config/user.settings.json`（如存在）
+6. `./logs/latest/engine_cycle.json`
+7. `./logs/audit/execution.jsonl`
+8. `./logs/audit/dispatch_queue.jsonl`
+9. `./runtime/state/control_state.json`
+10. `./artifacts/strategist/strategy_plan_latest.json`
 
 ## 关注重点
 - 本地清单里 `enabled=true` 的标的是否与当前执行输出一致

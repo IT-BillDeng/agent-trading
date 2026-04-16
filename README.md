@@ -24,6 +24,10 @@ agent-trading/
   README.md
   .gitignore
   data/
+  config/
+    app.defaults.json
+    app_config.docker.json
+    user.settings.example.json
   docs/
     roles/
     tasks/
@@ -36,7 +40,6 @@ agent-trading/
   system/
     engine/
       README.md
-      app_config.paper.json
       config.example.json
       run_strategy_cycle.py
       run_dry_run_cycle.py
@@ -54,6 +57,7 @@ agent-trading/
 
 - `docs/`：岗位说明、任务模板、协作说明
 - `data/`：本地用户状态、种子配置与少量实验产物
+- `config/`：项目默认配置、Docker 覆盖与本地用户设置示例
 - `news/`：新闻源配置
 - `specs/`：规格文档与设计草案
 - `system/engine/`：核心执行引擎代码
@@ -111,6 +115,16 @@ agent-trading/
 - `data/watchlist.json`
   - 共享股票池
   - 各岗位优先读取
+
+- `config/app.defaults.json`
+  - 项目默认策略/风控/通知配置
+
+- `config/app_config.docker.json`
+  - Docker/容器环境覆盖入口
+
+- `config/user.settings.json`
+  - 本地用户设置
+  - 不进 git，由运行时或用户本地生成
 
 - `runtime/engine/market_context.json`
   - 共享市场上下文

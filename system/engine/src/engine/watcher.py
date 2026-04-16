@@ -269,7 +269,9 @@ class TigerWatcher:
             )
         
         try:
-            config = json.loads(config_file.read_text())
+            from .config import load_app_config_raw
+
+            config = load_app_config_raw(config_file)
             provider = config.get("strategy", {}).get("signal", {}).get("provider", "unknown")
             
             return HealthCheck(

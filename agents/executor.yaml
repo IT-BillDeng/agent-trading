@@ -18,7 +18,9 @@ tools:
 input_files:
   - /workspace/agent-trading/data/watchlist.json
   - /workspace/agent-trading/system/engine/README.md
-  - /workspace/agent-trading/system/engine/app_config.paper.json
+  - /workspace/agent-trading/config/app.defaults.json
+  - /workspace/agent-trading/config/app_config.docker.json
+  - /workspace/agent-trading/config/user.settings.json
   - /workspace/agent-trading/logs/latest/engine_cycle.json
   - /workspace/agent-trading/logs/audit/execution.jsonl
   - /workspace/agent-trading/logs/audit/dispatch_queue.jsonl

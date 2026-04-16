@@ -23,7 +23,8 @@ properties/tiger.properties
 # Runtime user data (modified by dashboard)
 data/tiger_shared_watchlist.json
 runtime/tiger_engine/tiger_shared_market_context.json
-config/app_config*.json
+config/user.settings.json
+config/app_config.local.json
 config/secrets*
 *.env
 .env*

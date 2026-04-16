@@ -35,9 +35,12 @@
 
 v1 的 30min 策略以 **K 线历史** 为主输入。
 
-## 目录
-- `config.example.json`：配置模板
-- `app_config.paper.json`：当前 paper 配置
+## 配置分层
+- `../../config/app.defaults.json`：项目默认配置
+- `../../config/app_config.docker.json`：Docker/容器覆盖入口
+- `../../config/user.settings.json`：本地用户设置（可选，不进 git）
+- `config.example.json`：旧示例文件，保留为兼容参考
+- `app_config.paper.json`：旧 paper 入口，保留为兼容入口
 - `../../data/watchlist.json`：Operator + subagents 共用本地股票清单
 - `src/engine/config.py`：配置加载
 - `src/engine/tiger_client.py`：当前默认 broker API 请求封装
@@ -65,13 +68,13 @@ v1 的 30min 策略以 **K 线历史** 为主输入。
 
 ## 运行方式
 ```bash
-python3 run_readonly_cycle.py /path/to/app_config.json /path/to/broker_props.properties
-python3 run_strategy_cycle.py /path/to/app_config.json /path/to/broker_props.properties
-python3 run_dry_run_cycle.py /path/to/app_config.json /path/to/broker_props.properties
-python3 run_execution_cycle.py /path/to/app_config.json /path/to/broker_props.properties
-python3 control_state.py /path/to/app_config.json status
-python3 control_state.py /path/to/app_config.json lock "manual review"
-python3 control_state.py /path/to/app_config.json unlock "resume after review"
+python3 run_readonly_cycle.py ../../config/app_config.docker.json /path/to/broker_props.properties
+python3 run_strategy_cycle.py ../../config/app_config.docker.json /path/to/broker_props.properties
+python3 run_dry_run_cycle.py ../../config/app_config.docker.json /path/to/broker_props.properties
+python3 run_execution_cycle.py ../../config/app_config.docker.json /path/to/broker_props.properties
+python3 control_state.py ../../config/app_config.docker.json status
+python3 control_state.py ../../config/app_config.docker.json lock "manual review"
+python3 control_state.py ../../config/app_config.docker.json unlock "resume after review"
 ```
 
 ## 执行模式

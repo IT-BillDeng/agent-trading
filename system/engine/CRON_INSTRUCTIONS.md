@@ -8,7 +8,7 @@
    ```bash
    cd <项目根目录>/agent-trading && \
    python3 ./system/engine/run_execution_cycle.py \
-     ./system/engine/app_config.paper.json \
+     ./config/app_config.docker.json \
      <broker API 配置文件路径>
    ```
    > 注意：cron 执行时需将 `<项目根目录>` 和 `<broker API 配置文件路径>` 替换为实际绝对路径。

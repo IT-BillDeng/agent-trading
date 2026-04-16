@@ -19,6 +19,10 @@ from .quote_provider import get_quote_provider
 from .scheduler import SignalScheduler
 from .normalize import get_normalizer, available_brokers
 from .service_logs import append_service_log
+from system.engine.src.engine.config import (
+    load_app_config_raw,
+    merge_user_settings,
+)
 
 # Broker normalizer — configurable via env or defaults to tiger
 BROKER = os.environ.get("ENGINE_BROKER", "tiger")
@@ -481,6 +485,18 @@ def _ensure_artifacts_layout():
         path.mkdir(parents=True, exist_ok=True)
 
 
+def _app_config_file() -> Path:
+    return CONFIG_DIR_PATH / "app_config.docker.json"
+
+
+def _load_effective_app_config() -> dict[str, Any]:
+    return load_app_config_raw(_app_config_file())
+
+
+def _merge_app_user_settings(updates: dict[str, Any]) -> tuple[dict[str, Any], Path]:
+    return merge_user_settings(_app_config_file(), updates)
+
+
 def _first_existing_path(*paths: Path) -> Path:
     for path in paths:
         if path.exists():
@@ -750,8 +766,7 @@ def _sorted_json_files(directory: Path) -> list[Path]:
 
 
 def _build_strategy_overview() -> dict[str, Any]:
-    config_file = CONFIG_DIR_PATH / "app_config.docker.json"
-    config = _safe_read_json(config_file) or {}
+    config = _load_effective_app_config()
     rules_doc = _safe_read_json(RULES_FILE) or {"rules": [], "global_settings": {}}
     cycle = _safe_read_json(RUNTIME_DIR / ".last_execution_cycle.json") or {}
     control = _read_control_state()
@@ -1077,30 +1092,35 @@ async def api_scheduler_run():
 @app.get("/api/config")
 async def api_config_get():
     """Get current engine config (risk params, markets, etc.)."""
-    config_file = CONFIG_DIR_PATH / "app_config.docker.json"
+    config_file = _app_config_file()
     if not config_file.exists():
         return JSONResponse({"error": "config not found"}, status_code=404)
-    import json
-    return json.loads(config_file.read_text())
+    return _load_effective_app_config()
 
 
 @app.patch("/api/config")
 async def api_config_update(update: dict):
     """Update engine config (risk params, markets, etc.)."""
-    config_file = CONFIG_DIR_PATH / "app_config.docker.json"
+    config_file = _app_config_file()
     if not config_file.exists():
         return JSONResponse({"error": "config not found"}, status_code=404)
-    import json
-    config = json.loads(config_file.read_text())
-    # Allow updating top-level risk and markets
+
+    user_updates: dict[str, Any] = {}
     if "risk" in update:
-        config["risk"].update(update["risk"])
+        user_updates["risk"] = update["risk"]
     if "markets" in update:
-        config["markets"] = update["markets"]
+        user_updates["markets"] = update["markets"]
     if "strategy" in update and "timeframe" in update["strategy"]:
-        config["strategy"]["timeframe"] = update["strategy"]["timeframe"]
-    config_file.write_text(json.dumps(config, indent=2, ensure_ascii=False))
-    return {"status": "ok", "config": config}
+        user_updates.setdefault("strategy", {})["timeframe"] = update["strategy"]["timeframe"]
+    if not user_updates:
+        return {"status": "ok", "config": _load_effective_app_config()}
+
+    _, settings_path = _merge_app_user_settings(user_updates)
+    return {
+        "status": "ok",
+        "config": _load_effective_app_config(),
+        "user_settings_path": str(settings_path),
+    }
 
 
 def _read_control_state() -> dict:
@@ -1866,28 +1886,27 @@ async def api_broker_config_get():
         else:
             masked[k] = v
     # Read mode from app_config (fallback)
-    config_file = CONFIG_DIR_PATH / "app_config.docker.json"
+    config_file = _app_config_file()
     mode = "paper"
     if config_file.exists():
         try:
-            mode = json.loads(config_file.read_text()).get("mode", "paper")
+            mode = _load_effective_app_config().get("mode", "paper")
         except Exception:
             pass
     # Try API detection (non-fatal if fails)
     account_info = None
     try:
-        account_info = _get_broker_account_info(str(BROKER_PROPERTIES_DIR))
-        detected = _account_type_to_mode(account_info.get("account_type", ""))
-        if detected:
-            mode = detected
-            if config_file.exists():
-                try:
-                    app_config = json.loads(config_file.read_text())
-                    if app_config.get("mode") != mode:
-                        app_config["mode"] = mode
-                        config_file.write_text(json.dumps(app_config, indent=2, ensure_ascii=False))
-                except Exception:
-                    pass
+            account_info = _get_broker_account_info(str(BROKER_PROPERTIES_DIR))
+            detected = _account_type_to_mode(account_info.get("account_type", ""))
+            if detected:
+                mode = detected
+                if config_file.exists():
+                    try:
+                        effective = _load_effective_app_config()
+                        if effective.get("mode") != mode:
+                            _merge_app_user_settings({"mode": mode})
+                    except Exception:
+                        pass
     except Exception as e:
         account_info = {"error": str(e)}
     return {"exists": True, "mode": mode, "fields": masked, "account_info": account_info}
@@ -1987,11 +2006,9 @@ async def api_broker_config_upload_file(file: UploadFile = File(...)):
             account_info = _get_broker_account_info(str(BROKER_PROPERTIES_DIR))
             detected = _account_type_to_mode(account_info.get("account_type", ""))
             if detected:
-                config_file = CONFIG_DIR_PATH / "app_config.docker.json"
+                config_file = _app_config_file()
                 if config_file.exists():
-                    app_config = json.loads(config_file.read_text())
-                    app_config["mode"] = detected
-                    config_file.write_text(json.dumps(app_config, indent=2, ensure_ascii=False))
+                    _merge_app_user_settings({"mode": detected})
         except Exception as e:
             account_info = {"error": str(e)}
 
@@ -2013,16 +2030,14 @@ async def api_config_mode(body: dict):
     mode = body.get("mode")
     if mode not in ("paper", "live"):
         return JSONResponse({"error": "mode must be paper or live"}, status_code=400)
-    config_file = CONFIG_DIR_PATH / "app_config.docker.json"
+    config_file = _app_config_file()
     if not config_file.exists():
         return JSONResponse({"error": "config not found"}, status_code=404)
-    config = json.loads(config_file.read_text())
-    config["mode"] = mode
+    user_updates: dict[str, Any] = {"mode": mode}
     # Live mode safety: disable live_submit/live_cancel by default
     if mode == "live":
-        config.setdefault("execution", {})["live_submit"] = False
-        config.setdefault("execution", {})["live_cancel"] = False
-    config_file.write_text(json.dumps(config, indent=2, ensure_ascii=False))
+        user_updates["execution"] = {"live_submit": False, "live_cancel": False}
+    _merge_app_user_settings(user_updates)
     return {"status": "ok", "mode": mode}
 
 

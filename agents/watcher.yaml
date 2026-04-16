@@ -17,15 +17,17 @@ tools:
 # 输入文件
 input_files:
   - /workspace/agent-trading/data/watchlist.json
-  - /workspace/agent-trading/runtime/engine/.last_execution_cycle.json
-  - /workspace/agent-trading/runtime/engine/logs/dispatch_queue.jsonl
-  - /workspace/agent-trading/runtime/engine/logs/execution.jsonl
-  - /workspace/agent-trading/runtime/engine/state/control_state.json
+  - /workspace/agent-trading/logs/latest/engine_cycle.json
+  - /workspace/agent-trading/logs/latest/market_context.json
+  - /workspace/agent-trading/logs/audit/dispatch_queue.jsonl
+  - /workspace/agent-trading/logs/audit/execution.jsonl
+  - /workspace/agent-trading/runtime/state/control_state.json
 
 # 输出文件
 output_files:
-  - /workspace/agent-trading/runtime/engine/watcher/latest.json
-  - /workspace/agent-trading/runtime/engine/watcher/history.jsonl
+  - /workspace/agent-trading/artifacts/watcher/latest.json
+  - /workspace/agent-trading/artifacts/watcher/history.jsonl
+  - /workspace/agent-trading/runtime/state/watcher_state.json
 
 # 执行命令（健康检查）
 exec_commands:

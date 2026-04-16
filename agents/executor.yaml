@@ -19,15 +19,16 @@ input_files:
   - /workspace/agent-trading/data/watchlist.json
   - /workspace/agent-trading/system/engine/README.md
   - /workspace/agent-trading/system/engine/app_config.paper.json
-  - /workspace/agent-trading/runtime/engine/.last_execution_cycle.json
-  - /workspace/agent-trading/runtime/engine/logs/execution.jsonl
-  - /workspace/agent-trading/runtime/engine/logs/dispatch_queue.jsonl
-  - /workspace/agent-trading/runtime/engine/state/control_state.json
+  - /workspace/agent-trading/logs/latest/engine_cycle.json
+  - /workspace/agent-trading/logs/audit/execution.jsonl
+  - /workspace/agent-trading/logs/audit/dispatch_queue.jsonl
+  - /workspace/agent-trading/runtime/state/control_state.json
+  - /workspace/agent-trading/artifacts/strategist/strategy_plan_latest.json
 
 # 输出文件
 output_files:
-  - /workspace/agent-trading/runtime/engine/executor_checklist_latest.json
-  - /workspace/agent-trading/runtime/engine/executor_checklist_history.jsonl
+  - /workspace/agent-trading/artifacts/executor/checklist_latest.json
+  - /workspace/agent-trading/artifacts/executor/checklist_history.jsonl
 
 # 执行命令（校验）
 exec_commands:

@@ -102,8 +102,8 @@
 |------|----------|----------|----------|--------------|
 | watcher 运行日志 | `logs/service/watcher.jsonl` | 记录每次 watcher 检查结果 | `logs` | `logs/service/watcher.jsonl` |
 | watcher 兼容旧日志 | `runtime/engine/logs/watcher_YYYYMMDD.jsonl` | 旧路径兼容 | `logs` | 兼容保留，后续下线 |
-| watcher 最新结果 | `runtime/engine/watcher/latest.json` | 给人工/脚本读取最近检查结果 | `artifacts` | `artifacts/watcher/latest.json` |
-| watcher 历史结果 | `runtime/engine/watcher/history.jsonl` | 结构化巡检历史 | `artifacts` | `artifacts/watcher/history.jsonl` |
+| watcher 最新结果 | `artifacts/watcher/latest.json` | 给人工/脚本读取最近检查结果 | `artifacts` | `artifacts/watcher/latest.json` |
+| watcher 历史结果 | `artifacts/watcher/history.jsonl` | 结构化巡检历史 | `artifacts` | `artifacts/watcher/history.jsonl` |
 | watcher 内部状态 | `runtime/engine/state/watcher_state.json` | 记录连续错误、冷却等内部状态 | `state` | `runtime/state/watcher_state.json` |
 
 主要消费者：
@@ -128,10 +128,10 @@
 
 | 产物 | 当前路径 | 当前用途 | 建议归类 | 建议目标位置 |
 |------|----------|----------|----------|--------------|
-| 最新新闻批次 | `runtime/engine/newswire/latest.json` | 给 Strategist / Dashboard 读取当前新闻输入 | `artifacts` | `artifacts/newswire/latest.json` |
-| 新闻历史 | `runtime/engine/newswire/history.jsonl` | 保存历次结构化新闻结果 | `artifacts` | `artifacts/newswire/history.jsonl` |
-| 去重状态 | `runtime/engine/newswire/dedupe.json` | 防止重复扫描和重复写入 | `state` | `runtime/state/newswire_dedupe.json` |
-| 上一版快照 | `runtime/engine/newswire/latest_prev.json` | 旧快照/对比用途 | `artifacts` | `artifacts/newswire/latest_prev.json` |
+| 最新新闻批次 | `artifacts/newswire/latest.json` | 给 Strategist / Dashboard 读取当前新闻输入 | `artifacts` | `artifacts/newswire/latest.json` |
+| 新闻历史 | `artifacts/newswire/history.jsonl` | 保存历次结构化新闻结果 | `artifacts` | `artifacts/newswire/history.jsonl` |
+| 去重状态 | `runtime/state/newswire_dedupe.json` | 防止重复扫描和重复写入 | `state` | `runtime/state/newswire_dedupe.json` |
+| 上一版快照 | `artifacts/newswire/latest_prev.json` | 旧快照/对比用途 | `artifacts` | `artifacts/newswire/latest_prev.json` |
 
 主要消费者：
 
@@ -189,8 +189,8 @@
 
 | 产物 | 当前路径 | 当前用途 | 建议归类 | 建议目标位置 |
 |------|----------|----------|----------|--------------|
-| 最新检查单 | `runtime/engine/executor_checklist_latest.json` | 当前执行检查结果 | `artifacts` | `artifacts/executor/checklist_latest.json` |
-| 检查单历史 | `runtime/engine/executor_checklist_history.jsonl` | 历史核验结果 | `artifacts` | `artifacts/executor/checklist_history.jsonl` |
+| 最新检查单 | `artifacts/executor/checklist_latest.json` | 当前执行检查结果 | `artifacts` | `artifacts/executor/checklist_latest.json` |
+| 检查单历史 | `artifacts/executor/checklist_history.jsonl` | 历史核验结果 | `artifacts` | `artifacts/executor/checklist_history.jsonl` |
 
 主要消费者：
 
@@ -212,8 +212,8 @@
 
 | 产物 | 当前路径 | 当前用途 | 建议归类 | 建议目标位置 |
 |------|----------|----------|----------|--------------|
-| 最新候选列表 | `runtime/engine/scout_candidates_latest.json` | 当前候选结果 | `artifacts` | `artifacts/scout/candidates_latest.json` |
-| 候选历史 | `runtime/engine/scout_candidates_history.jsonl` | 历史扫描结果 | `artifacts` | `artifacts/scout/candidates_history.jsonl` |
+| 最新候选列表 | `artifacts/scout/candidates_latest.json` | 当前候选结果 | `artifacts` | `artifacts/scout/candidates_latest.json` |
+| 候选历史 | `artifacts/scout/candidates_history.jsonl` | 历史扫描结果 | `artifacts` | `artifacts/scout/candidates_history.jsonl` |
 
 主要消费者：
 
@@ -235,8 +235,8 @@
 
 | 产物 | 当前路径 | 当前用途 | 建议归类 | 建议目标位置 |
 |------|----------|----------|----------|--------------|
-| 最新收盘总结 | `runtime/engine/closer_summary_latest.json` | 当前市场收盘总结 | `artifacts` | `artifacts/closer/summary_latest.json` |
-| 收盘总结历史 | `runtime/engine/closer_summary_history.jsonl` | 历史收盘总结 | `artifacts` | `artifacts/closer/summary_history.jsonl` |
+| 最新收盘总结 | `artifacts/closer/summary_latest.json` | 当前市场收盘总结 | `artifacts` | `artifacts/closer/summary_latest.json` |
+| 收盘总结历史 | `artifacts/closer/summary_history.jsonl` | 历史收盘总结 | `artifacts` | `artifacts/closer/summary_history.jsonl` |
 | 待发送消息 | `runtime/outbox/closer_outbox.json` | 待发送或待消费消息 | `outbox` | `runtime/outbox/closer_outbox.json` |
 
 主要消费者：

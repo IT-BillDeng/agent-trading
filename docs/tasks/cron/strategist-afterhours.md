@@ -14,7 +14,7 @@
 ## 步骤
 1. 读取 ./rules/rules.json
 2. 读取 ./artifacts/newswire/latest.json（优先）
-3. 兼容读取 ./runtime/engine/newswire/latest.json
+3. 兼容读取旧新闻镜像
 4. 读取 ./logs/latest/engine_cycle.json（优先）
 5. 兼容读取 ./runtime/engine/.last_execution_cycle.json（如存在）
 6. 分析今日信号质量：总信号数、胜率、PnL、false signal、missed opportunity

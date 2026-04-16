@@ -15,7 +15,7 @@
 ## 执行流程
 
 ### Step 1: 调用前去重
-读取 ./runtime/engine/newswire/dedupe.json 的 updated_at
+读取 ./runtime/state/newswire_dedupe.json 的 updated_at
 → 距今 < 20分钟 且 非 shift 切换点（盘中切换窗口 09:00-09:30 ET）
 → 回复 "跳过本轮"，直接结束
 
@@ -40,7 +40,7 @@ web_fetch(url="https://news.google.com/rss/search?q=AI+semiconductor+tech+sector
   第2次：web_search(query="US stock market AI semiconductor macro news today fed inflation jobs", count=5, freshness="day")
 
 ### Step 5: 合并去重 + 重要性标注
-### Step 6: 输出到 ./runtime/engine/newswire/latest.json + history.jsonl + dedupe.json
+### Step 6: 输出到 ./artifacts/newswire/latest.json + history.jsonl + ./runtime/state/newswire_dedupe.json
 ### Step 7: 汇报（含搜索次数统计）
 
 硬约束：单轮搜索 ≤ 2次。不写文件时用 write 工具，不运行 Python。

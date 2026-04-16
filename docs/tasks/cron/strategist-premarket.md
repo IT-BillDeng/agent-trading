@@ -14,7 +14,7 @@
 ## 步骤
 1. 读取 ./rules/rules.json — 当前规则
 2. 读取 ./artifacts/newswire/latest.json — 盘前新闻（优先）
-3. 兼容读取 ./runtime/engine/newswire/latest.json
+3. 兼容读取旧新闻镜像
 4. 读取 ./data/watchlist.json — 标的白名单
 5. 读取 ./logs/latest/engine_cycle.json（优先）
 6. 兼容读取 ./runtime/engine/.last_execution_cycle.json

@@ -21,7 +21,7 @@
 **在任何数据采集之前**，先检查是否可以跳过本轮：
 
 ```
-读取 ./runtime/engine/newswire/dedupe.json 的 updated_at
+读取 ./runtime/state/newswire_dedupe.json 的 updated_at
 → 距今 < 20分钟 且 当前不是 shift 切换时段
   → 输出 "跳过本轮：距上次仅 X 分钟，复用 latest.json"，直接结束
 ```
@@ -117,7 +117,7 @@ for sym in ['SPY','QQQ','DIA']:
 ### Step 5: 合并去重
 
 1. 为每条新闻生成 id：`{source}:{symbol}:{headline前50字符的hash}`
-2. 读取 `./runtime/engine/newswire/dedupe.json`（如存在）
+2. 读取 `./runtime/state/newswire_dedupe.json`（如存在）
 3. 过滤 24h 内已出现的 id
 4. 合并剩余条目
 
@@ -130,11 +130,11 @@ for sym in ['SPY','QQQ','DIA']:
 
 ### Step 7: 输出
 
-写入 `./runtime/engine/newswire/latest.json`（覆盖）
-追加到 `./runtime/engine/newswire/history.jsonl`
-更新 `./runtime/engine/newswire/dedupe.json`（含 updated_at 时间戳）
+写入 `./artifacts/newswire/latest.json`（覆盖）
+追加到 `./artifacts/newswire/history.jsonl`
+更新 `./runtime/state/newswire_dedupe.json`（含 updated_at 时间戳）
 
-**注意：`dedupe.json` 的 `updated_at` 字段是 Step 2 去重跳过判断的依据，必须更新。**
+**注意：`newswire_dedupe.json` 的 `updated_at` 字段是 Step 2 去重跳过判断的依据，必须更新。**
 
 输出格式参见 `specs/newswire-output-schema-v1.md`
 
@@ -150,6 +150,6 @@ for sym in ['SPY','QQQ','DIA']:
 
 - **单轮搜索上限：2 次**（硬约束）
 - web_search 失败时跳过，不中断整个流程
-- 去重窗口 24h，dedupe.json 超过 48h 的条目自动清理
+- 去重窗口 24h，`newswire_dedupe.json` 超过 48h 的条目自动清理
 - importance 标注保守：不确定时标 medium
 - RSS 抓取失败不报错，静默降级到页面抓取或搜索

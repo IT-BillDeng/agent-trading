@@ -16,6 +16,7 @@
    - 否则提取 report 字段
 3. 将报告内容通过 message 工具发送到 Telegram（channel: telegram, target: ${ENGINE_TELEGRAM_TARGET}）
 4. 如果有异常或风险，在报告末尾添加 ⚠️ 标记
+5. 运行结果会同步落到 `./artifacts/closer/summary_latest.json` 和 `./artifacts/closer/summary_history.jsonl`
 
 注意：API 地址 http://host.docker.internal:8088
 

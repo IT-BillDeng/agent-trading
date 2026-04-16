@@ -45,10 +45,11 @@
 
 ### 核心文件
 - `./data/watchlist.json`（本地用户状态）
-- `./runtime/engine/.last_execution_cycle.json`
-- `./runtime/engine/logs/dispatch_queue.jsonl`
-- `./runtime/engine/logs/execution.jsonl`
-- `./runtime/engine/state/control_state.json`
+- `./logs/latest/engine_cycle.json`
+- `./logs/latest/market_context.json`
+- `./logs/audit/dispatch_queue.jsonl`
+- `./logs/audit/execution.jsonl`
+- `./runtime/state/control_state.json`
 
 ### 重点字段
 - `cycle_id`
@@ -85,8 +86,8 @@
 
 在保持自然语言结论输出的同时，必须额外写入：
 
-- `./runtime/engine/watcher/latest.json`
-- `./runtime/engine/watcher/history.jsonl`
+- `./artifacts/watcher/latest.json`
+- `./artifacts/watcher/history.jsonl`
 
 最小字段要求：
 - `watch_id`

@@ -445,6 +445,11 @@ BROKER_PROPERTIES_DIR = Path(
 )
 LOGS_ROOT = Path(os.environ.get("ENGINE_LOGS_DIR", str(Path(__file__).parent.parent / "logs")))
 ARTIFACTS_ROOT = Path(os.environ.get("ENGINE_ARTIFACTS_DIR", str(Path(__file__).parent.parent / "artifacts")))
+WATCHER_ARTIFACTS_DIR = ARTIFACTS_ROOT / "watcher"
+NEWSWIRE_ARTIFACTS_DIR = ARTIFACTS_ROOT / "newswire"
+EXECUTOR_ARTIFACTS_DIR = ARTIFACTS_ROOT / "executor"
+SCOUT_ARTIFACTS_DIR = ARTIFACTS_ROOT / "scout"
+CLOSER_ARTIFACTS_DIR = ARTIFACTS_ROOT / "closer"
 AUDIT_LOG_DIR = LOGS_ROOT / "audit"
 SERVICE_LOG_DIR = LOGS_ROOT / "service"
 LATEST_LOG_DIR = LOGS_ROOT / "latest"
@@ -462,7 +467,17 @@ def _ensure_logs_layout():
 
 
 def _ensure_artifacts_layout():
-    for path in (ARTIFACTS_ROOT, STRATEGIST_ARTIFACTS_DIR, STRATEGIST_MEMORY_DIR, STRATEGIST_ITERATIONS_ARTIFACT_DIR):
+    for path in (
+        ARTIFACTS_ROOT,
+        WATCHER_ARTIFACTS_DIR,
+        NEWSWIRE_ARTIFACTS_DIR,
+        STRATEGIST_ARTIFACTS_DIR,
+        STRATEGIST_MEMORY_DIR,
+        STRATEGIST_ITERATIONS_ARTIFACT_DIR,
+        EXECUTOR_ARTIFACTS_DIR,
+        SCOUT_ARTIFACTS_DIR,
+        CLOSER_ARTIFACTS_DIR,
+    ):
         path.mkdir(parents=True, exist_ok=True)
 
 
@@ -592,6 +607,22 @@ def _sync_latest_snapshots() -> dict[str, Any]:
 
 
 def _build_agents_status() -> dict[str, Any]:
+    watcher_latest = _first_existing_path(
+        WATCHER_ARTIFACTS_DIR / "latest.json",
+        RUNTIME_DIR / "watcher" / "latest.json",
+    )
+    watcher_history = _first_existing_path(
+        WATCHER_ARTIFACTS_DIR / "history.jsonl",
+        RUNTIME_DIR / "watcher" / "history.jsonl",
+    )
+    newswire_latest = _first_existing_path(
+        NEWSWIRE_ARTIFACTS_DIR / "latest.json",
+        RUNTIME_DIR / "newswire" / "latest.json",
+    )
+    newswire_history = _first_existing_path(
+        NEWSWIRE_ARTIFACTS_DIR / "history.jsonl",
+        RUNTIME_DIR / "newswire" / "history.jsonl",
+    )
     strategist_latest = _first_existing_path(
         STRATEGIST_ARTIFACTS_DIR / "strategy_plan_latest.json",
         RUNTIME_DIR / "strategy_plan_latest.json",
@@ -603,12 +634,16 @@ def _build_agents_status() -> dict[str, Any]:
     agents = {
         "watcher": {
             "service_log": _tail_jsonl_info(SERVICE_LOG_DIR / "watcher.jsonl"),
-            "latest_output": _file_meta(RUNTIME_DIR / "watcher" / "latest.json"),
-            "history_output": _file_meta(RUNTIME_DIR / "watcher" / "history.jsonl"),
+            "latest_output": _file_meta(watcher_latest),
+            "history_output": _file_meta(watcher_history),
+            "latest_output_artifact": _file_meta(WATCHER_ARTIFACTS_DIR / "latest.json"),
+            "history_output_artifact": _file_meta(WATCHER_ARTIFACTS_DIR / "history.jsonl"),
         },
         "newswire": {
-            "latest_output": _file_meta(RUNTIME_DIR / "newswire" / "latest.json"),
-            "history_output": _file_meta(RUNTIME_DIR / "newswire" / "history.jsonl"),
+            "latest_output": _file_meta(newswire_latest),
+            "history_output": _file_meta(newswire_history),
+            "latest_output_artifact": _file_meta(NEWSWIRE_ARTIFACTS_DIR / "latest.json"),
+            "history_output_artifact": _file_meta(NEWSWIRE_ARTIFACTS_DIR / "history.jsonl"),
         },
         "strategist": {
             "latest_output": _file_meta(strategist_latest),
@@ -622,16 +657,22 @@ def _build_agents_status() -> dict[str, Any]:
             "iterations_logs": _file_meta(STRATEGIST_ITERATIONS_LOG_DIR),
         },
         "executor": {
-            "latest_output": _file_meta(RUNTIME_DIR / "executor_checklist_latest.json"),
-            "history_output": _file_meta(RUNTIME_DIR / "executor_checklist_history.jsonl"),
+            "latest_output": _file_meta(_first_existing_path(EXECUTOR_ARTIFACTS_DIR / "checklist_latest.json", RUNTIME_DIR / "executor_checklist_latest.json")),
+            "history_output": _file_meta(_first_existing_path(EXECUTOR_ARTIFACTS_DIR / "checklist_history.jsonl", RUNTIME_DIR / "executor_checklist_history.jsonl")),
+            "latest_output_artifact": _file_meta(EXECUTOR_ARTIFACTS_DIR / "checklist_latest.json"),
+            "history_output_artifact": _file_meta(EXECUTOR_ARTIFACTS_DIR / "checklist_history.jsonl"),
         },
         "scout": {
-            "latest_output": _file_meta(RUNTIME_DIR / "scout_candidates_latest.json"),
-            "history_output": _file_meta(RUNTIME_DIR / "scout_candidates_history.jsonl"),
+            "latest_output": _file_meta(_first_existing_path(SCOUT_ARTIFACTS_DIR / "candidates_latest.json", RUNTIME_DIR / "scout_candidates_latest.json")),
+            "history_output": _file_meta(_first_existing_path(SCOUT_ARTIFACTS_DIR / "candidates_history.jsonl", RUNTIME_DIR / "scout_candidates_history.jsonl")),
+            "latest_output_artifact": _file_meta(SCOUT_ARTIFACTS_DIR / "candidates_latest.json"),
+            "history_output_artifact": _file_meta(SCOUT_ARTIFACTS_DIR / "candidates_history.jsonl"),
         },
         "closer": {
-            "latest_output": _file_meta(RUNTIME_DIR / "closer_summary_latest.json"),
-            "history_output": _file_meta(RUNTIME_DIR / "closer_summary_history.jsonl"),
+            "latest_output": _file_meta(_first_existing_path(CLOSER_ARTIFACTS_DIR / "summary_latest.json", RUNTIME_DIR / "closer_summary_latest.json")),
+            "history_output": _file_meta(_first_existing_path(CLOSER_ARTIFACTS_DIR / "summary_history.jsonl", RUNTIME_DIR / "closer_summary_history.jsonl")),
+            "latest_output_artifact": _file_meta(CLOSER_ARTIFACTS_DIR / "summary_latest.json"),
+            "history_output_artifact": _file_meta(CLOSER_ARTIFACTS_DIR / "summary_history.jsonl"),
             "outbox": _file_meta(RUNTIME_DIR.parent / "outbox" / "closer_outbox.json"),
         },
     }

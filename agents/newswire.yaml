@@ -20,11 +20,13 @@ input_files:
   - /workspace/agent-trading/data/watchlist.json
   - /workspace/agent-trading/news/sources.json
   - /workspace/agent-trading/news/newswire_sources.json
+  - /workspace/agent-trading/runtime/state/newswire_dedupe.json
 
 # 输出文件
 output_files:
-  - /workspace/agent-trading/runtime/engine/newswire/latest.json
-  - /workspace/agent-trading/runtime/engine/newswire/history.jsonl
+  - /workspace/agent-trading/artifacts/newswire/latest.json
+  - /workspace/agent-trading/artifacts/newswire/history.jsonl
+  - /workspace/agent-trading/runtime/state/newswire_dedupe.json
 
 # 数据源开关（从 sources.json 读取，也可在此覆盖）
 default_sources:

@@ -456,11 +456,11 @@ runtime/
 逐步把：
 
 - `runtime/engine/logs/*`
-- `runtime/engine/newswire/*`
-- `runtime/engine/watcher/*`
-- `runtime/engine/strategy_plan_*`
+- `旧 newswire 镜像`
+- `旧 watcher 镜像`
+- `旧 strategist 计划镜像`
 
-迁到根目录 `logs/` 结构下，并保留一段时间兼容读取。
+迁到根目录 `logs/` / `artifacts/` 结构下，并保留一段时间兼容读取。
 
 ---
 

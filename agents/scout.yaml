@@ -19,13 +19,15 @@ tools:
 # 输入文件
 input_files:
   - /workspace/agent-trading/data/watchlist.json
-  - /workspace/agent-trading/runtime/engine/.last_execution_cycle.json
-  - /workspace/agent-trading/runtime/engine/market_context.json
+  - /workspace/agent-trading/logs/latest/engine_cycle.json
+  - /workspace/agent-trading/logs/latest/market_context.json
+  - /workspace/agent-trading/artifacts/newswire/latest.json
+  - /workspace/agent-trading/artifacts/strategist/strategy_plan_latest.json
 
 # 输出文件
 output_files:
-  - /workspace/agent-trading/runtime/engine/scout_candidates_latest.json
-  - /workspace/agent-trading/runtime/engine/scout_candidates_history.jsonl
+  - /workspace/agent-trading/artifacts/scout/candidates_latest.json
+  - /workspace/agent-trading/artifacts/scout/candidates_history.jsonl
 
 # 汇报目标
 report_to: agent:yuuka:main

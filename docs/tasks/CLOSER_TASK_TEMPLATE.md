@@ -10,11 +10,14 @@
 
 输入：
 - `./data/watchlist.json`（本地用户状态）
-- `./runtime/engine/.last_execution_cycle.json`
-- `./runtime/engine/logs/execution.jsonl`
-- `./runtime/engine/logs/notifications.jsonl`
-- `./runtime/engine/logs/dispatch_queue.jsonl`
-- `./runtime/engine/state/control_state.json`
+- `./logs/latest/engine_cycle.json`
+- `./logs/latest/market_context.json`
+- `./logs/audit/execution.jsonl`
+- `./logs/audit/notifications.jsonl`
+- `./logs/audit/dispatch_queue.jsonl`
+- `./runtime/state/control_state.json`
+- `./artifacts/newswire/latest.json`
+- `./artifacts/strategist/strategy_plan_latest.json`
 
 要求：
 - 优先只看本地清单中 `enabled=true` 的标的
@@ -27,6 +30,10 @@
 - 不运行 Python
 - 不对外发送消息（若由 cron announce，则仅输出总结本体）
 - 不修改股票池或配置
+
+结构化落盘要求：
+- 写入 `./artifacts/closer/summary_latest.json`
+- 追加 `./artifacts/closer/summary_history.jsonl`
 
 输出格式：
 1. 一句话结论

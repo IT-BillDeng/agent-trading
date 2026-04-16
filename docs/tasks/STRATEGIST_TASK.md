@@ -15,7 +15,7 @@
 **Step 1: 读取输入**
 - `./rules/rules.json` — 当前规则配置
 - `./artifacts/newswire/latest.json` — 盘前新闻（优先）
-- `./runtime/engine/newswire/latest.json` — 兼容旧路径
+- `./runtime/engine/` 旧新闻镜像（兼容读取）
 - `./data/watchlist.json` — 本地标的清单（缺失时由 `watchlist.json.example` 种子生成）
 - `./logs/latest/engine_cycle.json` — 最近周期快照（优先）
 - `./runtime/engine/.last_execution_cycle.json` — 兼容旧路径

@@ -12,10 +12,11 @@
 - `./data/watchlist.json`（本地用户状态）
 - `./system/engine/README.md`
 - `./system/engine/app_config.paper.json`
-- `./runtime/engine/.last_execution_cycle.json`
-- `./runtime/engine/logs/execution.jsonl`
-- `./runtime/engine/logs/dispatch_queue.jsonl`
-- `./runtime/engine/state/control_state.json`
+- `./logs/latest/engine_cycle.json`
+- `./logs/audit/execution.jsonl`
+- `./logs/audit/dispatch_queue.jsonl`
+- `./runtime/state/control_state.json`
+- `./artifacts/strategist/strategy_plan_latest.json`
 
 要求：
 - 优先只看本地清单中 `enabled=true` 的标的
@@ -34,6 +35,11 @@
 - 不对外发送消息
 - 不真实提交订单
 - 不修改股票池或配置
+
+结构化落盘要求：
+- 读取执行准备度时优先参考 `./artifacts/strategist/strategy_plan_latest.json`
+- 检查完成后，如需输出检查单，写入 `./artifacts/executor/checklist_latest.json`
+- 历史追加到 `./artifacts/executor/checklist_history.jsonl`
 
 输出格式：
 1. 一句话结论

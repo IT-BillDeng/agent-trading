@@ -44,8 +44,8 @@
 
 在保持自然语言摘要输出的同时，必须额外写入：
 
-- `./runtime/engine/newswire/latest.json`
-- `./runtime/engine/newswire/history.jsonl`
+- `./artifacts/newswire/latest.json`
+- `./artifacts/newswire/history.jsonl`
 
 最小字段要求：
 - `news_batch_id`

@@ -21,8 +21,8 @@
 - 不运行 Python / 不对外发送 / 不修改配置
 
 输出：
-- `./runtime/engine/newswire/latest.json`
-- `./runtime/engine/newswire/history.jsonl`
-- `./runtime/engine/newswire/dedupe.json`
+- `./artifacts/newswire/latest.json`
+- `./artifacts/newswire/history.jsonl`
+- `./runtime/state/newswire_dedupe.json`
 
 详见 [NEWSWIRE_TASK.md](./NEWSWIRE_TASK.md) 完整执行步骤。

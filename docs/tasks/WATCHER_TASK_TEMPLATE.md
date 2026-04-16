@@ -10,10 +10,11 @@
 
 输入：
 - `./data/watchlist.json`（本地用户状态）
-- `./runtime/engine/.last_execution_cycle.json`
-- `./runtime/engine/logs/dispatch_queue.jsonl`
-- `./runtime/engine/logs/execution.jsonl`
-- `./runtime/engine/state/control_state.json`
+- `./logs/latest/engine_cycle.json`
+- `./logs/latest/market_context.json`
+- `./logs/audit/dispatch_queue.jsonl`
+- `./logs/audit/execution.jsonl`
+- `./runtime/state/control_state.json`
 
 要求：
 - 优先关注本地清单中 `enabled=true` 的标的
@@ -28,8 +29,8 @@
 - 不修改股票池或配置
 
 结构化落盘要求（MVP v1）：
-- 写入 `./runtime/engine/watcher/latest.json`
-- 追加 `./runtime/engine/watcher/history.jsonl`
+- 写入 `./artifacts/watcher/latest.json`
+- 追加 `./artifacts/watcher/history.jsonl`
 - 即使无明显变化，也要写结构化空结果或低变化结果
 
 最小字段要求：

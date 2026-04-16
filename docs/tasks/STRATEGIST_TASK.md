@@ -5,8 +5,26 @@
 2. 任何参数变更必须回测验证通过才上线
 3. 盘中绝不改规则参数
 4. 每次策略调整必须通知先生（Telegram）
+5. 当前能力等级为 `L2`，允许规则自我迭代，不允许修改 Engine 策略代码或扩张股票池
 
 工作目录：`/workspace/agent-trading/`
+能力契约：`docs/strategist-capability-contract.md`
+
+## 当前能力边界
+
+允许：
+
+- 调整现有规则参数
+- 启用 / 停用 / 暂停 / 恢复现有规则
+- 调用回测 API 验证候选方案
+- 沉淀长期记忆、提案与拒绝原因
+
+不允许：
+
+- 编写或修改 Engine Python 策略代码
+- 自行创造新的执行链路
+- 盘中修改规则参数
+- 未经验证直接落地规则变更
 
 ## 三班执行流程
 
@@ -45,7 +63,7 @@ curl -s -X POST http://host.docker.internal:8088/api/backtest \
 
 **Step 6: 写入输出 + 通知先生**
 
-### 盘中 (q15min) — Monitor
+### 盘中 (1h) — Monitor
 检查异常：波动率突增、high importance 新闻、连续 false signal。
 发现异常 → 暂停规则（不改参数）。
 异常消除 → 恢复。

@@ -4,6 +4,8 @@
 
 这份文档定义 strategist 的长期记忆应该怎么存、怎么读、怎么更新。
 
+能力边界参见：`docs/strategist-capability-contract.md`
+
 目标不是保留聊天全文，而是保留 **可审计、可回放、可继续迭代** 的结构化学习记录。
 
 ---

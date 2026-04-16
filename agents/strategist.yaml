@@ -1,12 +1,14 @@
 # Strategist Agent Configuration
 # 职责：策略管理器（规则调参/暂停恢复/信号质量分析/自我迭代）
+# 当前等级：L2（规则自我迭代；不修改 Engine 策略代码）
 # 频率：盘前(09:00 ET) / 盘中(1h) / 盘后(16:30 ET)
 # 模型：pro（深度推理）
 # 触发：Newswire 完成后自动触发
 
 agent_id: strategist
 model: xiaomi/mimo-v2-pro
-description: "策略管理器：规则调参/暂停恢复/信号质量分析/自我迭代"
+description: "策略管理器（L2）：规则调参/暂停恢复/信号质量分析/自我迭代"
+capability_level: L2
 
 # Tool 权限配置
 tools:

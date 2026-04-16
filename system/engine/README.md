@@ -1,9 +1,9 @@
 # engine
 
-Tiger 模拟盘 30min 自动交易系统 v1 的实现骨架。
+自动交易系统 v1 的实现骨架。
 
 ## 当前状态
-- 已接入 Tiger Open API 的最小请求封装
+- 已接入当前默认 broker API 的最小请求封装
 - 已支持读取：账户、资产、持仓、订单、市场状态、quote 权限、延迟行情、30min K 线
 - 已支持 US 白名单配置
 - 已补上：
@@ -38,9 +38,9 @@ v1 的 30min 策略以 **K 线历史** 为主输入。
 ## 目录
 - `config.example.json`：配置模板
 - `app_config.paper.json`：当前 paper 配置
-- `../watchlist.json`：Operator + Tiger subagents 共用本地股票清单
+- `../../data/watchlist.json`：Operator + subagents 共用本地股票清单
 - `src/engine/config.py`：配置加载
-- `src/engine/tiger_client.py`：Tiger API 请求封装
+- `src/engine/tiger_client.py`：当前默认 broker API 请求封装
 - `src/engine/indicators.py`：指标函数
 - `src/engine/strategy.py`：30min 策略骨架
 - `src/engine/risk.py`：风控骨架
@@ -121,7 +121,7 @@ python3 control_state.py /path/to/app_config.json unlock "resume after review"
 - dispatch queue 落盘
 - 本地 JSONL 审计日志输出
 - 提交状态落盘与重复单防护状态文件
-- Tiger `order_no` / `preview_order` / `place_order` / `cancel_order` 适配
+- `order_no` / `preview_order` / `place_order` / `cancel_order` 适配
 - 已提交订单的详情同步骨架
 - 已提交订单的成交回报同步骨架
 - preview warning → 风控阻塞原因摘要

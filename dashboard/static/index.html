@@ -146,7 +146,7 @@
                     <div class="card-title mb-0">📈 自选行情</div>
                     <select id="quote-provider" class="bg-dark-900 border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:border-tiger-500" onchange="setQuoteProvider(this.value)">
                         <option value="yfinance">Yahoo Finance</option>
-                        <option value="tiger">Tiger API</option>
+                        <option value="tiger">当前 API</option>
                     </select>
                 </div>
                 <div id="quotes-list" class="flex-1 min-h-0 overflow-auto space-y-2">
@@ -309,7 +309,7 @@
                     <input id="bt-capital" type="number" value="100000" class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-tiger-500">
                 </div>
             </div>
-            <div class="text-xs text-gray-500 mb-4">数据源：Tiger API（免费历史K线，模拟盘账户可用）</div>
+            <div class="text-xs text-gray-500 mb-4">数据源：当前 API（免费历史K线，模拟盘账户可用）</div>
             <div class="flex gap-2 mb-4">
                 <button onclick="runBacktest()" class="bg-tiger-600 hover:bg-tiger-700 text-white px-4 py-2 rounded text-sm font-medium transition">🚀 运行回测</button>
                 <span id="bt-status" class="text-xs text-gray-500 self-center"></span>
@@ -387,16 +387,16 @@
             <div id="notifications-meta" class="text-xs text-gray-600 mt-2"></div>
         </section>
 
-        <!-- Tiger Config -->
+        <!-- API Config -->
         <section class="mt-6 card">
-            <div class="card-title">🔑 Tiger API 配置</div>
+            <div class="card-title">🔑 API 配置</div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- Current Config -->
                 <div>
                     <div class="text-xs text-gray-500 mb-2">当前配置</div>
                     <div id="tiger-config-info" class="text-sm space-y-1">
                         <div>账户: <span id="tc-account">--</span></div>
-                        <div>Tiger ID: <span id="tc-tiger-id">--</span></div>
+                        <div>API ID: <span id="tc-tiger-id">--</span></div>
                         <div>License: <span id="tc-license">--</span></div>
                         <div>API 类型: <span id="tc-account-type" class="text-gray-500">--</span></div>
                     </div>
@@ -1616,7 +1616,7 @@
             }
         }
 
-        // --- Tiger Config ---
+        // --- API Config ---
         async function fetchTigerConfig() {
             try {
                 const data = await fetch(API_BASE + '/api/tiger-config').then(r => r.json());
@@ -1636,7 +1636,7 @@
                 document.getElementById('tc-account-type').textContent = info.account_type || '--';
 
             } catch (e) {
-                console.error('tiger-config fetch error:', e);
+                console.error('api-config fetch error:', e);
             }
         }
 

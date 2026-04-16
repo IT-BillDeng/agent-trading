@@ -1,7 +1,7 @@
-"""Pluggable data provider abstraction for Tiger Engine.
+"""Pluggable market data provider abstraction.
 
-Supports switching between Tiger API and alternative sources (e.g., yfinance)
-for market data like K-lines, quotes, and market state.
+Supports switching between the current default API and alternative sources
+(e.g., yfinance) for market data like K-lines, quotes, and market state.
 """
 
 from __future__ import annotations

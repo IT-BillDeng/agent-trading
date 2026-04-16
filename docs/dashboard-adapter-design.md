@@ -13,7 +13,7 @@
 当前 Dashboard 的数据路径可概括为：
 
 ```text
-Tiger Open API / SDK
+Broker API / SDK
     ↓
 dashboard/tiger_client.py
     ↓
@@ -43,7 +43,7 @@ dashboard/static/index.html
 - `dashboard/tiger_client.py`
 
 应负责：
-- 直接调用 Tiger SDK / API
+- 直接调用当前默认 API 的 SDK / API
 - 提取原始对象字段
 - 做最小必要的 Python 对象 → dict 转换
 - 不承担复杂业务口径计算
@@ -54,7 +54,7 @@ dashboard/static/index.html
 - 在这里做前端导向的展示字段设计
 
 **原则：**
-> raw client 尽量保持“接近 Tiger 原始返回”，但把 Python 对象整理成项目可读 dict。
+> raw client 尽量保持“接近原始返回”，但把 Python 对象整理成项目可读 dict。
 
 ---
 
@@ -64,7 +64,7 @@ dashboard/static/index.html
 - `dashboard/normalize/tiger.py`
 
 应负责：
-- 把 Tiger 字段统一映射到 Dashboard 通用字段名
+- 把当前默认 API 字段统一映射到 Dashboard 通用字段名
 - 统一基础类型（float/int/str）
 - 处理字段别名与兼容字段
 
@@ -88,7 +88,7 @@ dashboard/static/index.html
 - `dashboard/services/portfolio_service.py`
 
 应负责：
-- 组合多个 Tiger 数据源
+- 组合多个上游数据源
 - 定义 Dashboard 业务口径
 - 计算如：
   - 今日盈亏
@@ -148,7 +148,7 @@ dashboard/static/index.html
 
 风险：
 - 上层会误以为它输出的是“稳定语义字段”
-- 实际上 Tiger 字段一旦变化，影响会直接扩散
+- 实际上上游字段一旦变化，影响会直接扩散
 
 ---
 
@@ -197,7 +197,7 @@ dashboard/static/index.html
 
 ## 四、Phase 1 修复应遵循的落点
 
-### A. 与 Tiger 字段直接相关的问题
+### A. 与当前默认 API 字段直接相关的问题
 放在：
 - `dashboard/tiger_client.py`
 - `dashboard/normalize/tiger.py`
@@ -236,11 +236,11 @@ dashboard/static/index.html
 建议后续逐步收敛到：
 
 ```text
-Tiger API / SDK
+Broker API / SDK
     ↓
-Raw Client (TigerClient)
+Raw Client (current client)
     ↓
-Normalizer (TigerNormalizer)
+Normalizer (current normalizer)
     ↓
 Service / Aggregator (PnLService / PortfolioService)
     ↓

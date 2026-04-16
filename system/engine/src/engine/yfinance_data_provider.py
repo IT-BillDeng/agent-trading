@@ -1,6 +1,6 @@
-"""Yahoo Finance data provider — free alternative for Tiger API.
+"""Yahoo Finance data provider — free alternative to the default API.
 
-Wraps yfinance output into Tiger API-compatible response format.
+Wraps yfinance output into the same response format used by the engine.
 """
 
 from __future__ import annotations
@@ -13,18 +13,17 @@ import yfinance as yf
 from .data_provider import DataProvider
 
 
-# Symbol format conversion
 def _to_yf_symbol(symbol: str, market: str = "US") -> str:
-    """Convert Tiger symbol to yfinance format."""
+    """Convert engine symbol to yfinance format."""
     return symbol
 
 
 def _from_yf_symbol(yf_symbol: str) -> str:
-    """Convert yfinance symbol back to Tiger format."""
+    """Convert yfinance symbol back to engine format."""
     return yf_symbol
 
 
-# Interval mapping: Tiger period → yfinance interval
+# Interval mapping: engine period → yfinance interval
 _INTERVAL_MAP = {
     "1min": "1m",
     "5min": "5m",
@@ -46,9 +45,9 @@ class YFinanceDataProvider(DataProvider):
         return "yfinance"
 
     def get_bars(self, symbols: list[str], period: str = "30min", limit: int = 30) -> dict[str, Any]:
-        """Fetch K-line data in Tiger API response format.
+        """Fetch K-line data in engine API response format.
 
-        Returns dict compatible with TigerClient.get_bars() response:
+        Returns dict compatible with the engine client get_bars() response:
         {"body": {"code": 0, "data": [{"symbol": "AAPL", "items": [...]}]}}
         """
         interval = _INTERVAL_MAP.get(period, "30m")
@@ -90,7 +89,7 @@ class YFinanceDataProvider(DataProvider):
         }
 
     def get_delay_quotes(self, symbols: list[str], market: str = "US") -> dict[str, Any]:
-        """Fetch delayed quotes in Tiger API response format."""
+        """Fetch delayed quotes in engine API response format."""
         data_items = []
 
         for symbol in symbols:

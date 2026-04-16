@@ -1,6 +1,6 @@
 # Agent Trading Dashboard
 
-Web-based dashboard for monitoring the Tiger trading system.
+Web-based dashboard for monitoring the trading system.
 
 ## Quick Start
 
@@ -17,7 +17,7 @@ Access at: http://0.0.0.0:8088
 ```
 dashboard/
 ├── main.py              # FastAPI entry point
-├── tiger_client.py      # Tiger API wrapper
+├── tiger_client.py      # Broker API wrapper
 ├── data_cache.py        # Polling cache layer
 ├── requirements.txt     # Python dependencies
 ├── static/
@@ -37,6 +37,6 @@ dashboard/
 | GET /api/watchlist | Shared watchlist |
 | GET /api/agents | Subagent status |
 | GET /api/system | System runtime status |
-| GET /api/tiger-config | Tiger API config (sensitive fields masked) |
-| POST /api/tiger-config/upload | Upload new tiger_openapi_config.properties |
+| GET /api/tiger-config | API config (sensitive fields masked) |
+| POST /api/tiger-config/upload | Upload new config file |
 | POST /api/config/mode | Set paper/live mode manually |

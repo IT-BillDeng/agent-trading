@@ -1,4 +1,4 @@
-# Tiger Engine Cron Instructions
+# Engine Cron Instructions
 
 用于 OpenClaw cron systemEvent 的执行约定。
 
@@ -9,9 +9,9 @@
    cd <项目根目录>/agent-trading && \
    python3 ./system/engine/run_execution_cycle.py \
      ./system/engine/app_config.paper.json \
-     <Tiger API 配置文件路径>
+     <broker API 配置文件路径>
    ```
-   > 注意：cron 执行时需将 `<项目根目录>` 和 `<Tiger API 配置文件路径>` 替换为实际绝对路径。
+   > 注意：cron 执行时需将 `<项目根目录>` 和 `<broker API 配置文件路径>` 替换为实际绝对路径。
 2. 读取输出中的：
    - `notification_dispatch.items`
    - `control.locked`

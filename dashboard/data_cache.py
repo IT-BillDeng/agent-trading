@@ -1,4 +1,4 @@
-"""Polling cache layer for Tiger data - reduces API call frequency."""
+"""Polling cache layer for broker data - reduces API call frequency."""
 
 import os
 import json
@@ -35,7 +35,7 @@ def _seed_watchlist_if_missing() -> None:
 
 
 class DataCache:
-    """Caches Tiger API responses with periodic refresh."""
+    """Caches API responses with periodic refresh."""
 
     def __init__(self, tiger_client: TigerClient, quote_provider: QuoteProvider, refresh_interval: int = 30):
         self._client = tiger_client
@@ -211,7 +211,7 @@ class DataCache:
             return dict(self._data["watchlist"]) if self._data["watchlist"] else {}
 
     def get_pnl(self) -> dict:
-        """Calculate P&L using Tiger API filled_orders for realized_pnl."""
+        """Calculate P&L using filled_orders for realized_pnl."""
         with self._lock:
             positions = self._data["positions"] or []
             filled_orders = self._data.get("filled_orders") or []
@@ -276,7 +276,7 @@ class DataCache:
                     "today_pnl_pct": 0,
                 })
 
-            # Tiger 客户端首页口径优先使用 account.total_today_pnl
+            # 首页账户口径优先使用 account.total_today_pnl
             today_total = account_total_today if account_total_today or account_total_today == 0 else (today_realized + today_unrealized)
             today_realized_effective = today_total - today_unrealized
 
@@ -306,7 +306,7 @@ class DataCache:
             start_time=window["start_time"],
             end_time=window["end_time"],
         )
-        # 合并今日成交（Tiger get_orders 历史查询有时漏掉当日数据）
+        # 合并今日成交（历史查询有时漏掉当日数据）
         try:
             today_orders = self._client.get_filled_orders()
             seen_ids = {o.get("id") or o.get("order_id") for o in orders if isinstance(o, dict)}
@@ -399,7 +399,7 @@ class DataCache:
             self._stop_event.wait(self._interval)
 
     def _refresh(self):
-        """Refresh all data from Tiger API."""
+        """Refresh all data from the API."""
         errors = []
 
         # Account
@@ -423,7 +423,7 @@ class DataCache:
             orders = []
             errors.append(f"orders: {e}")
 
-        # Filled orders (with realized_pnl from Tiger API)
+        # Filled orders (with realized_pnl from API)
         try:
             filled_orders = self._client.get_filled_orders()
         except Exception as e:

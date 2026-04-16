@@ -58,18 +58,23 @@ class SchedulerAuditLogTests(unittest.TestCase):
             cycle_file = runtime_dir / ".last_execution_cycle.json"
             execution_log = logs_root / "audit" / "execution.jsonl"
             cycles_log = logs_root / "audit" / "cycles.jsonl"
+            scheduler_log = logs_root / "service" / "scheduler.jsonl"
 
             self.assertTrue(cycle_file.exists())
             self.assertTrue(execution_log.exists())
             self.assertTrue(cycles_log.exists())
+            self.assertTrue(scheduler_log.exists())
 
             cycle_data = json.loads(cycle_file.read_text())
             self.assertEqual(cycle_data["cycle_id"], "20260416_180000")
 
             execution_entry = json.loads(execution_log.read_text().strip().splitlines()[-1])
             cycles_entry = json.loads(cycles_log.read_text().strip().splitlines()[-1])
+            scheduler_entry = json.loads(scheduler_log.read_text().strip().splitlines()[-1])
             self.assertEqual(execution_entry["cycle_id"], "20260416_180000")
             self.assertEqual(cycles_entry["cycle_id"], "20260416_180000")
+            self.assertEqual(scheduler_entry["cycle_id"], "20260416_180000")
+            self.assertEqual(scheduler_entry["kind"], "cycle_complete")
             self.assertIn("audit_logs", summary)
 
 

@@ -9,6 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .service_logs import append_service_log
+
 logger = logging.getLogger(__name__)
 
 
@@ -55,12 +57,28 @@ class SignalScheduler:
         """Start the background scheduler."""
         if self._thread and self._thread.is_alive():
             logger.warning("Scheduler already running")
+            append_service_log(
+                "scheduler",
+                "warning",
+                "Scheduler already running",
+                kind="lifecycle",
+                interval_seconds=self._interval,
+                provider=self._provider_name,
+            )
             return
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._loop, daemon=True)
         self._thread.start()
         self._state["running"] = True
         logger.info(f"Scheduler started (interval={self._interval}s, provider={self._provider_name})")
+        append_service_log(
+            "scheduler",
+            "info",
+            "Scheduler started",
+            kind="lifecycle",
+            interval_seconds=self._interval,
+            provider=self._provider_name,
+        )
 
     def stop(self):
         """Stop the background scheduler."""
@@ -69,6 +87,14 @@ class SignalScheduler:
             self._thread.join(timeout=10)
         self._state["running"] = False
         logger.info("Scheduler stopped")
+        append_service_log(
+            "scheduler",
+            "info",
+            "Scheduler stopped",
+            kind="lifecycle",
+            last_cycle=self._state.get("last_cycle"),
+            cycle_count=self._state.get("cycle_count"),
+        )
 
     def get_state(self) -> dict[str, Any]:
         """Get scheduler state."""
@@ -81,6 +107,13 @@ class SignalScheduler:
             seconds = 10
         self._interval = seconds
         logger.info(f"Scheduler interval set to {seconds}s")
+        append_service_log(
+            "scheduler",
+            "info",
+            "Scheduler interval updated",
+            kind="config",
+            interval_seconds=seconds,
+        )
 
     def _loop(self):
         """Main loop — run engine cycle periodically."""
@@ -89,6 +122,13 @@ class SignalScheduler:
                 self._run_cycle()
             except Exception as e:
                 logger.error(f"Scheduler cycle error: {e}")
+                append_service_log(
+                    "scheduler",
+                    "error",
+                    "Scheduler cycle error",
+                    kind="cycle_error",
+                    error=str(e),
+                )
                 with self._lock:
                     self._state["errors"].append({
                         "time": datetime.now().isoformat(),
@@ -132,6 +172,13 @@ class SignalScheduler:
         # Check trading mode
         if not self._check_trading_mode():
             logger.debug("Trading mode is off or locked, skipping cycle")
+            append_service_log(
+                "scheduler",
+                "info",
+                "Skipped cycle because trading mode is off or locked",
+                kind="cycle_skipped",
+                trading_mode=self._get_trading_mode(),
+            )
             return
 
         mode = self._get_trading_mode()
@@ -237,6 +284,20 @@ class SignalScheduler:
             summary["audit_logs"] = logger_obj.write_summary(summary)
         except Exception as e:
             logger.warning(f"Failed to write audit logs: {e}")
+
+        append_service_log(
+            "scheduler",
+            "info",
+            "Scheduler cycle completed",
+            kind="cycle_complete",
+            cycle_id=summary.get("cycle_id"),
+            trading_mode=summary.get("trading_mode"),
+            provider=summary.get("scheduler_provider", self._provider_name),
+            signal_count=len(summary.get("strategy", {}).get("signals", [])),
+            order_intent_count=summary.get("order_intents", {}).get("count", 0),
+            execution_submit_count=summary.get("execution_submit", {}).get("count", 0),
+            risk_blockers=len(summary.get("risk", {}).get("preview_blockers", [])),
+        )
 
     def _submit_orders(self, summary: dict, app):
         """Preview and submit orders via Tiger API."""

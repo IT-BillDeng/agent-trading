@@ -17,6 +17,7 @@ from .data_cache import DataCache
 from .quote_provider import get_quote_provider
 from .scheduler import SignalScheduler
 from .normalize import get_normalizer, available_brokers
+from .service_logs import append_service_log
 
 # Broker normalizer — configurable via env or defaults to tiger
 BROKER = os.environ.get("ENGINE_BROKER", "tiger")
@@ -42,9 +43,24 @@ async def lifespan(app: FastAPI):
     # TigerClient may fail if credentials are invalid - don't crash the app
     try:
         tiger_client = TigerClient(config_dir=str(PROPERTIES_DIR))
+        append_service_log(
+            "dashboard",
+            "info",
+            "Tiger client initialized",
+            kind="startup",
+            config_dir=str(PROPERTIES_DIR),
+        )
     except Exception as e:
         tiger_client = None
         print(f"[dashboard] TigerClient init failed: {e}")
+        append_service_log(
+            "dashboard",
+            "warning",
+            "Tiger client init failed",
+            kind="startup_warning",
+            error=str(e),
+            config_dir=str(PROPERTIES_DIR),
+        )
 
     # Quote provider: ENGINE_QUOTE_PROVIDER env var (default: yfinance)
     provider_name = os.environ.get("ENGINE_QUOTE_PROVIDER", "yfinance")
@@ -53,9 +69,25 @@ async def lifespan(app: FastAPI):
     if tiger_client:
         cache = DataCache(tiger_client, quote_provider, refresh_interval=30)
         cache.start()
+        append_service_log(
+            "dashboard",
+            "info",
+            "Data cache started",
+            kind="startup",
+            provider=provider_name,
+            refresh_interval=30,
+        )
     else:
         cache = None
         print("[dashboard] DataCache not started (no TigerClient)")
+        append_service_log(
+            "dashboard",
+            "warning",
+            "Data cache not started",
+            kind="startup_warning",
+            reason="no_tiger_client",
+            provider=provider_name,
+        )
 
     # Start signal scheduler
     global scheduler
@@ -78,16 +110,48 @@ async def lifespan(app: FastAPI):
             interval_seconds=scheduler_interval,
         )
         scheduler.start()
+        append_service_log(
+            "dashboard",
+            "info",
+            "Scheduler started from dashboard lifespan",
+            kind="startup",
+            app_config=app_config,
+            runtime_dir=runtime_dir,
+            provider=scheduler_provider,
+            interval_seconds=scheduler_interval,
+        )
     except Exception as e:
         scheduler = None
         print(f"[dashboard] Scheduler init failed: {e}")
+        append_service_log(
+            "dashboard",
+            "error",
+            "Scheduler init failed",
+            kind="startup_error",
+            error=str(e),
+            app_config=app_config,
+            runtime_dir=runtime_dir,
+            provider=scheduler_provider,
+        )
 
     yield
 
     if scheduler:
         scheduler.stop()
+        append_service_log(
+            "dashboard",
+            "info",
+            "Scheduler stopped from dashboard lifespan",
+            kind="shutdown",
+        )
     if cache:
         cache.stop()
+        append_service_log(
+            "dashboard",
+            "info",
+            "Data cache stopped",
+            kind="shutdown",
+        )
 
 
 app = FastAPI(

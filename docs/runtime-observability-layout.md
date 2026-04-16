@@ -128,8 +128,10 @@ logs/
   latest/
     engine_cycle.json
     market_context.json
-    dashboard_snapshot.json
+    control_state.json
+    execution_state.json
     agents_status.json
+    logs_overview.json
 
   audit/
     cycles.jsonl
@@ -193,8 +195,9 @@ runtime/
 
 - 最近一轮引擎执行结果
 - 当前 market context
-- 当前 dashboard 汇总快照
+- 当前 control / execution 状态
 - 当前 agents 状态
+- 当前 logs 总览
 
 特点：
 
@@ -389,7 +392,18 @@ runtime/
 - 最近输出文件路径
 - 最近错误摘要
 
-### 2. `logs/manifests/log_index.json`
+### 2. `logs/latest/logs_overview.json`
+
+建议汇总：
+
+- `logs_root` / `latest_dir`
+- `audit / service / legacy` 三类日志的存在性、修改时间、最近时间戳
+- `engine_cycle / market_context / control_state / execution_state` 的同步状态
+- `agents_status.json` 的路径与摘要
+
+这样人工排障时，只要先看这一份文件，就能知道该往哪一层继续钻。
+
+### 3. `logs/manifests/log_index.json`
 
 建议汇总：
 
@@ -427,6 +441,15 @@ runtime/
 - `logs/service/...`
 - `logs/agents/...`
 - `logs/latest/...`
+
+当前已经落地的 `logs/latest` 文件包括：
+
+- `engine_cycle.json`
+- `market_context.json`
+- `control_state.json`
+- `execution_state.json`
+- `agents_status.json`
+- `logs_overview.json`
 
 ### Step 3：逐步迁移旧路径
 

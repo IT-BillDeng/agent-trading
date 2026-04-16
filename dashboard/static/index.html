@@ -360,19 +360,6 @@
             </div>
         </section>
 
-        <!-- Signals & Orders -->
-        <section class="mt-6 card">
-            <div class="card-title">📡 信号 & 订单</div>
-            <div id="signals-list" class="text-sm">
-                <div class="text-gray-500 py-2">加载中...</div>
-            </div>
-            <div id="signals-orders" class="mt-2 border-t border-gray-700/30 pt-2 hidden">
-                <div class="text-xs text-gray-500 mb-1">订单预览</div>
-                <div id="preview-orders-inline" class="text-sm"></div>
-            </div>
-            <div id="signals-meta" class="text-xs text-gray-600 mt-2"></div>
-        </section>
-
         <!-- Risk -->
         <section class="mt-6 card">
             <div class="card-title">🛡️ 风控</div>
@@ -985,37 +972,6 @@
 
         // --- New Sections: Signals / Risk / Preview / Notifications ---
 
-        function renderSignals(data) {
-            const el = document.getElementById('signals-list');
-            const signals = data.signals || [];
-            if (signals.length === 0) {
-                el.innerHTML = '<div class="text-gray-500 py-2">无信号数据（引擎未运行）</div>';
-            } else {
-                el.innerHTML = signals.map(s => {
-                    const actionCls = s.action === 'BUY' ? 'text-green-400' : s.action === 'EXIT' ? 'text-red-400' : 'text-gray-400';
-                    const conf = s.confidence != null ? Math.round(s.confidence * 100) + '%' : '';
-                    const extra = [];
-                    if (s.last_close) extra.push('$' + fmt(s.last_close));
-                    if (s.stop_loss) extra.push('止损$' + fmt(s.stop_loss));
-                    if (s.take_profit) extra.push('止盈$' + fmt(s.take_profit));
-                    const extraStr = extra.length ? '<div class="text-xs text-gray-500 mt-0.5">' + extra.join(' | ') + '</div>' : '';
-                    return `<div class="py-2 border-b border-gray-700/30">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <span class="${actionCls} font-bold">${s.action || '--'}</span>
-                                <span class="ml-2 font-medium">${s.symbol || '--'}</span><span class="text-xs text-gray-500 ml-1">${(watchlistMap[s.symbol] && watchlistMap[s.symbol].name) || ''}</span>
-                                <span class="ml-1 text-xs text-gray-500">${s.reason || ''}</span>
-                            </div>
-                            <span class="text-xs text-gray-500">${conf}</span>
-                        </div>
-                        ${extraStr}
-                    </div>`;
-                }).join('');
-            }
-            const meta = document.getElementById('signals-meta');
-            meta.textContent = data.cycle_id ? `cycle: ${data.cycle_id} | timeframe: ${data.timeframe || '--'}` : '';
-        }
-
         function renderRisk(data) {
             const decisions = data.decisions || [];
             const blockers = data.preview_blockers || [];
@@ -1037,7 +993,7 @@
             // Decisions detail
             const decEl = document.getElementById('risk-decisions');
             if (decisions.length === 0) {
-                decEl.innerHTML = '<span class="text-gray-500">--</span>';
+                decEl.innerHTML = '<span class="text-gray-500">暂无风控决策</span>';
             } else {
                 decEl.innerHTML = decisions.map(d => {
                     const cls = d.allowed ? 'text-green-400' : 'text-red-400';
@@ -1056,26 +1012,6 @@
             }
             const meta = document.getElementById('risk-meta');
             meta.textContent = data.cycle_id ? `cycle: ${data.cycle_id}` : '';
-        }
-
-        function renderPreview(data) {
-            const preview = data.preview;
-            const container = document.getElementById('signals-orders');
-            const ordersEl = document.getElementById('preview-orders-inline');
-            if (!preview || !preview.orders || preview.orders.length === 0) {
-                container.classList.add('hidden');
-                return;
-            }
-            container.classList.remove('hidden');
-            ordersEl.innerHTML = preview.orders.map(o => {
-                const actionCls = (o.action || o.side) === 'BUY' ? 'text-green-400' : 'text-red-400';
-                const priceStr = o.limit_price ? 'LMT @ $' + fmt(o.limit_price) : (o.order_type || '--');
-                const stopStr = o.stop_loss || o.stop_price ? ' 止损$' + fmt(o.stop_loss || o.stop_price) : '';
-                return `<div class="flex justify-between py-1 border-b border-gray-700/30">
-                    <div><span class="${actionCls} font-medium">${o.action || o.side || '--'}</span> <span class="ml-1">${o.symbol || '--'}</span> <span class="text-gray-400">${o.quantity || ''}股</span></div>
-                    <div class="text-gray-400 text-xs">${priceStr}${stopStr}</div>
-                </div>`;
-            }).join('');
         }
 
         function renderNotifications(data) {
@@ -1446,15 +1382,11 @@
 
         async function fetchNewSections() {
             try {
-                const [signals, risk, preview, notifications] = await Promise.all([
-                    fetch(API_BASE + '/api/signals').then(r => r.json()),
+                const [risk, notifications] = await Promise.all([
                     fetch(API_BASE + '/api/risk').then(r => r.json()),
-                    fetch(API_BASE + '/api/execution-preview').then(r => r.json()),
                     fetch(API_BASE + '/api/notifications').then(r => r.json()),
                 ]);
-                renderSignals(signals);
                 renderRisk(risk);
-                renderPreview(preview);
                 renderNotifications(notifications);
             } catch (e) {
                 console.error('fetchNewSections error:', e);

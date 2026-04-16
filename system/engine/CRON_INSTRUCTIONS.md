@@ -3,6 +3,7 @@
 用于 OpenClaw cron systemEvent 的执行约定。
 
 ## 每次触发时执行
+0. 若 cron payload 包含 `taskFile`，优先读取该 markdown 文件作为任务正文；`message` 仅作为兼容兜底或简短提示。
 1. 运行：
    ```bash
    cd <项目根目录>/agent-trading && \

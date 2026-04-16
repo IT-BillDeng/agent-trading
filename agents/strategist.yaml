@@ -35,7 +35,7 @@ output_files:
 
 # 回测验证
 backtest_required: true
-backtest_endpoint: "http://host.docker.internal:8088/api/backtest"
+backtest_endpoint: "http://host.docker.internal:8088/api/backtest/batch"
 
 # 汇报目标
 report_to: agent:yuuka:main

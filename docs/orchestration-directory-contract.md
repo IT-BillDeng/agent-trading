@@ -29,6 +29,7 @@
 - 超时时间
 - 是否启用
 - 投递到哪里
+- 任务正文的引用（`taskFile`，指向 `docs/tasks/cron/`）
 
 不放什么：
 
@@ -77,6 +78,8 @@
 - 约束条件
 - 核心提示词
 - 运行示例
+
+对于 cron 类任务，正文建议单独放在 `docs/tasks/cron/`，并由 `cron/*.json` 通过 `taskFile` 引用。
 
 不放什么：
 
@@ -256,4 +259,3 @@
 - `logs/` = 跑完看什么
 - `runtime/state/` = 当前记住什么
 - `runtime/outbox/` = 接下来要发什么
-

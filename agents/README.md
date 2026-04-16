@@ -1,18 +1,18 @@
 # Agent Trading Subagents
 
-本目录包含 Agent Trading 项目的 6 个 subagent 配置文件与部署脚本。
+本目录包含 Agent Trading 项目的 6 个 subagent 配置文件与辅助脚本。
 
 统一的目录职责规范见：[docs/orchestration-directory-contract.md](../docs/orchestration-directory-contract.md)
 
 当前建议把 `agents/` 理解为：
 
 - OpenClaw subagent 的参考配置目录
-- 部署与停用脚本入口
 - 当前 agent 职责与 I/O 的近似说明
 
 它仍然有用，但不是系统运行时的唯一真相来源。当前真实状态还需要结合以下位置一起判断：
 
 - `cron/`：谁在什么时点触发
+- `docs/tasks/cron/`：cron 任务正文
 - `docs/tasks/` 与 `docs/roles/`：agent 实际执行模板与上下文
 - `logs/`：运行状态与诊断日志
 - `runtime/engine/` 与 `runtime/outbox/`：状态、历史产物与待发送消息
@@ -31,40 +31,28 @@
 | scout | 候选标的/异常波动扫描 | 按需或定时 | `xiaomi/mimo-v2-omni` |
 | closer | 收盘总结/复盘/明日关注 | 每市场收盘后 | `xiaomi/mimo-v2-omni` |
 
-## 部署方式
+## Main Agent / yuuka 中枢
 
-### 一键部署所有 agent（yuuka 主会话执行）
+主 agent 不是 subagent，但负责统筹整条协作链路：
 
-在 yuuka 主会话中执行以下命令：
+- 读取 `cron/` 与 `docs/tasks/cron/`
+- 决定何时触发 watcher / newswire / strategist / executor / scout / closer
+- 负责协调 subagent 之间的交接
+- 负责调度、审批、风险把关与对用户汇报
+- 作为默认汇报目标 `agent:yuuka:main`
 
-```bash
-cd /workspace/agent-trading/agents
-./deploy_agents_yuuka.sh
-```
+如果你在看的是“谁来发起任务、谁来收集结果、谁来做总协调”，那就是主 agent 的职责。
 
-### 停止所有 agent
+## 运行入口
 
-```bash
-cd /workspace/agent-trading/agents
-./stop_agents.sh
-```
+- `stop_agents.sh`：停止当前已启动的 subagent
+- `subagents action=list`：查看当前 subagent 状态
 
-### 查看 agent 状态
+说明：
 
-```bash
-subagents action=list
-```
-
-### 部署到 host（arona 执行）
-
-如果需要在 host 上部署，arona 需要执行：
-
-```bash
-cd /Users/openclaw/.openclaw/workspace-yuuka/agent-trading/agents
-./deploy_agents.sh
-```
-
-注意：host 上的部署脚本仅显示命令说明，实际部署需在 yuuka 主会话中执行。
+- `cron/*.json` 现在只保留调度信息和 `taskFile` 引用
+- 真正会变化的任务正文已经迁到 `docs/tasks/cron/`
+- 如果任务正文变更，不需要再改 cron 配置
 
 ## 配置文件说明
 
@@ -96,9 +84,9 @@ cd /Users/openclaw/.openclaw/workspace-yuuka/agent-trading/agents
 
 截至 `2026-04-16`，至少有这些位置仍未完全校准：
 
-- `strategist.yaml` 里的 `backtest_endpoint` 仍是 `/api/backtest`，但当前批量参数迭代核心已转向 `/api/backtest/batch`
 - 多个 `yaml` 和 `docs/roles/*` 仍在引用旧的 `runtime/engine/logs/*` 路径，而系统正在把运行日志收口到根目录 `logs/`
 - agent 业务产物和运行日志的目录边界仍在整理中，后续应逐步区分 `logs/` 与 `artifacts/`
+- `agents/` 仍包含少量历史路径引用，需要继续校准到 `docs/tasks/cron/` 与根目录 `logs/`
 
 更完整的盘点见：
 

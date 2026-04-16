@@ -1,4 +1,4 @@
-# Tiger Engine Schema v1
+# Engine Schema v1
 
 > 目标：为 watcher / newswire / strategist / Operator review / executor / closer 建立统一的数据契约。
 > 原则：结构化优先、可追踪、可审计、可扩展到更高频和多周期。
@@ -546,4 +546,4 @@ executor / closer 可以作为第二批严格结构化。
 
 ## 15. 一句话总结
 
-**Tiger Engine Schema v1 的核心思想是：watcher 产观察对象、newswire 产情报对象、strategist 产信号对象、decision 层产裁决对象、executor 产执行对象、closer 产总结对象，全部通过 id 串联。**
+**本 schema 的核心思想是：watcher 产观察对象、newswire 产情报对象、strategist 产信号对象、decision 层产裁决对象、executor 产执行对象、closer 产总结对象，全部通过 id 串联。**

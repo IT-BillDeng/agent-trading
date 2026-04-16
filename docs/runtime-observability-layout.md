@@ -9,7 +9,7 @@
 - 日志、状态、agent 产物混放
 - 同类信息散落在多个目录
 - 巡检系统状态时缺少统一入口
-- `runtime/engine/` 与 `runtime/engine/tiger_engine/` 存在路径漂移
+- `runtime/engine/` 与历史 runtime 路径之间存在漂移
 
 本文档的核心建议是：
 

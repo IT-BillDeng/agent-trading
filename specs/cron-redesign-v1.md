@@ -1,6 +1,6 @@
-# Tiger Cron Redesign v1
+# Cron Redesign v1
 
-> 目标：清理 Tiger 历史遗留 cron，按新的岗位化流水线重建调度体系。
+> 目标：清理历史遗留 cron，按新的岗位化流水线重建调度体系。
 > 范围：watcher / newswire / strategist / decision / executor / closer / portfolio-report。
 > 原则：先定义蓝图，再平滑替换；不在旧 cron 上继续打补丁。
 
@@ -8,7 +8,7 @@
 
 ## 1. 重构目标
 
-当前 Tiger cron 存在以下问题：
+当前 cron 存在以下问题：
 
 - 历史叠加，部分任务职责重叠
 - 有些 cron 代表的是旧架构思路，不再符合当前岗位设计
@@ -264,8 +264,8 @@ Operator 汇总给用户
 - `closer-us-close-summary`
 
 ### portfolio-report
-- `tiger-portfolio-report-intraday-q15`
-- `tiger-portfolio-report-afterhours-hourly`
+- `portfolio-report-intraday-q15`
+- `portfolio-report-afterhours-hourly`
 
 ---
 
@@ -301,17 +301,17 @@ Operator 汇总给用户
 - 保留
 - 后续输出接入 closer schema
 
-### `tiger-portfolio-report-intraday-q15`
+### `portfolio-report-intraday-q15`
 - 暂时保留
 
-### `tiger-portfolio-report-afterhours-hourly`
+### `portfolio-report-afterhours-hourly`
 - 暂时保留
 
 ---
 
 ## 5.2 建议删除或重建
 
-### `tiger-paper-execution`
+### `paper-execution`
 - **建议退役**
 - 原因：旧架构下的固定执行班次，不符合新的 decision -> executor 模型
 - 短期可保留为过渡任务，长期应删除
@@ -369,10 +369,10 @@ Operator 汇总给用户
 2. 重建 newswire 频率（盘中 q30，盘后 q2h）
 3. 新增 strategist 基础 cron（盘中 q15）
 4. 将 decision / executor 明确为事件触发，不建固定 cron
-5. 评估并退役 `tiger-paper-execution`
+5. 评估并退役 `paper-execution`
 
 ---
 
 ## 9. 一句话总结
 
-**Tiger 新 cron 体系应该从“历史堆叠的固定班次”升级成“watcher/newswire 定时采集，strategist 混合触发，decision/executor 事件驱动，closer/portfolio-report 定时汇总”的混合调度系统。**
+**新 cron 体系应该从“历史堆叠的固定班次”升级成“watcher/newswire 定时采集，strategist 混合触发，decision/executor 事件驱动，closer/portfolio-report 定时汇总”的混合调度系统。**

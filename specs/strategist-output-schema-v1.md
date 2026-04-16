@@ -1,4 +1,4 @@
-# Tiger Strategist 输出 Schema v1
+# Strategist 输出 Schema v1
 
 ## 概述
 

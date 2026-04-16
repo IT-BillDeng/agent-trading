@@ -1,4 +1,4 @@
-# Tiger Rule Engine Schema v1
+# Rule Engine Schema v1
 
 > 目标：将策略逻辑参数化，Strategist 改配置 = 改策略，零重启
 

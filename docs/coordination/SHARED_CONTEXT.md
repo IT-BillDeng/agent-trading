@@ -1,4 +1,4 @@
-# TIGER_SHARED_CONTEXT.md
+# Shared Context
 
 统一共享上下文文件：`market_context.json`
 

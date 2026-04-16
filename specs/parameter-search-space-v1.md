@@ -1,4 +1,4 @@
-# Tiger 参数搜索空间 Schema v1
+# 参数搜索空间 Schema v1
 
 ## 概述
 

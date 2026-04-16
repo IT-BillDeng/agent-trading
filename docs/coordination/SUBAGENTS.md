@@ -1,9 +1,9 @@
-# TIGER_SUBAGENTS.md
+# Subagents
 
-`Operator` 当前可调用的 Tiger subagents：
+`Operator` 当前可调用的 subagents：
 
 本地股票清单：`./data/watchlist.json`
-- 这是当前 Operator 与 Tiger subagents 共用的本地用户状态
+- 这是当前 Operator 与 subagents 共用的本地用户状态
 - 仓库只保留 `watchlist.json.example` 作为种子，`watchlist.json` 不应提交
 - 默认优先使用这份本地清单，而不是各自维护独立列表
 

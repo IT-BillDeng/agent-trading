@@ -1,4 +1,4 @@
-# Tiger Newswire 输出 Schema v1
+# Newswire 输出 Schema v1
 
 ## 概述
 

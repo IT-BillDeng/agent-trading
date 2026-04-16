@@ -1,6 +1,6 @@
 # agent-trading
 
-Tiger 自动化交易项目工作区。当前核心引擎已统一命名为 **engine**，用于承载 paper trading 执行链、观察岗位、总结岗位与后续更高频/多周期扩展。
+agent-trading 自动化交易项目工作区。当前核心引擎已统一命名为 **engine**，用于承载 paper trading 执行链、观察岗位、总结岗位与后续更高频/多周期扩展。
 
 ---
 
@@ -8,7 +8,7 @@ Tiger 自动化交易项目工作区。当前核心引擎已统一命名为 **en
 
 当前项目目标：
 
-- 建立一个可持续演进的 Tiger 自动化交易工程骨架
+- 建立一个可持续演进的自动化交易工程骨架
 - 支持 paper trading 的策略执行、风控、状态记录、通知与汇报
 - 通过 cron + 岗位化 agent 协作，完成盯盘、情报、总结、播报等任务
 - 避免工程命名被单一频率绑定，为未来 `5m / 15m / 30m / multi-timeframe` 预留空间
@@ -28,10 +28,9 @@ agent-trading/
     roles/
     tasks/
     coordination/
-  shared/
-    watchlist.json
-    market_context.json
+  news/
     newswire_sources.json
+  properties/
   specs/
     agent-trading-spec-v1-30min.md
   system/
@@ -54,11 +53,11 @@ agent-trading/
 说明：
 
 - `docs/`：岗位说明、任务模板、协作说明
-- `shared/`：跨岗位共享输入
+- `data/`：本地用户状态、种子配置与少量实验产物
+- `news/`：新闻源配置
 - `specs/`：规格文档与设计草案
 - `system/engine/`：核心执行引擎代码
 - `runtime/engine/`：运行时产物、状态、日志
-- `data/`：本地数据、缓存、实验产物（默认不进 Git）
 
 ---
 
@@ -175,11 +174,11 @@ agent-trading/
 
 当前主要依赖 OpenClaw cron 触发各岗位：
 
-- `tiger-paper-execution`
+- `paper-execution`
 - `watcher-market-watch`
 - `newswire-*`
 - `closer-*`
-- `tiger-portfolio-report-*`
+- `portfolio-report-*`
 
 本质是：
 
@@ -192,9 +191,9 @@ agent-trading/
 可以简化理解为：
 
 ```text
-shared/*.json + docs/*.md
+data/*.json + docs/*.md
         ↓
-Tiger Engine 执行周期 / watcher / newswire / closer
+Engine 执行周期 / watcher / newswire / closer
         ↓
 runtime/engine/*.json / *.jsonl
         ↓
@@ -278,7 +277,7 @@ system/engine/
 - Python 包：`src/engine`
 
 说明：
-- 项目已移除 `30m / tiger30` 作为主命名
+- 项目已移除 `30m` 作为主命名
 - 这样后续提高频率或扩展到多周期时，不需要再次做大规模重命名
 
 ---
@@ -297,4 +296,4 @@ system/engine/
 
 ## 11. 一句话总结
 
-**这是一个以 `engine` 为核心、用 cron 触发岗位协作、通过共享文件与运行日志交接数据的 Tiger 自动化交易工程。**
+**这是一个以 `engine` 为核心、用 cron 触发岗位协作、通过本地状态文件与运行日志交接数据的自动化交易工程。**

@@ -1,4 +1,4 @@
-# Tiger MVP Implementation Plan v1
+# MVP Implementation Plan v1
 
 > 范围：watcher / newswire 第一批结构化输出落地。
 > 目标：在不先推倒现有 cron 的前提下，为后续 strategist / decision / executor 铺设结构化输入层。
@@ -132,4 +132,4 @@ runtime/engine/
 
 ## 7. 一句话总结
 
-**Tiger MVP 第一批的本质，不是重写 watcher/newswire 的逻辑，而是先让它们从“只会说话的岗位”升级成“会产结构化对象的岗位”。**
+**MVP 第一批的本质，不是重写 watcher/newswire 的逻辑，而是先让它们从“只会说话的岗位”升级成“会产结构化对象的岗位”。**

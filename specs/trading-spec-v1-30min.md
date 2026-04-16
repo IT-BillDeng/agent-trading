@@ -1,8 +1,8 @@
-# Tiger 模拟盘全自动交易系统需求规格 v1（30min）
+# 模拟盘全自动交易系统需求规格 v1（30min）
 
 ## 1. 目标
 
-构建一套基于 **Tiger Open Platform 模拟盘** 的美股自动交易系统 v1。
+构建一套基于 **可替换 broker API** 的美股自动交易系统 v1，当前默认实现对接模拟盘 broker API。
 
 设计原则：
 - 低频优先：按 `30min` 级别运行
@@ -16,11 +16,11 @@
 ## 2. 已确认边界
 
 ### 2.1 账户与市场
-- 环境：Tiger 模拟盘
+- 环境：模拟盘
 - 市场：美股
 - 账户：PAPER account
-- 数据面：Tiger 延迟行情 + Tiger 交易接口
-- 执行面：Tiger Open API
+- 数据面：默认 broker 的延迟行情 + 交易接口
+- 执行面：当前默认 broker Open API
 - 当前已确认：
   - US `quote_delay` 可用
 
@@ -246,7 +246,7 @@
 ## 7.4 Execution 模块
 职责：
 - 生成标准订单参数
-- 提交 Tiger API
+- 提交 broker API
 - 跟踪订单状态
 - 处理撤单与异常
 
@@ -300,7 +300,7 @@
 - 原因：daily_loss_limit_reached
 
 #### 异常熔断
-- `[STOPPED] Tiger trading halted`
+- `[STOPPED] trading halted`
 - 原因：api_response_inconsistent
 
 ---
@@ -402,7 +402,7 @@ system:
 ## 13. 上线前检查清单
 
 ### 技术检查
-- Tiger API 连通性通过
+- broker API 连通性通过
 - 账户读取通过
 - 资产/持仓/订单读取通过
 - 延迟行情读取通过
@@ -447,8 +447,8 @@ system:
 
 ## 15. 当前结论
 
-Tiger 模拟盘自动交易系统 v1 应定位为：
+模拟盘自动交易系统 v1 应定位为：
 
 > **基于延迟行情、30min 级别、风控优先的低频自动交易系统。**
 
-在未获得 Tiger API 实时行情权限前，不应将 v1 扩展为 5min 级盘中实时策略系统。
+在未获得实时行情权限前，不应将 v1 扩展为 5min 级盘中实时策略系统。

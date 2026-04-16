@@ -1,6 +1,6 @@
-# TIGER_SUBAGENT_PLAYBOOK.md
+# Subagent Playbook
 
-给 `Operator` 的 Tiger subagent 实战手册。
+给 `Operator` 的 subagent 实战手册。
 
 ## 可调用对象
 
@@ -98,7 +98,7 @@
 
 ## 重要规则
 
-- 这些 Tiger subagent 默认只对你汇报，不直接对老师说话
+- 这些 subagent 默认只对你汇报，不直接对老师说话
 - 如果任务涉及 **Python、脚本执行、真实提交、支付或其他高风险动作**：
   - 你可以让 subagent 帮你整理命令和检查点
   - 但真正执行默认还是转交 `arona`

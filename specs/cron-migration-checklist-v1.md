@@ -1,7 +1,7 @@
-# Tiger Cron Migration Checklist v1
+# Cron Migration Checklist v1
 
-> 目标：把 Tiger 相关 cron 从历史堆叠状态迁移到新岗位化调度体系。
-> 前提：已完成 `engine-schema-v1.md` 与 `tiger-cron-redesign-v1.md`。
+> 目标：把历史 cron 从堆叠状态迁移到新岗位化调度体系。
+> 前提：已完成 `engine-schema-v1.md` 与 `cron-redesign-v1.md`。
 > 原则：先建新路，再退旧路；先 disable，再 remove；每一步都可回滚。
 
 ---
@@ -50,10 +50,10 @@
 - 后续逐步改成 closer schema 输出
 
 ### portfolio-report
-- `tiger-portfolio-report-intraday-q15`
+- `portfolio-report-intraday-q15`
 - jobId: `09054d50-42be-466a-847a-6d9b471921b3`
 
-- `tiger-portfolio-report-afterhours-hourly`
+- `portfolio-report-afterhours-hourly`
 - jobId: `965badbb-37ac-4ae7-9ad7-0f5f08d5e5c5`
 
 动作：
@@ -95,7 +95,7 @@
 
 ## 2.3 过渡保留
 
-### `tiger-paper-execution`
+### `paper-execution`
 - jobId: `8aaf7c82-fb33-434c-8165-067f8c45b8ad`
 
 现状：
@@ -131,7 +131,7 @@
 ## Phase 0：冻结目标
 
 在正式迁移前确认：
-- 以 `tiger-cron-redesign-v1.md` 为蓝图
+- 以 `cron-redesign-v1.md` 为蓝图
 - 不再在旧 cron 上继续做零散补丁
 
 完成标准：
@@ -221,14 +221,14 @@
 1. 先定义 signal -> decision -> task -> result 的触发链
 2. 不创建固定 decision/executor cron
 3. 先用文件 / 事件对象方式打通流程
-4. 等链路稳定后，重新评估 `tiger-paper-execution`
+4. 等链路稳定后，重新评估 `paper-execution`
 
 ### 风险
 - 中偏高
 - 因为会真正触及执行模型变化
 
 ### 回滚
-- 保持 `tiger-paper-execution` 继续作为主执行链
+- 保持 `paper-execution` 继续作为主执行链
 
 ---
 
@@ -238,7 +238,7 @@
 最终移除旧式固定 execution cron。
 
 ### 动作
-1. 先 disable `tiger-paper-execution`
+1. 先 disable `paper-execution`
 2. 观察至少 1~2 个交易日
 3. 若 signal -> decision -> executor 链稳定，则 remove
 
@@ -247,7 +247,7 @@
 - 因为这一步涉及主执行链切换
 
 ### 回滚
-- 重新启用 `tiger-paper-execution`
+- 重新启用 `paper-execution`
 
 ---
 
@@ -273,7 +273,7 @@
 - [ ] 保留旧 execution cron 作为过渡
 
 ### 第五优先级
-- [ ] 退役 `tiger-paper-execution`
+- [ ] 退役 `paper-execution`
 
 ---
 
@@ -281,9 +281,9 @@
 
 以下动作当前不建议先做：
 
-- 直接 remove 所有旧 Tiger cron
+- 直接 remove 所有旧 cron
 - 在没有 watcher/newswire 结构化输出前就上 strategist
-- 在 decision/executor 链没打通前就移除 `tiger-paper-execution`
+- 在 decision/executor 链没打通前就移除 `paper-execution`
 - 一次性同时修改所有 cron + 所有岗位逻辑
 
 原因：
@@ -306,4 +306,4 @@
 
 ## 7. 一句话总结
 
-**Tiger cron 迁移的正确顺序不是“先删旧 cron”，而是：先让 watcher/newswire 产出结构化数据，再重建 newswire 与 strategist，再接 decision/executor 事件链，最后退役旧 execution cron。**
+**cron 迁移的正确顺序不是“先删旧 cron”，而是：先让 watcher/newswire 产出结构化数据，再重建 newswire 与 strategist，再接 decision/executor 事件链，最后退役旧 execution cron。**

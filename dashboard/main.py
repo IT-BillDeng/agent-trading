@@ -160,6 +160,37 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+@app.middleware("http")
+async def log_service_exceptions(request, call_next):
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        append_service_log(
+            "dashboard",
+            "error",
+            "Unhandled request exception",
+            kind="request_exception",
+            method=request.method,
+            path=str(request.url.path),
+            query=str(request.url.query),
+            error=str(e),
+        )
+        raise
+
+    if response.status_code >= 500:
+        append_service_log(
+            "dashboard",
+            "error",
+            "Request returned server error",
+            kind="request_error",
+            method=request.method,
+            path=str(request.url.path),
+            query=str(request.url.query),
+            status_code=response.status_code,
+        )
+    return response
+
 # --- Static files ---
 
 STATIC_DIR = Path(__file__).parent / "static"

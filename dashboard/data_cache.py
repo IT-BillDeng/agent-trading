@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 from .tiger_client import TigerClient, ET_ZONE
 from .quote_provider import QuoteProvider
+from .service_logs import append_service_log
 
 WORKSPACE = Path(os.environ.get("ENGINE_WORKSPACE", str(Path(__file__).parent.parent.parent)))
 WATCHLIST_PATH = Path(os.environ.get("ENGINE_WATCHLIST_PATH", str(WORKSPACE / "data" / "watchlist.json")))
@@ -52,12 +53,28 @@ class DataCache:
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._poll_loop, daemon=True)
         self._thread.start()
+        append_service_log(
+            "dashboard",
+            "info",
+            "Data cache background polling started",
+            kind="cache_lifecycle",
+            refresh_interval=self._interval,
+            provider=self._quote_provider.name,
+        )
 
     def stop(self):
         """Stop background polling."""
         self._stop_event.set()
         if self._thread:
             self._thread.join(timeout=5)
+        append_service_log(
+            "dashboard",
+            "info",
+            "Data cache background polling stopped",
+            kind="cache_lifecycle",
+            refresh_interval=self._interval,
+            provider=self._quote_provider.name,
+        )
 
     def get(self) -> dict:
         """Get cached data snapshot."""
@@ -352,6 +369,14 @@ class DataCache:
             try:
                 self._refresh()
             except Exception as e:
+                append_service_log(
+                    "dashboard",
+                    "error",
+                    "Data cache refresh loop failed",
+                    kind="cache_refresh_error",
+                    error=str(e),
+                    provider=self._quote_provider.name,
+                )
                 with self._lock:
                     self._data["errors"].append({
                         "time": datetime.now().isoformat(),
@@ -419,6 +444,16 @@ class DataCache:
                 "error": e,
             } for e in errors])
 
+        if errors:
+            append_service_log(
+                "dashboard",
+                "warning",
+                "Data cache refresh completed with partial errors",
+                kind="cache_refresh_warning",
+                provider=self._quote_provider.name,
+                errors=errors,
+            )
+
         # Quotes (from watchlist) — rebuild each cycle so deleted symbols disappear
         quotes = {}
         try:
@@ -436,6 +471,14 @@ class DataCache:
             with self._lock:
                 self._data["quotes"] = quotes
         except Exception as e:
+            append_service_log(
+                "dashboard",
+                "warning",
+                "Quote refresh failed",
+                kind="quote_refresh_warning",
+                provider=self._quote_provider.name,
+                error=str(e),
+            )
             with self._lock:
                 self._data["errors"].append({
                     "time": datetime.now().isoformat(),

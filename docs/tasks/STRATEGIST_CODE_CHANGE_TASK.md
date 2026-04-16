@@ -8,6 +8,7 @@
 
 - `docs/strategist-capability-contract.md`
 - `docs/strategist-l3-evolution-plan.md`
+- `docs/strategist-l3b-approval-contract.md`
 - `docs/tasks/STRATEGIST_TASK.md`
 
 ---
@@ -59,7 +60,8 @@
 5. 执行验证链
 6. 将 proposal / result / rollback 写入 `artifacts/strategist/`
 7. 生成 patch 或 commit proposal
-8. 等待人工或上层 agent 批准
+8. 将 proposal 状态写为 `awaiting_approval`
+9. 等待人工或上层 agent 批准
 
 ---
 
@@ -135,6 +137,32 @@ python3 system/engine/run_dry_run_cycle.py \
 - `rollback_trigger`
 - `rollback_steps`
 - `follow_up`
+
+### `artifacts/strategist/approval_queue/`
+
+每个待审批 proposal 一个 json 文件，供人工或上层 agent 读取。
+
+### `artifacts/strategist/approval_decisions.jsonl`
+
+记录最终批准 / 拒绝动作。
+
+### `artifacts/strategist/deployment_records.jsonl`
+
+记录 proposal 被真正应用后的更新结果。
+
+---
+
+## 更新模式
+
+每个 proposal 都应明确给出：
+
+- `recommended_update_mode: hot | cold`
+- `requires_restart: true | false`
+
+规则：
+
+- 只改 `rules/` 的配置型更新，可以建议为 `hot`
+- 改 `strategy.py / rule_engine.py / indicators.py` 的代码型更新，默认应建议为 `cold`
 
 ---
 

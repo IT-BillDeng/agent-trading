@@ -9,6 +9,7 @@
 - `docs/strategist-capability-contract.md`
 - `docs/strategist-memory-contract.md`
 - `docs/tasks/STRATEGIST_TASK.md`
+- `docs/strategist-l3b-approval-contract.md`
 
 ---
 
@@ -111,6 +112,10 @@
 - 让 strategist 成为真正的“自动研究工程师”
 - 但仍由人工或上层 agent 决定是否上线
 
+批准机制与热/冷更新规则参见：
+
+- `docs/strategist-l3b-approval-contract.md`
+
 ### L3c：自动发布型研发
 
 不建议作为近期目标。
@@ -204,6 +209,13 @@
 - `approved_for_merge`
 - `deployed`
 
+同时还需要明确：
+
+- 谁负责批准
+- 谁负责真正 apply 更新
+- 哪些 proposal 可热更新
+- 哪些 proposal 必须冷更新
+
 ---
 
 ## 五、L3 所需的新能力
@@ -275,6 +287,9 @@
 - `artifacts/strategist/code_change_results.jsonl`
 - `artifacts/strategist/rollback_notes.jsonl`
 - `artifacts/strategist/experiments/`
+- `artifacts/strategist/approval_queue/`
+- `artifacts/strategist/approval_decisions.jsonl`
+- `artifacts/strategist/deployment_records.jsonl`
 
 ### `code_change_proposals.jsonl`
 

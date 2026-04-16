@@ -280,7 +280,7 @@
 |------|------|
 | `agents/strategist.yaml` | `backtest_endpoint` 仍指向 `/api/backtest`，与当前 batch 迭代方向不一致 |
 | `agents/watcher.yaml` | 输入日志路径仍指向旧 `runtime/engine/logs/*` |
-| `agents/README.md` | 停止脚本名写成 `stop_tiger_agents.sh`，与实际文件 `stop_agents.sh` 不一致 |
+| `agents/README.md` | 旧的停止脚本入口已移除，改为直接使用 `subagents action=kill` |
 | 多个 `*.yaml` | 输出文件仍大多指向旧 `runtime/engine/...` 路径，尚未反映新的 `logs/` 入口或未来的 `artifacts/` 设计 |
 
 ### 当前建议定位

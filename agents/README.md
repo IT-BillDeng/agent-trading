@@ -1,6 +1,6 @@
 # Agent Trading Subagents
 
-本目录包含 Agent Trading 项目的 6 个 subagent 配置文件与辅助脚本。
+本目录包含 Agent Trading 项目的 6 个 subagent 配置文件。
 
 统一的目录职责规范见：[docs/orchestration-directory-contract.md](../docs/orchestration-directory-contract.md)
 
@@ -45,8 +45,9 @@
 
 ## 运行入口
 
-- `stop_agents.sh`：停止当前已启动的 subagent
 - `subagents action=list`：查看当前 subagent 状态
+- `subagents action=kill target=<agent>`：停止单个 subagent
+- `subagents action=kill target=<agent>` 重复执行即可依次停止全部 subagent
 
 说明：
 

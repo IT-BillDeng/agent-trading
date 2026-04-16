@@ -4,16 +4,16 @@
 
 ---
 
-目标：基于共享股票清单与当前 Tiger Engine paper 状态，输出保守版交易计划草案。
+目标：基于本地股票清单与当前 Tiger Engine paper 状态，输出保守版交易计划草案。
 
 输入：
-- `./data/watchlist.json`
+- `./data/watchlist.json`（本地用户状态，缺失时由 `watchlist.json.example` 种子生成）
 - `./specs/agent-trading-spec-v1-30min.md`
 - `./system/engine/app_config.paper.json`
 - `./runtime/engine/.last_execution_cycle.json`
 
 要求：
-- 优先只看共享清单中 `enabled=true` 的标的
+- 优先只看本地清单中 `enabled=true` 的标的
 - 对 `priority=high` 的标的优先分析
 - 必须遵守当前风控边界：
   - 30min
@@ -42,5 +42,5 @@
 ---
 
 可选附加要求：
-- 若共享清单中新增标的（如 SMCI / GOOGL），请单独说明是否已进入“值得重点盯”的范围
+- 若本地清单中新增标的（如 SMCI / GOOGL），请单独说明是否已进入“值得重点盯”的范围
 - 若当前信号过多，请明确给出“单标的优先”还是“允许分仓”建议

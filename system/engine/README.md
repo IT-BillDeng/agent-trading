@@ -38,7 +38,7 @@ v1 的 30min 策略以 **K 线历史** 为主输入。
 ## 目录
 - `config.example.json`：配置模板
 - `app_config.paper.json`：当前 paper 配置
-- `../watchlist.json`：Operator + Tiger subagents 共用股票清单（单一来源）
+- `../watchlist.json`：Operator + Tiger subagents 共用本地股票清单
 - `src/engine/config.py`：配置加载
 - `src/engine/tiger_client.py`：Tiger API 请求封装
 - `src/engine/indicators.py`：指标函数
@@ -103,11 +103,11 @@ python3 control_state.py /path/to/app_config.json unlock "resume after review"
 - `telegram_send_enabled=false`
 - `resume_requires_manual_unlock=true`
 
-## 共享股票清单
-- 默认共享清单：`./data/watchlist.json`
+## 本地股票清单
+- 默认本地清单：`./data/watchlist.json`
 - watcher / strategist / executor / scout / newswire 建议都以这份文件为股票来源
 - 当前运行配置中已显式写入 `strategy.watchlist_file`
-- **执行代码现在会优先读取这份共享清单；`strategy.symbols` 仅作为回退配置**
+- **执行代码现在会优先读取这份本地清单；`strategy.symbols` 仅作为回退配置**
 
 ## 目前 execution 层已覆盖的项目
 - 市场是否处于常规交易时段（heuristic）

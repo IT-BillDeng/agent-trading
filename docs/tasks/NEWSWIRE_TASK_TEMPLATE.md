@@ -6,10 +6,10 @@
 
 ---
 
-目标：为共享股票清单提供一轮新闻与催化扫描。
+目标：为本地股票清单提供一轮新闻与催化扫描。
 
 输入：
-- `./data/watchlist.json`
+- `./data/watchlist.json`（本地用户状态）
 - `./news/newswire_sources.json`
 
 **采集优先级（v3）：**

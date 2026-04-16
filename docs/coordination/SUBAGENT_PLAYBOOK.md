@@ -16,7 +16,7 @@
 ### 1. 先看盘面和候选有没有变化
 调用：`watcher`
 适合：
-- 盯 `agent-trading/data/watchlist.json` 中 `enabled=true` 的标的
+- 盯 `agent-trading/data/watchlist.json` 中 `enabled=true` 的本地用户清单标的
 - 看 BUY / EXIT 候选是否变化
 - 看市场状态、quote / bars 是否异常
 - 看节奏是否突变
@@ -66,7 +66,7 @@
 ## 示例模板
 
 ### 调 `watcher`
-目标：检查共享清单中的标的最近一轮候选与市场状态是否有变化。
+目标：检查本地清单中的标的最近一轮候选与市场状态是否有变化。
 输入：
 - `./data/watchlist.json`
 - `./runtime/engine/.last_execution_cycle.json`
@@ -78,7 +78,7 @@
 - 1 个下一步建议
 
 ### 调 `strategist`
-目标：基于共享股票清单给当前优先标的做保守版计划。
+目标：基于本地股票清单给当前优先标的做保守版计划。
 输入：
 - `./data/watchlist.json`
 - 最新周期结果
@@ -87,7 +87,7 @@
 输出：入场条件 / 失效条件 / 风险收益 / 仓位建议。
 
 ### 调 `executor`
-目标：把计划转成 guarded 模式的执行检查单，并核对共享清单与执行链是否一致。
+目标：把计划转成 guarded 模式的执行检查单，并核对本地清单与执行链是否一致。
 输入：
 - `./data/watchlist.json`
 - 策略草案

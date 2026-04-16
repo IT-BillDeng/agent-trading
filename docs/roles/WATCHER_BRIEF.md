@@ -15,7 +15,7 @@
 
 ### 1) 高频盯盘
 重点监控：
-- 共享清单中 `enabled=true` 的标的最新状态
+- 本地清单中 `enabled=true` 的标的最新状态
 - 市场是否开盘 / 休市 / 盘后
 - 候选 BUY / EXIT 是否变化
 - 同一标的是否连续多个周期维持强势
@@ -42,7 +42,7 @@
 ## 重点输入
 
 ### 核心文件
-- `./data/watchlist.json`
+- `./data/watchlist.json`（本地用户状态）
 - `./runtime/engine/.last_execution_cycle.json`
 - `./runtime/engine/logs/dispatch_queue.jsonl`
 - `./runtime/engine/logs/execution.jsonl`

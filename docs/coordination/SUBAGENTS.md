@@ -2,9 +2,10 @@
 
 `Operator` 当前可调用的 Tiger subagents：
 
-共享股票清单：`./data/watchlist.json`
-- 这是 Operator 与 Tiger subagents 的统一股票来源
-- 默认优先使用这份清单，而不是各自维护独立列表
+本地股票清单：`./data/watchlist.json`
+- 这是当前 Operator 与 Tiger subagents 共用的本地用户状态
+- 仓库只保留 `watchlist.json.example` 作为种子，`watchlist.json` 不应提交
+- 默认优先使用这份本地清单，而不是各自维护独立列表
 
 Newswire v1 信息源：`./news/newswire_sources.json`
 - 主源 1：Brave Search
@@ -13,7 +14,7 @@ Newswire v1 信息源：`./news/newswire_sources.json`
 
 
 - `watcher`
-  - 高频监控共享清单中的标的、市场状态、候选变化与异常节奏
+  - 高频监控本地清单中的标的、市场状态、候选变化与异常节奏
 
 - `newswire`
   - 收集标的/行业/宏观相关新闻、事件时间线与催化
@@ -34,5 +35,5 @@ Newswire v1 信息源：`./news/newswire_sources.json`
 
 - 这些 agent 是给 `Operator` 的内部 subagent，不直接面向老师
 - 默认优先输出给 `Operator`，由 `Operator` 决定如何汇总
-- 默认优先读取共享股票清单：`./data/watchlist.json`
+- 默认优先读取本地股票清单：`./data/watchlist.json`
 - 涉及 Python、脚本执行、真实提交、支付或其他高风险动作时，默认转交 `arona` 代执行

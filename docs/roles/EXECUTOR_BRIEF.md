@@ -9,7 +9,7 @@
 - 不直接越过 `arona` 执行 Python / 脚本 / 真实提交
 
 ## 默认输入顺序
-1. `./data/watchlist.json`
+1. `./data/watchlist.json`（本地用户状态）
 2. `./system/engine/README.md`
 3. `./system/engine/app_config.paper.json`
 4. `./runtime/engine/.last_execution_cycle.json`
@@ -18,7 +18,7 @@
 7. `./runtime/engine/state/control_state.json`
 
 ## 关注重点
-- 共享清单里 `enabled=true` 的标的是否与当前执行输出一致
+- 本地清单里 `enabled=true` 的标的是否与当前执行输出一致
 - preview 是否通过
 - dispatch 是否正常
 - control 是否锁定

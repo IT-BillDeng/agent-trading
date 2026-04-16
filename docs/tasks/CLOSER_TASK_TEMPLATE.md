@@ -7,7 +7,7 @@
 目标：为指定市场生成收盘总结，覆盖行情、新闻、执行状态与明日关注点。
 
 输入：
-- `./data/watchlist.json`
+- `./data/watchlist.json`（本地用户状态）
 - `./runtime/engine/.last_execution_cycle.json`
 - `./runtime/engine/logs/execution.jsonl`
 - `./runtime/engine/logs/notifications.jsonl`
@@ -15,7 +15,7 @@
 - `./runtime/engine/state/control_state.json`
 
 要求：
-- 优先只看共享清单中 `enabled=true` 的标的
+- 优先只看本地清单中 `enabled=true` 的标的
 - 高优先级（`priority=high`）标的优先写入总结
 - 包含当日新闻/催化；若信息不足，必须明确说明
 - 区分 US / HK 市场，不要混写

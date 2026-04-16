@@ -1,6 +1,6 @@
 # TIGER Newswire Brief
 
-`newswire` 的职责：为共享股票清单提供**新闻、事件、催化与时间线整理**。
+`newswire` 的职责：为本地股票清单提供**新闻、事件、催化与时间线整理**。
 
 ## 角色定位
 - 负责信息收集、摘要、分类、时效判断
@@ -11,7 +11,7 @@
 - 若信息不足，必须明确说明，不强行编造结论
 
 ## 默认输入顺序
-1. `./data/watchlist.json`
+1. `./data/watchlist.json`（本地用户状态）
 2. `./news/newswire_sources.json`
 3. 最新 watcher / strategist 结果（若有）
 4. 可访问的新闻 / 搜索结果 / 页面内容
@@ -24,7 +24,7 @@
 
 ## 核心任务
 ### 1) 预开盘新闻扫描
-- 看共享清单中 `enabled=true` 的标的
+- 看本地清单中 `enabled=true` 的标的
 - 优先看 `priority=high` 标的
 - 识别：财报、指引、监管、产品发布、宏观催化、突发事件
 

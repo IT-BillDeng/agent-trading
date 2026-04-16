@@ -7,7 +7,7 @@
 目标：审查当前 Tiger paper 执行链的准备度，并把计划转成最短执行检查单。
 
 输入：
-- `./data/watchlist.json`
+- `./data/watchlist.json`（本地用户状态）
 - `./system/engine/README.md`
 - `./system/engine/app_config.paper.json`
 - `./runtime/engine/.last_execution_cycle.json`
@@ -16,8 +16,8 @@
 - `./runtime/engine/state/control_state.json`
 
 要求：
-- 优先只看共享清单中 `enabled=true` 的标的
-- 检查当前执行链是否与共享清单一致
+- 优先只看本地清单中 `enabled=true` 的标的
+- 检查当前执行链是否与本地清单一致
 - 重点检查：
   - preview_check
   - guarded/live mode
@@ -42,6 +42,6 @@
 ---
 
 可选附加要求：
-- 如果共享清单与 `.last_execution_cycle.json` 中的标的不一致，必须明确指出
+- 如果本地清单与 `.last_execution_cycle.json` 中的标的不一致，必须明确指出
 - 如果发现执行链已具备 paper guarded 观察条件，请明确说明“可以继续 guarded 观察”
 - 如果发现任何会导致误下单或漏通知的点，请把它放在第一优先级

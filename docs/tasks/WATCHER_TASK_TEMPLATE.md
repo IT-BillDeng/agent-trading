@@ -7,14 +7,14 @@
 目标：执行一轮只读高频行情监控，并写入结构化 watcher 输出。
 
 输入：
-- `./data/watchlist.json`
+- `./data/watchlist.json`（本地用户状态）
 - `./runtime/engine/.last_execution_cycle.json`
 - `./runtime/engine/logs/dispatch_queue.jsonl`
 - `./runtime/engine/logs/execution.jsonl`
 - `./runtime/engine/state/control_state.json`
 
 要求：
-- 优先关注共享清单中 `enabled=true` 的标的
+- 优先关注本地清单中 `enabled=true` 的标的
 - 关注市场状态、候选变化、preview blocker、锁定状态、行情可用性
 - 重点识别：新 BUY 候选、候选数量突变、连续多轮强势、异常波动、权限异常
 - 信息不足时明确说明

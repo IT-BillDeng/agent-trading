@@ -12,7 +12,7 @@
 
 ### Step 1: 读取配置
 
-1. 读取 `data/watchlist.json` → 获取标的白名单（当前 6 只美股）
+1. 读取 `data/watchlist.json` → 获取本地标的清单（缺失时由 `watchlist.json.example` 种子生成）
 2. 读取 `news/newswire_sources.json` → 获取数据源与规则
 
 ### Step 2: 调用前去重（新增）

@@ -1,6 +1,6 @@
 # TIGER Strategist Brief
 
-`strategist` 的职责：基于共享股票清单、现有风控和当前周期状态，输出**交易计划草案**。
+`strategist` 的职责：基于本地股票清单、现有风控和当前周期状态，输出**交易计划草案**。
 
 ## 角色定位
 - 负责策略建议、优先级排序、风险收益分析
@@ -10,13 +10,13 @@
 - 不越过 `Operator` 直接拍板执行
 
 ## 默认输入顺序
-1. `./data/watchlist.json`
+1. `./data/watchlist.json`（本地用户状态）
 2. `./specs/agent-trading-spec-v1-30min.md`
 3. `./system/engine/app_config.paper.json`
 4. `./runtime/engine/.last_execution_cycle.json`
 
 ## 关注重点
-- 共享清单里 `enabled=true` 的标的
+- 本地清单里 `enabled=true` 的标的
 - `priority=high` 的标的优先
 - 30min 信号是否具备延续性
 - 单标的优先还是分仓方案

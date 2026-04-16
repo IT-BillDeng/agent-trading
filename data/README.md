@@ -4,7 +4,7 @@ This directory contains local user state and runtime data files for the Agent Tr
 
 ## Files
 
-- `watchlist.json` - Local shared watchlist for yuuka and Tiger subagents
+- `watchlist.json` - Local user watchlist state for yuuka and Tiger subagents
 - `watchlist.json.example` - Tracked seed example for the watchlist
 - `closer_outbox.json` - Runtime outbox for closer agent
 

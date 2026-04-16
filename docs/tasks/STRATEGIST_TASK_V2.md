@@ -13,7 +13,7 @@
 **Step 1: 读取输入**
 - `rules/rules.json` — 当前规则配置
 - `runtime/engine/newswire/latest.json` — 盘前新闻
-- `data/watchlist.json` — 标的白名单
+- `data/watchlist.json` — 本地标的清单（缺失时由 `watchlist.json.example` 种子生成）
 - `runtime/engine/.last_execution_cycle.json`（如存在）
 
 **Step 2: 复盘昨日信号**

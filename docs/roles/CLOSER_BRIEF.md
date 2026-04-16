@@ -14,7 +14,7 @@
 - HK（港股）
 
 ## 默认输入顺序
-1. `./data/watchlist.json`
+1. `./data/watchlist.json`（本地用户状态）
 2. `./runtime/engine/.last_execution_cycle.json`
 3. `./runtime/engine/logs/execution.jsonl`
 4. `./runtime/engine/logs/notifications.jsonl`
@@ -30,7 +30,7 @@
 - 高优先级标的（priority=high）表现如何
 
 ### 2) 新闻与催化
-- 共享清单中最值得关注的 1~3 条新闻/催化
+- 本地清单中最值得关注的 1~3 条新闻/催化
 - 对高优先级标的的潜在影响
 - 若新闻不足，必须明确说明“信息不足”而不是强行总结
 

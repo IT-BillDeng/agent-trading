@@ -395,10 +395,26 @@
                 <div>
                     <div class="text-xs text-gray-500 mb-2">当前配置</div>
                     <div id="broker-config-info" class="text-sm space-y-1">
+                        <div>券商平台: <span id="tc-broker-platform">--</span></div>
                         <div>账户: <span id="tc-account">--</span></div>
                         <div>API ID: <span id="tc-api-id">--</span></div>
                         <div>License: <span id="tc-license">--</span></div>
                         <div>API 类型: <span id="tc-account-type" class="text-gray-500">--</span></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 mb-2">全局参数</div>
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <label class="text-gray-400 w-24 shrink-0">券商平台</label>
+                            <select id="broker-platform-select" class="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm">
+                                <option value="tiger">tiger</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-2 items-center">
+                            <button onclick="saveBrokerPlatform()" class="bg-sakura-600/30 hover:bg-sakura-600/50 text-sakura-300 px-3 py-1 rounded text-xs border border-sakura-600/30 transition">💾 保存平台</button>
+                            <div id="broker-platform-msg" class="text-xs hidden"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1449,10 +1465,17 @@
             try {
                 const config = await fetch(API_BASE + '/api/config').then(r => r.json());
                 const risk = config.risk || {};
+                const broker = config.broker || {};
                 document.getElementById('risk-input-max-order').value = risk.max_order_notional_usd || '';
                 document.getElementById('risk-input-max-exposure').value = risk.max_total_exposure_usd || '';
                 document.getElementById('risk-input-daily-loss').value = risk.daily_loss_limit_pct || '';
                 document.getElementById('risk-input-disable-leverage').checked = !!risk.disable_leverage;
+                if (broker.platform) {
+                    const select = document.getElementById('broker-platform-select');
+                    if (select) select.value = broker.platform;
+                    const platformEl = document.getElementById('tc-broker-platform');
+                    if (platformEl) platformEl.textContent = broker.platform;
+                }
                 riskConfig = risk;
             } catch (e) {
                 console.error('config fetch error:', e);
@@ -1621,6 +1644,7 @@
             try {
                 const data = await fetch(API_BASE + '/api/broker-config').then(r => r.json());
                 if (!data.exists) {
+                    document.getElementById('tc-broker-platform').textContent = '未配置';
                     document.getElementById('tc-account').textContent = '未配置';
                     document.getElementById('tc-api-id').textContent = '--';
                     document.getElementById('tc-license').textContent = '--';
@@ -1630,6 +1654,8 @@
                 const f = data.fields || {};
                 const info = data.account_info || {};
                 const mode = data.mode || 'paper';
+                const platform = data.broker_platform || '--';
+                document.getElementById('tc-broker-platform').textContent = platform;
                 document.getElementById('tc-account').textContent = f.account || info.account || '--';
                 document.getElementById('tc-api-id').textContent = f.tiger_id || '--';
                 document.getElementById('tc-license').textContent = f.license || '--';
@@ -1637,6 +1663,59 @@
 
             } catch (e) {
                 console.error('api-config fetch error:', e);
+            }
+        }
+
+        async function fetchBrokerPlatforms() {
+            try {
+                const data = await fetch(API_BASE + '/api/broker').then(r => r.json());
+                const select = document.getElementById('broker-platform-select');
+                if (!select) return;
+                const available = data.available || [];
+                const current = data.current || 'tiger';
+                select.innerHTML = available.map(p => `<option value="${p}">${p}</option>`).join('');
+                if (available.length === 0) {
+                    select.innerHTML = '<option value="tiger">tiger</option>';
+                }
+                select.value = current;
+                const platformEl = document.getElementById('tc-broker-platform');
+                if (platformEl) platformEl.textContent = current;
+            } catch (e) {
+                console.error('broker fetch error:', e);
+            }
+        }
+
+        function showBrokerPlatformMsg(msg, isError) {
+            const el = document.getElementById('broker-platform-msg');
+            if (!el) return;
+            el.textContent = msg;
+            el.className = 'text-xs ' + (isError ? 'text-red-400' : 'text-green-400');
+            setTimeout(() => el.className = 'text-xs hidden', 3000);
+        }
+
+        async function saveBrokerPlatform() {
+            const select = document.getElementById('broker-platform-select');
+            const platform = select ? select.value : '';
+            if (!platform) {
+                showBrokerPlatformMsg('请选择券商平台', true);
+                return;
+            }
+            try {
+                const res = await fetch(API_BASE + '/api/config', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ broker: { platform } }),
+                });
+                const data = await res.json();
+                if (data.error) {
+                    showBrokerPlatformMsg(data.error, true);
+                    return;
+                }
+                showBrokerPlatformMsg('已保存', false);
+                const platformEl = document.getElementById('tc-broker-platform');
+                if (platformEl) platformEl.textContent = platform;
+            } catch (e) {
+                showBrokerPlatformMsg('保存失败', true);
             }
         }
 
@@ -1780,6 +1859,7 @@
         fetchStockAnalysis();
         fetchEngine();
         fetchConfig();
+        fetchBrokerPlatforms();
         fetchBrokerConfig();
         fetchQuoteProviders();
         fetchNewSections();

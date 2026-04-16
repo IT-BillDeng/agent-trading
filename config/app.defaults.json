@@ -4,6 +4,9 @@
   "markets": [
     "US"
   ],
+  "broker": {
+    "platform": "tiger"
+  },
   "strategy": {
     "timeframe": "30min",
     "use_rule_engine": true,

@@ -29,6 +29,16 @@ class AppConfig:
         return list(self.raw.get('markets', ['US']))
 
     @property
+    def broker(self) -> dict[str, Any]:
+        return dict(self.raw.get('broker', {}))
+
+    @property
+    def broker_platform(self) -> str:
+        broker = self.raw.get('broker', {})
+        platform = broker.get('platform') if isinstance(broker, dict) else None
+        return str(platform or 'tiger')
+
+    @property
     def symbols(self) -> list[dict[str, Any]]:
         shared = self._load_shared_watchlist_symbols()
         if not shared:

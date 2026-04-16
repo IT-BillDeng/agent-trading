@@ -4,6 +4,9 @@
   "markets": [
     "US"
   ],
+  "broker": {
+    "platform": "tiger"
+  },
   "notify": {
     "telegram": true,
     "telegram_preview_only": false,

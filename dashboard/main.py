@@ -24,10 +24,6 @@ from system.engine.src.engine.config import (
     merge_user_settings,
 )
 
-# Broker normalizer — configurable via env or defaults to tiger
-BROKER = os.environ.get("ENGINE_BROKER", "tiger")
-norm = get_normalizer(BROKER)
-
 # --- App lifecycle ---
 
 broker_client: BrokerClient | None = None
@@ -246,7 +242,7 @@ async def api_account():
     """Account info (assets, buying power)."""
     if not cache:
         return JSONResponse({"error": "not ready"}, status_code=503)
-    return norm.account(cache.get_account())
+    return _current_normalizer().account(cache.get_account())
 
 
 @app.get("/api/positions")
@@ -254,7 +250,7 @@ async def api_positions():
     """Current positions."""
     if not cache:
         return JSONResponse({"error": "not ready"}, status_code=503)
-    return norm.positions(cache.get_positions())
+    return _current_normalizer().positions(cache.get_positions())
 
 
 @app.get("/api/quotes")
@@ -270,7 +266,7 @@ async def api_orders():
     """Today's orders."""
     if not cache:
         return JSONResponse({"error": "not ready"}, status_code=503)
-    return norm.orders(cache.get_orders())
+    return _current_normalizer().orders(cache.get_orders())
 
 
 @app.get("/api/pnl")
@@ -278,7 +274,7 @@ async def api_pnl():
     """P&L summary."""
     if not cache:
         return JSONResponse({"error": "not ready"}, status_code=503)
-    return norm.pnl(cache.get_pnl())
+    return _current_normalizer().pnl(cache.get_pnl())
 
 
 @app.get("/api/stock-analysis")
@@ -495,6 +491,26 @@ def _load_effective_app_config() -> dict[str, Any]:
 
 def _merge_app_user_settings(updates: dict[str, Any]) -> tuple[dict[str, Any], Path]:
     return merge_user_settings(_app_config_file(), updates)
+
+
+def _current_broker_platform() -> str:
+    env_broker = os.environ.get("ENGINE_BROKER")
+    if env_broker:
+        return env_broker
+    try:
+        config = _load_effective_app_config()
+        broker = config.get("broker", {})
+        if isinstance(broker, dict):
+            platform = broker.get("platform")
+            if platform:
+                return str(platform)
+    except Exception:
+        pass
+    return "tiger"
+
+
+def _current_normalizer():
+    return get_normalizer(_current_broker_platform())
 
 
 def _first_existing_path(*paths: Path) -> Path:
@@ -1106,6 +1122,16 @@ async def api_config_update(update: dict):
         return JSONResponse({"error": "config not found"}, status_code=404)
 
     user_updates: dict[str, Any] = {}
+    if "broker" in update and isinstance(update["broker"], dict):
+        broker_update = dict(update["broker"])
+        if "platform" in broker_update:
+            platform = str(broker_update["platform"]).strip()
+            if platform not in available_brokers():
+                return JSONResponse(
+                    {"error": f"invalid broker platform: {platform}", "available": available_brokers()},
+                    status_code=400,
+                )
+            user_updates.setdefault("broker", {})["platform"] = platform
     if "risk" in update:
         user_updates["risk"] = update["risk"]
     if "markets" in update:
@@ -1763,7 +1789,7 @@ async def api_refresh(config: RefreshConfig):
 async def api_broker():
     """Current broker and available brokers."""
     return {
-        "current": BROKER,
+        "current": _current_broker_platform(),
         "available": available_brokers(),
     }
 
@@ -1876,7 +1902,7 @@ def _account_type_to_mode(account_type: str) -> str | None:
 async def api_broker_config_get():
     """Get current broker API config (sensitive fields masked)."""
     if not BROKER_PROPS_FILE.exists():
-        return {"exists": False, "mode": "paper", "fields": {}, "account_info": None}
+        return {"exists": False, "mode": "paper", "broker_platform": _current_broker_platform(), "fields": {}, "account_info": None}
     props = _parse_properties(BROKER_PROPS_FILE.read_text())
     masked = {}
     sensitive = {"private_key_pk1", "private_key_pk8", "secret_key"}
@@ -1893,6 +1919,7 @@ async def api_broker_config_get():
             mode = _load_effective_app_config().get("mode", "paper")
         except Exception:
             pass
+    broker_platform = _current_broker_platform()
     # Try API detection (non-fatal if fails)
     account_info = None
     try:
@@ -1909,7 +1936,7 @@ async def api_broker_config_get():
                         pass
     except Exception as e:
         account_info = {"error": str(e)}
-    return {"exists": True, "mode": mode, "fields": masked, "account_info": account_info}
+    return {"exists": True, "mode": mode, "broker_platform": broker_platform, "fields": masked, "account_info": account_info}
 
 
 @app.post("/api/broker-config/upload")

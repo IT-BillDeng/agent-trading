@@ -90,7 +90,7 @@
     "stop_on_exception": true,
     "auto_resume": false,
     "resume_requires_manual_unlock": true,
-    "audit_log_dir": "/app/runtime/logs",
+    "audit_log_dir": "/app/logs/audit",
     "state_dir": "/app/runtime/state"
   }
 }

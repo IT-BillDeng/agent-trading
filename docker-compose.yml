@@ -19,6 +19,7 @@ services:
       - ./rules:/app/rules
       - ./news:/app/news
       - ./properties:/app/properties
+      - ./logs:/app/logs
       - ./runtime/engine:/app/runtime
     environment:
       - TZ=Asia/Shanghai
@@ -29,6 +30,7 @@ services:
       - ENGINE_WORKSPACE=/app
       - ENGINE_WATCHLIST_PATH=/app/data/watchlist.json
       - ENGINE_QUOTE_PROVIDER=yfinance
+      - ENGINE_LOGS_DIR=/app/logs
       - ENGINE_RUNTIME_DIR=/app/runtime
       - ENGINE_APP_CONFIG=/app/config/app_config.docker.json
       # 调度器配置
@@ -41,5 +43,4 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-
 

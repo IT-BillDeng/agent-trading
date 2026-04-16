@@ -317,6 +317,40 @@ CONFIG_DIR_PATH = Path(os.environ.get("ENGINE_CONFIG_DIR", str(Path(__file__).pa
 RULES_DIR = Path(os.environ.get("ENGINE_RULES_DIR", str(Path(__file__).parent.parent / "rules")))
 NEWS_DIR_PATH = Path(os.environ.get("ENGINE_NEWS_DIR", str(Path(__file__).parent.parent / "news")))
 PROPERTIES_DIR = Path(os.environ.get("TIGER_PROPERTIES_DIR", str(Path(__file__).parent.parent / "properties")))
+LOGS_ROOT = Path(os.environ.get("ENGINE_LOGS_DIR", str(Path(__file__).parent.parent / "logs")))
+AUDIT_LOG_DIR = LOGS_ROOT / "audit"
+SERVICE_LOG_DIR = LOGS_ROOT / "service"
+LEGACY_LOG_DIR = RUNTIME_DIR / "logs"
+
+
+def _candidate_log_dirs(include_legacy: bool = True) -> list[Path]:
+    dirs = [AUDIT_LOG_DIR, SERVICE_LOG_DIR]
+    if include_legacy:
+        dirs.append(LEGACY_LOG_DIR)
+    return dirs
+
+
+def _iter_log_files() -> list[tuple[str, Path]]:
+    items: list[tuple[str, Path]] = []
+    seen: set[tuple[str, str]] = set()
+    for log_dir in _candidate_log_dirs():
+        if not log_dir.exists():
+            continue
+        section = "audit" if log_dir == AUDIT_LOG_DIR else "service" if log_dir == SERVICE_LOG_DIR else "legacy"
+        for path in sorted(log_dir.glob("*.jsonl")):
+            key = (section, path.stem)
+            if key in seen:
+                continue
+            seen.add(key)
+            items.append((section, path))
+    return items
+
+
+def _resolve_log_file(log_name: str) -> tuple[str, Path] | None:
+    for section, path in _iter_log_files():
+        if path.stem == log_name:
+            return section, path
+    return None
 
 
 @app.get("/api/engine")
@@ -627,21 +661,23 @@ async def api_trading_mode_set(body: dict):
 async def api_audit(limit: int = 50):
     """Read recent audit log entries."""
     import json
-    logs_dir = RUNTIME_DIR / "logs"
     result = []
     # Read from JSONL audit files
-    for log_file in sorted(logs_dir.glob("*.jsonl"), reverse=True):
-        try:
-            lines = log_file.read_text().strip().split("\n")
-            for line in lines[-limit:]:
-                if line.strip():
-                    entry = json.loads(line)
-                    entry["_source"] = log_file.name
-                    result.append(entry)
-        except Exception:
+    for log_dir in (AUDIT_LOG_DIR, LEGACY_LOG_DIR):
+        if result or not log_dir.exists():
             continue
-        if len(result) >= limit:
-            break
+        for log_file in sorted(log_dir.glob("*.jsonl"), reverse=True):
+            try:
+                lines = log_file.read_text().strip().split("\n")
+                for line in lines[-limit:]:
+                    if line.strip():
+                        entry = json.loads(line)
+                        entry["_source"] = log_file.name
+                        result.append(entry)
+            except Exception:
+                continue
+            if len(result) >= limit:
+                break
     return {"entries": result[:limit], "count": len(result)}
 
 
@@ -1460,12 +1496,12 @@ async def api_news_sources_update(body: dict):
 @app.get("/api/logs")
 @app.get("/api/logs/{log_name}")
 async def api_logs(log_name: str = "execution", lines: int = 100):
-    """Read log files. Available: execution, dispatch_queue."""
-    import os
-    log_dir = Path(os.environ.get("ENGINE_RUNTIME_DIR", str(RUNTIME_DIR))) / "logs"
-    log_file = log_dir / f"{log_name}.jsonl"
-    if not log_file.exists():
-        return JSONResponse({"error": f"log not found: {log_name}", "available": [f.stem for f in log_dir.glob("*.jsonl")]}, status_code=404)
+    """Read log files from root logs/ first, with runtime/logs fallback."""
+    resolved = _resolve_log_file(log_name)
+    if not resolved:
+        available = [path.stem for _, path in _iter_log_files()]
+        return JSONResponse({"error": f"log not found: {log_name}", "available": available}, status_code=404)
+    section, log_file = resolved
     try:
         all_lines = log_file.read_text().strip().split("\n")
         entries = []
@@ -1478,6 +1514,7 @@ async def api_logs(log_name: str = "execution", lines: int = 100):
                     entries.append({"_raw": line})
         return {
             "log": log_name,
+            "section": section,
             "total_lines": len(all_lines),
             "returned": len(entries),
             "entries": entries,
@@ -1489,15 +1526,13 @@ async def api_logs(log_name: str = "execution", lines: int = 100):
 @app.get("/api/logs-list")
 async def api_logs_list():
     """List available log files."""
-    import os
-    log_dir = Path(os.environ.get("ENGINE_RUNTIME_DIR", str(RUNTIME_DIR))) / "logs"
-    if not log_dir.exists():
-        return {"logs": []}
     logs = []
-    for f in sorted(log_dir.glob("*.jsonl")):
+    for section, f in _iter_log_files():
         stat = f.stat()
         logs.append({
             "name": f.stem,
+            "section": section,
+            "path": str(f),
             "size": stat.st_size,
             "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
             "lines": sum(1 for _ in open(f)) if stat.st_size < 1_000_000 else None,

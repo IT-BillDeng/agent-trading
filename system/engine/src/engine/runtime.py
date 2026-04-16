@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -86,6 +87,9 @@ def _state_dir(app: AppConfig) -> Path:
 
 
 def _log_dir(app: AppConfig) -> Path:
+    env_logs_dir = os.environ.get('ENGINE_LOGS_DIR')
+    if env_logs_dir:
+        return Path(env_logs_dir) / 'audit'
     log_dir = Path(app.raw.get('system', {}).get('audit_log_dir', './logs'))
     if not log_dir.is_absolute():
         log_dir = Path(__file__).resolve().parents[2] / log_dir

@@ -51,6 +51,7 @@ curl -s -X POST http://host.docker.internal:8088/api/backtest \
 
 ### 盘后 (16:30 ET) — Analysis
 分析今日信号质量。提出明日迭代方案。回测验证。通知先生。
+盘后同时更新 strategist 的长期学习记录，沉淀可复用经验、被拒绝提案与下一步假设。
 
 ---
 

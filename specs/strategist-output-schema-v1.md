@@ -131,6 +131,9 @@ Strategist 每次运行产出 `strategy_plan_latest.json`，追加到 `strategy_
 }
 ```
 
+`learning_log` 是 strategist 的长期学习记录入口，建议配合 [docs/strategist-memory-contract.md](../docs/strategist-memory-contract.md) 一起使用。
+它应该记录可复用的经验、拒绝原因与后续假设，而不是临时备注或原始聊天全文。
+
 ## 输出文件路径
 
 ```

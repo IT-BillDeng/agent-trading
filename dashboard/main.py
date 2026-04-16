@@ -1,6 +1,8 @@
 """Agent Trading Dashboard - FastAPI entry point."""
 
+import json
 import os
+from datetime import datetime
 from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Any
@@ -320,9 +322,15 @@ PROPERTIES_DIR = Path(os.environ.get("TIGER_PROPERTIES_DIR", str(Path(__file__).
 LOGS_ROOT = Path(os.environ.get("ENGINE_LOGS_DIR", str(Path(__file__).parent.parent / "logs")))
 AUDIT_LOG_DIR = LOGS_ROOT / "audit"
 SERVICE_LOG_DIR = LOGS_ROOT / "service"
+LATEST_LOG_DIR = LOGS_ROOT / "latest"
 STRATEGIST_LOG_DIR = LOGS_ROOT / "agents" / "strategist"
 STRATEGIST_ITERATIONS_LOG_DIR = STRATEGIST_LOG_DIR / "iterations"
 LEGACY_LOG_DIR = RUNTIME_DIR / "logs"
+
+
+def _ensure_logs_layout():
+    for path in (LOGS_ROOT, AUDIT_LOG_DIR, SERVICE_LOG_DIR, LATEST_LOG_DIR, STRATEGIST_ITERATIONS_LOG_DIR):
+        path.mkdir(parents=True, exist_ok=True)
 
 
 def _candidate_log_dirs(include_legacy: bool = True) -> list[Path]:
@@ -353,6 +361,154 @@ def _resolve_log_file(log_name: str) -> tuple[str, Path] | None:
         if path.stem == log_name:
             return section, path
     return None
+
+
+def _file_meta(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {
+            "exists": False,
+            "path": str(path),
+            "modified": None,
+            "size": None,
+        }
+    stat = path.stat()
+    return {
+        "exists": True,
+        "path": str(path),
+        "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+        "size": stat.st_size,
+    }
+
+
+def _safe_read_json(path: Path) -> dict[str, Any] | list[Any] | None:
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text())
+    except Exception:
+        return None
+
+
+def _write_json_file(path: Path, payload: dict[str, Any] | list[Any]):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False))
+
+
+def _tail_jsonl_info(path: Path) -> dict[str, Any]:
+    meta = _file_meta(path)
+    info = {
+        "path": meta["path"],
+        "exists": meta["exists"],
+        "modified": meta["modified"],
+        "size": meta["size"],
+        "lines": None,
+        "last_ts": None,
+    }
+    if not path.exists():
+        return info
+    try:
+        if meta["size"] is not None and meta["size"] < 1_000_000:
+            lines = path.read_text().splitlines()
+            info["lines"] = len(lines)
+            for line in reversed(lines):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    break
+                info["last_ts"] = entry.get("ts") or entry.get("generated_at")
+                break
+    except Exception:
+        pass
+    return info
+
+
+def _snapshot_source_map() -> dict[str, Path]:
+    return {
+        "engine_cycle": RUNTIME_DIR / ".last_execution_cycle.json",
+        "market_context": RUNTIME_DIR / "market_context.json",
+        "control_state": RUNTIME_DIR / "state" / "control_state.json",
+        "execution_state": RUNTIME_DIR / "state" / "execution_state.json",
+    }
+
+
+def _sync_latest_snapshots() -> dict[str, Any]:
+    _ensure_logs_layout()
+    snapshots: dict[str, Any] = {}
+    for name, source in _snapshot_source_map().items():
+        target = LATEST_LOG_DIR / f"{name}.json"
+        payload = _safe_read_json(source)
+        meta = _file_meta(source)
+        snapshots[name] = {
+            **meta,
+            "target": str(target),
+            "synced": payload is not None,
+        }
+        if payload is not None:
+            _write_json_file(target, payload)
+    return snapshots
+
+
+def _build_agents_status() -> dict[str, Any]:
+    agents = {
+        "watcher": {
+            "service_log": _tail_jsonl_info(SERVICE_LOG_DIR / "watcher.jsonl"),
+            "latest_output": _file_meta(RUNTIME_DIR / "watcher" / "latest.json"),
+            "history_output": _file_meta(RUNTIME_DIR / "watcher" / "history.jsonl"),
+        },
+        "newswire": {
+            "latest_output": _file_meta(RUNTIME_DIR / "newswire" / "latest.json"),
+            "history_output": _file_meta(RUNTIME_DIR / "newswire" / "history.jsonl"),
+        },
+        "strategist": {
+            "latest_output": _file_meta(RUNTIME_DIR / "strategy_plan_latest.json"),
+            "history_output": _file_meta(RUNTIME_DIR / "strategy_plan_history.jsonl"),
+            "iterations_runtime": _file_meta(RUNTIME_DIR / "strategist_iterations"),
+            "iterations_logs": _file_meta(STRATEGIST_ITERATIONS_LOG_DIR),
+        },
+        "executor": {
+            "latest_output": _file_meta(RUNTIME_DIR / "executor_checklist_latest.json"),
+            "history_output": _file_meta(RUNTIME_DIR / "executor_checklist_history.jsonl"),
+        },
+        "scout": {
+            "latest_output": _file_meta(RUNTIME_DIR / "scout_candidates_latest.json"),
+            "history_output": _file_meta(RUNTIME_DIR / "scout_candidates_history.jsonl"),
+        },
+        "closer": {
+            "latest_output": _file_meta(RUNTIME_DIR / "closer_summary_latest.json"),
+            "history_output": _file_meta(RUNTIME_DIR / "closer_summary_history.jsonl"),
+            "outbox": _file_meta(RUNTIME_DIR.parent / "outbox" / "tiger_closer_outbox.json"),
+        },
+    }
+    status = {
+        "generated_at": datetime.now().isoformat(),
+        "agents": agents,
+    }
+    _write_json_file(LATEST_LOG_DIR / "agents_status.json", status)
+    return status
+
+
+def _build_logs_overview() -> dict[str, Any]:
+    snapshots = _sync_latest_snapshots()
+    agent_status = _build_agents_status()
+    sections = {
+        "audit": [_tail_jsonl_info(path) for path in sorted(AUDIT_LOG_DIR.glob("*.jsonl"))],
+        "service": [_tail_jsonl_info(path) for path in sorted(SERVICE_LOG_DIR.glob("*.jsonl"))],
+        "legacy": [_tail_jsonl_info(path) for path in sorted(LEGACY_LOG_DIR.glob("*.jsonl"))] if LEGACY_LOG_DIR.exists() else [],
+    }
+    overview = {
+        "generated_at": datetime.now().isoformat(),
+        "logs_root": str(LOGS_ROOT),
+        "latest_dir": str(LATEST_LOG_DIR),
+        "sections": sections,
+        "latest_snapshots": snapshots,
+        "agents_status_file": str(LATEST_LOG_DIR / "agents_status.json"),
+        "agents_status": agent_status,
+    }
+    _write_json_file(LATEST_LOG_DIR / "logs_overview.json", overview)
+    return overview
 
 
 @app.get("/api/engine")
@@ -1525,6 +1681,15 @@ async def api_logs(log_name: str = "execution", lines: int = 100):
             "returned": len(entries),
             "entries": entries,
         }
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/logs-overview")
+async def api_logs_overview():
+    """Return a debugging-oriented overview of logs and latest runtime snapshots."""
+    try:
+        return _build_logs_overview()
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 

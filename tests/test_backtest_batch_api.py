@@ -159,6 +159,8 @@ class BacktestBatchApiTests(unittest.TestCase):
             root = Path(tmpdir)
             rules_dir = root / "rules"
             runtime_dir = root / "runtime"
+            logs_dir = root / "logs"
+            strategist_iterations_dir = logs_dir / "agents" / "strategist" / "iterations"
             rules_dir.mkdir()
             runtime_dir.mkdir()
             rules_file = rules_dir / "rules.json"
@@ -185,6 +187,7 @@ class BacktestBatchApiTests(unittest.TestCase):
             with mock.patch.object(dashboard_main, "RULES_DIR", rules_dir), \
                 mock.patch.object(dashboard_main, "RULES_FILE", rules_file), \
                 mock.patch.object(dashboard_main, "RUNTIME_DIR", runtime_dir), \
+                mock.patch.object(dashboard_main, "STRATEGIST_ITERATIONS_LOG_DIR", strategist_iterations_dir), \
                 mock.patch.dict(
                     sys.modules,
                     {
@@ -226,6 +229,11 @@ class BacktestBatchApiTests(unittest.TestCase):
                 iteration_data = json.loads(iteration_files[0].read_text())
                 self.assertEqual(iteration_data["best"]["label"], "enabled_variant")
                 self.assertEqual(iteration_data["results"][1]["return_pct"], 9.5)
+
+                mirrored_iteration_files = list(strategist_iterations_dir.glob("iter_*.json"))
+                self.assertEqual(len(mirrored_iteration_files), 1)
+                mirrored_data = json.loads(mirrored_iteration_files[0].read_text())
+                self.assertEqual(mirrored_data["iteration_id"], iteration_data["iteration_id"])
 
 
 if __name__ == "__main__":

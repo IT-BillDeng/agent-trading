@@ -320,6 +320,8 @@ PROPERTIES_DIR = Path(os.environ.get("TIGER_PROPERTIES_DIR", str(Path(__file__).
 LOGS_ROOT = Path(os.environ.get("ENGINE_LOGS_DIR", str(Path(__file__).parent.parent / "logs")))
 AUDIT_LOG_DIR = LOGS_ROOT / "audit"
 SERVICE_LOG_DIR = LOGS_ROOT / "service"
+STRATEGIST_LOG_DIR = LOGS_ROOT / "agents" / "strategist"
+STRATEGIST_ITERATIONS_LOG_DIR = STRATEGIST_LOG_DIR / "iterations"
 LEGACY_LOG_DIR = RUNTIME_DIR / "logs"
 
 
@@ -952,6 +954,7 @@ async def api_backtest_batch(body: dict):
     # Save iteration results
     iterations_dir = RUNTIME_DIR / "strategist_iterations"
     iterations_dir.mkdir(exist_ok=True)
+    STRATEGIST_ITERATIONS_LOG_DIR.mkdir(parents=True, exist_ok=True)
     from datetime import datetime as dt
     iter_id = f"iter_{dt.now().strftime('%Y%m%d_%H%M%S')}"
     iteration = {
@@ -962,7 +965,9 @@ async def api_backtest_batch(body: dict):
         "results": results,
         "best": best,
     }
-    (iterations_dir / f"{iter_id}.json").write_text(json.dumps(iteration, indent=2, ensure_ascii=False))
+    payload = json.dumps(iteration, indent=2, ensure_ascii=False)
+    (iterations_dir / f"{iter_id}.json").write_text(payload)
+    (STRATEGIST_ITERATIONS_LOG_DIR / f"{iter_id}.json").write_text(payload)
 
     return {"status": "ok", "iteration_id": iter_id, "results": results, "best": best}
 

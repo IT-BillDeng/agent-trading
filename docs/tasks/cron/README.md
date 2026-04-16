@@ -2,6 +2,8 @@
 
 这是一组 cron 任务正文文件。
 
+如果你想先弄清楚 `docs/tasks/` 整体怎么分层，先看 [docs/tasks/README.md](../README.md)。
+
 约定：
 
 - `cron/*.json` 只保留调度、投递和 `taskFile` 引用

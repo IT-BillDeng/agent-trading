@@ -23,6 +23,9 @@
   - 某个 agent 的专项流程模板
   - 例如 strategist 的迭代/回测流程
 
+- `docs/tasks/archive/`
+  - 明确废弃、仅供回溯的旧版本任务文本
+
 ## 使用建议
 
 1. cron 调度任务时，优先读取 `docs/tasks/cron/*.md`
@@ -39,6 +42,7 @@
 - `EXECUTOR_TASK_TEMPLATE.md`：executor 通用模板
 - `CLOSER_TASK_TEMPLATE.md`：closer 通用模板
 - `cron/`：cron 正文
+- `archive/`：废弃版本，仅用于历史回溯
 
 ## 术语
 

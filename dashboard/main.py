@@ -444,17 +444,33 @@ BROKER_PROPERTIES_DIR = Path(
     )
 )
 LOGS_ROOT = Path(os.environ.get("ENGINE_LOGS_DIR", str(Path(__file__).parent.parent / "logs")))
+ARTIFACTS_ROOT = Path(os.environ.get("ENGINE_ARTIFACTS_DIR", str(Path(__file__).parent.parent / "artifacts")))
 AUDIT_LOG_DIR = LOGS_ROOT / "audit"
 SERVICE_LOG_DIR = LOGS_ROOT / "service"
 LATEST_LOG_DIR = LOGS_ROOT / "latest"
 STRATEGIST_LOG_DIR = LOGS_ROOT / "agents" / "strategist"
 STRATEGIST_ITERATIONS_LOG_DIR = STRATEGIST_LOG_DIR / "iterations"
+STRATEGIST_ARTIFACTS_DIR = ARTIFACTS_ROOT / "strategist"
+STRATEGIST_MEMORY_DIR = STRATEGIST_ARTIFACTS_DIR / "memory"
+STRATEGIST_ITERATIONS_ARTIFACT_DIR = STRATEGIST_ARTIFACTS_DIR / "iterations"
 LEGACY_LOG_DIR = RUNTIME_DIR / "logs"
 
 
 def _ensure_logs_layout():
     for path in (LOGS_ROOT, AUDIT_LOG_DIR, SERVICE_LOG_DIR, LATEST_LOG_DIR, STRATEGIST_ITERATIONS_LOG_DIR):
         path.mkdir(parents=True, exist_ok=True)
+
+
+def _ensure_artifacts_layout():
+    for path in (ARTIFACTS_ROOT, STRATEGIST_ARTIFACTS_DIR, STRATEGIST_MEMORY_DIR, STRATEGIST_ITERATIONS_ARTIFACT_DIR):
+        path.mkdir(parents=True, exist_ok=True)
+
+
+def _first_existing_path(*paths: Path) -> Path:
+    for path in paths:
+        if path.exists():
+            return path
+    return paths[0]
 
 
 def _candidate_log_dirs(include_legacy: bool = True) -> list[Path]:
@@ -576,6 +592,14 @@ def _sync_latest_snapshots() -> dict[str, Any]:
 
 
 def _build_agents_status() -> dict[str, Any]:
+    strategist_latest = _first_existing_path(
+        STRATEGIST_ARTIFACTS_DIR / "strategy_plan_latest.json",
+        RUNTIME_DIR / "strategy_plan_latest.json",
+    )
+    strategist_history = _first_existing_path(
+        STRATEGIST_ARTIFACTS_DIR / "strategy_plan_history.jsonl",
+        RUNTIME_DIR / "strategy_plan_history.jsonl",
+    )
     agents = {
         "watcher": {
             "service_log": _tail_jsonl_info(SERVICE_LOG_DIR / "watcher.jsonl"),
@@ -587,8 +611,13 @@ def _build_agents_status() -> dict[str, Any]:
             "history_output": _file_meta(RUNTIME_DIR / "newswire" / "history.jsonl"),
         },
         "strategist": {
-            "latest_output": _file_meta(RUNTIME_DIR / "strategy_plan_latest.json"),
-            "history_output": _file_meta(RUNTIME_DIR / "strategy_plan_history.jsonl"),
+            "latest_output": _file_meta(strategist_latest),
+            "history_output": _file_meta(strategist_history),
+            "latest_output_artifact": _file_meta(STRATEGIST_ARTIFACTS_DIR / "strategy_plan_latest.json"),
+            "history_output_artifact": _file_meta(STRATEGIST_ARTIFACTS_DIR / "strategy_plan_history.jsonl"),
+            "memory_latest_artifact": _file_meta(STRATEGIST_MEMORY_DIR / "latest.json"),
+            "memory_history_artifact": _file_meta(STRATEGIST_MEMORY_DIR / "history.jsonl"),
+            "iterations_artifact": _file_meta(STRATEGIST_ITERATIONS_ARTIFACT_DIR),
             "iterations_runtime": _file_meta(RUNTIME_DIR / "strategist_iterations"),
             "iterations_logs": _file_meta(STRATEGIST_ITERATIONS_LOG_DIR),
         },
@@ -616,6 +645,7 @@ def _build_agents_status() -> dict[str, Any]:
 
 def _build_logs_overview() -> dict[str, Any]:
     snapshots = _sync_latest_snapshots()
+    _ensure_artifacts_layout()
     agent_status = _build_agents_status()
     sections = {
         "audit": [_tail_jsonl_info(path) for path in sorted(AUDIT_LOG_DIR.glob("*.jsonl"))],
@@ -684,7 +714,11 @@ def _build_strategy_overview() -> dict[str, Any]:
     rules_doc = _safe_read_json(RULES_FILE) or {"rules": [], "global_settings": {}}
     cycle = _safe_read_json(RUNTIME_DIR / ".last_execution_cycle.json") or {}
     control = _read_control_state()
-    latest_plan = _safe_read_json(RUNTIME_DIR / "strategy_plan_latest.json") or {}
+    latest_plan_path = _first_existing_path(
+        STRATEGIST_ARTIFACTS_DIR / "strategy_plan_latest.json",
+        RUNTIME_DIR / "strategy_plan_latest.json",
+    )
+    latest_plan = _safe_read_json(latest_plan_path) or {}
 
     rules = rules_doc.get("rules", []) if isinstance(rules_doc, dict) else []
     rules_by_id = {
@@ -782,21 +816,27 @@ def _build_strategy_overview() -> dict[str, Any]:
     } if isinstance(latest_plan, dict) else {}
 
     plan_history = []
-    for entry in _read_jsonl_tail_entries(RUNTIME_DIR / "strategy_plan_history.jsonl", limit=6):
-        if "_raw" in entry:
-            continue
-        plan_history.append({
-            "source": entry.get("_source"),
-            "plan_id": entry.get("plan_id") or entry.get("iteration_id"),
-            "generated_at": entry.get("generated_at") or entry.get("timestamp") or entry.get("date"),
-            "shift": entry.get("shift") or entry.get("type"),
-            "summary": entry.get("summary") or entry.get("notes") or entry.get("data_notes", {}).get("recommendation"),
-            "data_quality": entry.get("data_quality"),
-            "raw": entry,
-        })
+    for history_path in (
+        STRATEGIST_ARTIFACTS_DIR / "strategy_plan_history.jsonl",
+        RUNTIME_DIR / "strategy_plan_history.jsonl",
+    ):
+        for entry in _read_jsonl_tail_entries(history_path, limit=6):
+            if "_raw" in entry:
+                continue
+            plan_history.append({
+                "source": entry.get("_source"),
+                "plan_id": entry.get("plan_id") or entry.get("iteration_id"),
+                "generated_at": entry.get("generated_at") or entry.get("timestamp") or entry.get("date"),
+                "shift": entry.get("shift") or entry.get("type"),
+                "summary": entry.get("summary") or entry.get("notes") or entry.get("data_notes", {}).get("recommendation"),
+                "data_quality": entry.get("data_quality"),
+                "raw": entry,
+            })
+        if plan_history:
+            break
 
     iterations = []
-    iter_dirs = [RUNTIME_DIR / "strategist_iterations", STRATEGIST_ITERATIONS_LOG_DIR]
+    iter_dirs = [STRATEGIST_ITERATIONS_ARTIFACT_DIR, STRATEGIST_ITERATIONS_LOG_DIR, RUNTIME_DIR / "strategist_iterations"]
     seen_iteration_ids: set[str] = set()
     for directory in iter_dirs:
         for path in _sorted_json_files(directory):
@@ -1461,8 +1501,10 @@ async def api_backtest_batch(body: dict):
     best = max(valid, key=lambda r: r.get("return_pct", 0)) if valid else None
 
     # Save iteration results
-    iterations_dir = RUNTIME_DIR / "strategist_iterations"
-    iterations_dir.mkdir(exist_ok=True)
+    iterations_dir = STRATEGIST_ITERATIONS_ARTIFACT_DIR
+    legacy_iterations_dir = RUNTIME_DIR / "strategist_iterations"
+    iterations_dir.mkdir(parents=True, exist_ok=True)
+    legacy_iterations_dir.mkdir(parents=True, exist_ok=True)
     STRATEGIST_ITERATIONS_LOG_DIR.mkdir(parents=True, exist_ok=True)
     from datetime import datetime as dt
     iter_id = f"iter_{dt.now().strftime('%Y%m%d_%H%M%S')}"
@@ -1476,7 +1518,11 @@ async def api_backtest_batch(body: dict):
     }
     payload = json.dumps(iteration, indent=2, ensure_ascii=False)
     (iterations_dir / f"{iter_id}.json").write_text(payload)
+    (iterations_dir / "latest.json").write_text(payload)
+    (legacy_iterations_dir / f"{iter_id}.json").write_text(payload)
+    (legacy_iterations_dir / "latest.json").write_text(payload)
     (STRATEGIST_ITERATIONS_LOG_DIR / f"{iter_id}.json").write_text(payload)
+    (STRATEGIST_ITERATIONS_LOG_DIR / "latest.json").write_text(payload)
 
     return {"status": "ok", "iteration_id": iter_id, "results": results, "best": best}
 

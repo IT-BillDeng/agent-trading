@@ -1,6 +1,6 @@
 # Strategist Agent Configuration
 # 职责：策略管理器（规则调参/暂停恢复/信号质量分析/自我迭代）
-# 频率：盘前(09:00 ET) / 盘中(q15min) / 盘后(16:30 ET)
+# 频率：盘前(09:00 ET) / 盘中(1h) / 盘后(16:30 ET)
 # 模型：pro（深度推理）
 # 触发：Newswire 完成后自动触发
 
@@ -18,17 +18,23 @@ tools:
 # 输入文件
 input_files:
   - /workspace/agent-trading/data/watchlist.json
-  - /workspace/agent-trading/runtime/engine/newswire/latest.json
-  - /workspace/agent-trading/runtime/engine/.last_execution_cycle.json
-  - /workspace/agent-trading/runtime/engine/market_context.json
+  - /workspace/agent-trading/logs/latest/engine_cycle.json
+  - /workspace/agent-trading/logs/latest/market_context.json
+  - /workspace/agent-trading/artifacts/newswire/latest.json
+  - /workspace/agent-trading/artifacts/strategist/memory/latest.json
+  - /workspace/agent-trading/artifacts/strategist/strategy_plan_history.jsonl
   - /workspace/agent-trading/rules/rules.json
   - /workspace/agent-trading/runtime/engine/backtest_results/
 
 # 输出文件
 output_files:
-  - /workspace/agent-trading/runtime/engine/strategy_plan_latest.json
-  - /workspace/agent-trading/runtime/engine/strategy_plan_history.jsonl
-  - /workspace/agent-trading/runtime/engine/strategist_iterations/
+  - /workspace/agent-trading/artifacts/strategist/strategy_plan_latest.json
+  - /workspace/agent-trading/artifacts/strategist/strategy_plan_history.jsonl
+  - /workspace/agent-trading/artifacts/strategist/memory/latest.json
+  - /workspace/agent-trading/artifacts/strategist/memory/history.jsonl
+  - /workspace/agent-trading/artifacts/strategist/proposals.jsonl
+  - /workspace/agent-trading/artifacts/strategist/rejections.jsonl
+  - /workspace/agent-trading/artifacts/strategist/iterations/
 
 # 输出格式
 # 参见 specs/strategist-output-schema-v1.md

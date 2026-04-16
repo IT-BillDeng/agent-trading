@@ -157,10 +157,15 @@ class BacktestBatchApiTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
+            artifacts_dir = root / "artifacts"
+            strategist_artifacts_dir = artifacts_dir / "strategist"
+            strategist_memory_dir = strategist_artifacts_dir / "memory"
+            strategist_iterations_artifact_dir = strategist_artifacts_dir / "iterations"
             rules_dir = root / "rules"
             runtime_dir = root / "runtime"
             logs_dir = root / "logs"
             strategist_iterations_dir = logs_dir / "agents" / "strategist" / "iterations"
+            artifacts_dir.mkdir()
             rules_dir.mkdir()
             runtime_dir.mkdir()
             rules_file = rules_dir / "rules.json"
@@ -186,6 +191,10 @@ class BacktestBatchApiTests(unittest.TestCase):
 
             with mock.patch.object(dashboard_main, "RULES_DIR", rules_dir), \
                 mock.patch.object(dashboard_main, "RULES_FILE", rules_file), \
+                mock.patch.object(dashboard_main, "ARTIFACTS_ROOT", artifacts_dir), \
+                mock.patch.object(dashboard_main, "STRATEGIST_ARTIFACTS_DIR", strategist_artifacts_dir), \
+                mock.patch.object(dashboard_main, "STRATEGIST_MEMORY_DIR", strategist_memory_dir), \
+                mock.patch.object(dashboard_main, "STRATEGIST_ITERATIONS_ARTIFACT_DIR", strategist_iterations_artifact_dir), \
                 mock.patch.object(dashboard_main, "RUNTIME_DIR", runtime_dir), \
                 mock.patch.object(dashboard_main, "STRATEGIST_ITERATIONS_LOG_DIR", strategist_iterations_dir), \
                 mock.patch.dict(
@@ -224,16 +233,25 @@ class BacktestBatchApiTests(unittest.TestCase):
                 self.assertFalse((rules_dir / "_batch_baseline.json").exists())
                 self.assertFalse((rules_dir / "_batch_enabled_variant.json").exists())
 
-                iteration_files = list((runtime_dir / "strategist_iterations").glob("iter_*.json"))
+                iteration_files = list(strategist_iterations_artifact_dir.glob("iter_*.json"))
                 self.assertEqual(len(iteration_files), 1)
                 iteration_data = json.loads(iteration_files[0].read_text())
                 self.assertEqual(iteration_data["best"]["label"], "enabled_variant")
                 self.assertEqual(iteration_data["results"][1]["return_pct"], 9.5)
 
+                legacy_iteration_files = list((runtime_dir / "strategist_iterations").glob("iter_*.json"))
+                self.assertEqual(len(legacy_iteration_files), 1)
+                legacy_iteration_data = json.loads(legacy_iteration_files[0].read_text())
+                self.assertEqual(legacy_iteration_data["iteration_id"], iteration_data["iteration_id"])
+
                 mirrored_iteration_files = list(strategist_iterations_dir.glob("iter_*.json"))
                 self.assertEqual(len(mirrored_iteration_files), 1)
                 mirrored_data = json.loads(mirrored_iteration_files[0].read_text())
                 self.assertEqual(mirrored_data["iteration_id"], iteration_data["iteration_id"])
+
+                self.assertTrue((strategist_iterations_artifact_dir / "latest.json").exists())
+                self.assertTrue((runtime_dir / "strategist_iterations" / "latest.json").exists())
+                self.assertTrue((strategist_iterations_dir / "latest.json").exists())
 
 
 if __name__ == "__main__":

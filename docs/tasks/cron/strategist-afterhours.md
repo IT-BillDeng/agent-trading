@@ -13,15 +13,17 @@
 
 ## 步骤
 1. 读取 ./rules/rules.json
-2. 读取 ./runtime/engine/newswire/latest.json
-3. 读取 ./runtime/engine/.last_execution_cycle.json（如存在）
-4. 分析今日信号质量：总信号数、胜率、PnL、false signal、missed opportunity
-5. 提出明日策略迭代方案（参数/因子调整）
-6. 对每个方案用 exec 调回测 API 验证：
+2. 读取 ./artifacts/newswire/latest.json（优先）
+3. 兼容读取 ./runtime/engine/newswire/latest.json
+4. 读取 ./logs/latest/engine_cycle.json（优先）
+5. 兼容读取 ./runtime/engine/.last_execution_cycle.json（如存在）
+6. 分析今日信号质量：总信号数、胜率、PnL、false signal、missed opportunity
+7. 提出明日策略迭代方案（参数/因子调整）
+8. 对每个方案用 exec 调回测 API 验证：
 curl -s -X POST http://host.docker.internal:8088/api/backtest/batch -H "Content-Type: application/json" -d '{"symbols":["AAPL","MSFT","NVDA"],"start_date":"2026-01-07","end_date":"2026-04-14","param_sets":[...]}'
-7. 通过的方案用 exec PUT 到 /api/rules，拒绝的记录原因
-8. 写入 ./runtime/engine/strategy_plan_latest.json（shift=afterhours, type=analysis）
-9. 记录到 ./runtime/engine/strategist_iterations/
+9. 通过的方案用 exec PUT 到 /api/rules，拒绝的记录原因
+10. 写入 ./artifacts/strategist/strategy_plan_latest.json（shift=afterhours, type=analysis）
+11. 记录到 ./artifacts/strategist/iterations/
 
 输出格式参见 docs/tasks/STRATEGIST_TASK.md 的输出格式章节。
 

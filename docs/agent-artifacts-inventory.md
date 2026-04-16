@@ -47,9 +47,9 @@
 
 例如：
 
-- `strategy_plan_latest.json`
-- `newswire/latest.json`
-- `strategist_iterations/*.json`
+- `artifacts/strategist/strategy_plan_latest.json`
+- `artifacts/newswire/latest.json`
+- `artifacts/strategist/iterations/*.json`
 
 ### 3. `runtime/state/`
 
@@ -152,18 +152,19 @@
 - 盘中异常监控
 - 盘后迭代与参数回测
 
+本节以 `artifacts/strategist/` 作为 strategist 的主产物目录；`runtime/engine/` 与 `logs/` 中的相关文件仅作为兼容镜像或历史遗留。
+
 当前已知产物：
 
 | 产物 | 当前路径 | 当前用途 | 建议归类 | 建议目标位置 |
 |------|----------|----------|----------|--------------|
-| 最新策略计划 | `runtime/engine/strategy_plan_latest.json` | 给 Operator / Dashboard 读取当前策略计划 | `artifacts` | `artifacts/strategist/strategy_plan_latest.json` |
-| 策略计划历史 | `runtime/engine/strategy_plan_history.jsonl` | 保存历次策略计划 | `artifacts` | `artifacts/strategist/strategy_plan_history.jsonl` |
-| 策略记忆最新摘要 | `logs/latest/strategist_memory.json` | strategist 当前记忆快照 | `artifacts` | `artifacts/strategist/memory/latest.json` |
-| 策略记忆历史 | `（待迁移）` | strategist 长期学习记录 | `artifacts` | `artifacts/strategist/memory/history.jsonl` |
-| 策略提案历史 | `logs/agents/strategist/proposals.jsonl` | 变更提案记录 | `artifacts` | `artifacts/strategist/proposals.jsonl` |
-| 策略拒绝历史 | `logs/agents/strategist/rejections.jsonl` | 被拒绝提案记录 | `artifacts` | `artifacts/strategist/rejections.jsonl` |
-| 策略迭代历史（旧） | `runtime/engine/strategist_iterations/*.json` | 盘后回测与迭代记录 | `artifacts` | `artifacts/strategist/iterations/` |
-| 策略迭代历史（新镜像） | `logs/agents/strategist/iterations/*.json` | 新路径镜像输出 | `artifacts` | `artifacts/strategist/iterations/` |
+| 最新策略计划 | `artifacts/strategist/strategy_plan_latest.json` | 给 Operator / Dashboard 读取当前策略计划 | `artifacts` | `artifacts/strategist/strategy_plan_latest.json` |
+| 策略计划历史 | `artifacts/strategist/strategy_plan_history.jsonl` | 保存历次策略计划 | `artifacts` | `artifacts/strategist/strategy_plan_history.jsonl` |
+| 策略记忆最新摘要 | `artifacts/strategist/memory/latest.json` | strategist 当前记忆快照 | `artifacts` | `artifacts/strategist/memory/latest.json` |
+| 策略记忆历史 | `artifacts/strategist/memory/history.jsonl` | strategist 长期学习记录 | `artifacts` | `artifacts/strategist/memory/history.jsonl` |
+| 策略提案历史 | `artifacts/strategist/proposals.jsonl` | 变更提案记录 | `artifacts` | `artifacts/strategist/proposals.jsonl` |
+| 策略拒绝历史 | `artifacts/strategist/rejections.jsonl` | 被拒绝提案记录 | `artifacts` | `artifacts/strategist/rejections.jsonl` |
+| 策略迭代历史 | `artifacts/strategist/iterations/*.json` | 盘后回测与迭代记录 | `artifacts` | `artifacts/strategist/iterations/` |
 
 主要消费者：
 
@@ -173,9 +174,9 @@
 
 判断：
 
-- `strategist` 的长期学习与迭代产物应统一收进 `artifacts/strategist/`
-- `logs/agents/strategist/iterations/` 只是过渡镜像路径
-- strategist 记忆应统一收进 `artifacts/strategist/`
+- `strategist` 的长期学习与迭代产物统一收进 `artifacts/strategist/`
+- `strategist` 记忆统一收进 `artifacts/strategist/`
+- 旧的镜像路径仅保留为兼容读写镜像，后续可逐步下线
 
 ### 4. `executor`
 

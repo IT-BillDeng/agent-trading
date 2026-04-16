@@ -14,9 +14,11 @@
 
 **Step 1: 读取输入**
 - `./rules/rules.json` — 当前规则配置
-- `./runtime/engine/newswire/latest.json` — 盘前新闻
+- `./artifacts/newswire/latest.json` — 盘前新闻（优先）
+- `./runtime/engine/newswire/latest.json` — 兼容旧路径
 - `./data/watchlist.json` — 本地标的清单（缺失时由 `watchlist.json.example` 种子生成）
-- `./runtime/engine/.last_execution_cycle.json`（如存在）
+- `./logs/latest/engine_cycle.json` — 最近周期快照（优先）
+- `./runtime/engine/.last_execution_cycle.json` — 兼容旧路径
 
 **Step 2: 复盘昨日信号**
 分析 last_cycle 中的信号数量、方向、风控结果。总结问题。
@@ -57,7 +59,7 @@ curl -s -X POST http://host.docker.internal:8088/api/backtest \
 
 ## ⚠️ 输出格式（严格遵守）
 
-必须输出到 `./runtime/engine/strategy_plan_latest.json`，格式如下：
+必须输出到 `./artifacts/strategist/strategy_plan_latest.json`，并保持历史追加到 `./artifacts/strategist/strategy_plan_history.jsonl`。格式如下：
 
 ```json
 {

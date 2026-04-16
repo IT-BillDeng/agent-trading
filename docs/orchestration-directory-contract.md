@@ -240,9 +240,8 @@
 这份规范描述的是**目标语义**。当前仓库里仍然存在一些历史路径：
 
 - `runtime/engine/logs/*`
-- `runtime/engine/newswire/*`
-- `runtime/engine/strategy_plan_*`
-- `runtime/engine/strategist_iterations/*`
+- `artifacts/newswire/*`
+- `artifacts/strategist/*`
 
 这些路径里有些已经开始迁移到根目录 `logs/`，有些仍然是兼容态。
 

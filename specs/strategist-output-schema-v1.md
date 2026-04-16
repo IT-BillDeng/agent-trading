@@ -2,7 +2,7 @@
 
 ## 概述
 
-Strategist 每次运行产出 `strategy_plan_latest.json`，追加到 `strategy_plan_history.jsonl`。
+Strategist 每次运行产出 `artifacts/strategist/strategy_plan_latest.json`，并追加到 `artifacts/strategist/strategy_plan_history.jsonl`。
 消费方：Executor agent、Dashboard 策略面板、回测框架。
 
 ## 三班输出结构
@@ -137,10 +137,15 @@ Strategist 每次运行产出 `strategy_plan_latest.json`，追加到 `strategy_
 ## 输出文件路径
 
 ```
-runtime/engine/
+artifacts/strategist/
 ├── strategy_plan_latest.json       # 最新一次运行结果
 ├── strategy_plan_history.jsonl     # 历史追加
-└── strategist_iterations/
+├── memory/
+│   ├── latest.json
+│   └── history.jsonl
+├── proposals.jsonl
+├── rejections.jsonl
+└── iterations/
     ├── prop_20260407_01_backtest.json  # 提案回测结果
     └── prop_20260407_02_backtest.json
 ```

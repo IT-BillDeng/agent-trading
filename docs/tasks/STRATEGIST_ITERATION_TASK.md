@@ -3,7 +3,8 @@
 ## 核心原则
 1. 每次策略变更必须回测验证
 2. 新方案必须优于基线才上线
-3. 每次尝试都记录到 ./runtime/engine/strategist_iterations/
+3. 每次尝试都记录到 ./artifacts/strategist/iterations/
+4. 最新一轮结果同步刷新 `./artifacts/strategist/iterations/latest.json`
 
 工作目录：`/workspace/agent-trading/`
 
@@ -15,8 +16,8 @@
 curl http://host.docker.internal:8088/api/rules
 
 # 读取最近迭代结果
-ls ./runtime/engine/strategist_iterations/
-cat ./runtime/engine/strategist_iterations/latest.json
+ls ./artifacts/strategist/iterations/
+cat ./artifacts/strategist/iterations/latest.json
 ```
 
 ### Step 2: 识别问题
@@ -84,7 +85,8 @@ curl -X PUT http://host.docker.internal:8088/api/rules \
 ```
 
 ### Step 7: 记录迭代
-迭代结果自动保存到 `./runtime/engine/strategist_iterations/iter_YYYYMMDD_HHMMSS.json`
+迭代结果自动保存到 `./artifacts/strategist/iterations/iter_YYYYMMDD_HHMMSS.json`
+同时刷新 `./artifacts/strategist/iterations/latest.json`
 
 ### Step 8: 通知先生
 每次策略调整通知 Telegram，格式：

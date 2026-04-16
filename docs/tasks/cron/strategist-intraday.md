@@ -11,11 +11,12 @@
 工作目录：/workspace/agent-trading/
 
 ## 步骤
-1. 读取 ./runtime/engine/newswire/latest.json
-2. 检查异常：high importance 新闻、波动率突增、连续 false signal
-3. 如有异常，暂停相关规则（不改参数）
-4. 如无异常，回复"盘中正常，无需操作"后结束
-5. 写入 ./runtime/engine/strategy_plan_latest.json（shift=intraday, type=monitor）
+1. 读取 ./artifacts/newswire/latest.json（优先）
+2. 兼容读取 ./runtime/engine/newswire/latest.json
+3. 检查异常：high importance 新闻、波动率突增、连续 false signal
+4. 如有异常，暂停相关规则（不改参数）
+5. 如无异常，回复"盘中正常，无需操作"后结束
+6. 写入 ./artifacts/strategist/strategy_plan_latest.json（shift=intraday, type=monitor），历史追加到 ./artifacts/strategist/strategy_plan_history.jsonl
 
 盘中绝不改规则参数！只能暂停/恢复。
 仅在有操作时通知先生（sessions_send sessionKey=agent:yuuka:main）。

@@ -51,14 +51,14 @@
 
 ### 3. Agent 历史输出
 
-当前分散在：
+当前建议统一为：
 
-- `runtime/engine/newswire/history.jsonl`
-- `runtime/engine/watcher/history.jsonl`
-- `runtime/engine/strategy_plan_history.jsonl`
-- `runtime/engine/executor_checklist_history.jsonl`
-- `runtime/engine/scout_candidates_history.jsonl`
-- `runtime/engine/strategist_iterations/*.json`
+- `artifacts/newswire/history.jsonl`
+- `artifacts/watcher/history.jsonl`
+- `artifacts/strategist/strategy_plan_history.jsonl`
+- `artifacts/executor/checklist_history.jsonl`
+- `artifacts/scout/candidates_history.jsonl`
+- `artifacts/strategist/iterations/*.json`
 
 这类文件不是传统 log，更接近“结构化业务产物历史”。
 
@@ -66,10 +66,10 @@
 
 当前分散在：
 
-- `runtime/engine/.last_execution_cycle.json`
-- `runtime/engine/state/control_state.json`
-- `runtime/engine/state/execution_state.json`
-- `runtime/engine/market_context.json`
+- `logs/latest/engine_cycle.json`
+- `runtime/state/control_state.json`
+- `runtime/state/execution_state.json`
+- `logs/latest/market_context.json`
 
 这类文件不是日志，而是“当前状态 / 最新快照”。
 

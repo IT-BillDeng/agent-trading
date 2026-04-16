@@ -40,7 +40,7 @@
 
 ## 迭代记录格式
 
-每次搜索结果写入 `strategist_iterations/`：
+每次搜索结果写入 `artifacts/strategist/iterations/`：
 
 ```json
 {

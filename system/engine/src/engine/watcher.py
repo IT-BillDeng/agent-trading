@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
 from enum import Enum
@@ -59,6 +60,21 @@ class WatcherReport:
             "alerts": [a.to_dict() for a in self.alerts],
             "summary": self.summary
         }
+
+
+def _logs_root(runtime_dir: str | Path) -> Path:
+    env_logs_dir = os.environ.get("ENGINE_LOGS_DIR") or os.environ.get("TIGER_LOGS_DIR")
+    if env_logs_dir:
+        return Path(env_logs_dir)
+
+    runtime_path = Path(runtime_dir).resolve()
+    if runtime_path.name == "engine" and len(runtime_path.parents) >= 2:
+        return runtime_path.parents[1] / "logs"
+    return runtime_path.parent / "logs"
+
+
+def _service_log_dir(runtime_dir: str | Path) -> Path:
+    return _logs_root(runtime_dir) / "service"
 
 
 class WatcherState:
@@ -144,6 +160,7 @@ class TigerWatcher:
     def __init__(self, runtime_dir: str | Path, config_dir: str | Path):
         self.runtime_dir = Path(runtime_dir)
         self.config_dir = Path(config_dir)
+        self.service_log_dir = _service_log_dir(self.runtime_dir)
         self.state_file = self.runtime_dir / "state" / "watcher_state.json"
         self.state = WatcherState(self.state_file)
         
@@ -151,6 +168,7 @@ class TigerWatcher:
         self.runtime_dir.mkdir(parents=True, exist_ok=True)
         (self.runtime_dir / "state").mkdir(exist_ok=True)
         (self.runtime_dir / "logs").mkdir(exist_ok=True)
+        self.service_log_dir.mkdir(parents=True, exist_ok=True)
     
     def check_engine_health(self) -> HealthCheck:
         """检查引擎健康状态"""
@@ -409,12 +427,20 @@ def run_watcher_check(runtime_dir: str | Path, config_dir: str | Path) -> dict[s
     """运行 watcher 检查并返回报告"""
     watcher = TigerWatcher(runtime_dir, config_dir)
     report = watcher.run_all_checks()
-    
-    # 写入日志
-    log_dir = Path(runtime_dir) / "logs"
-    log_file = log_dir / f"watcher_{datetime.now().strftime('%Y%m%d')}.jsonl"
-    
-    with open(log_file, "a") as f:
-        f.write(json.dumps(report.to_dict(), ensure_ascii=False) + "\n")
-    
-    return report.to_dict()
+
+    record = report.to_dict()
+    record["source"] = "watcher"
+    record["kind"] = "health_check"
+
+    # 新目录：根目录 logs/service/watcher.jsonl
+    service_log_file = watcher.service_log_dir / "watcher.jsonl"
+    with service_log_file.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+    # 旧目录：runtime/.../logs/watcher_YYYYMMDD.jsonl，保留兼容
+    legacy_log_dir = Path(runtime_dir) / "logs"
+    legacy_log_file = legacy_log_dir / f"watcher_{datetime.now().strftime('%Y%m%d')}.jsonl"
+    with legacy_log_file.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+    return record

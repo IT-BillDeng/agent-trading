@@ -336,6 +336,35 @@
             const recommendations = Array.isArray(latest.strategy_recommendations) ? latest.strategy_recommendations : [];
             const actionItems = Array.isArray(latest.action_items) ? latest.action_items : [];
             const latestTitle = latest.plan_id || latest.shift || latest.type || '最新策略调整';
+            const timelineEntries = [
+                ...history.map(item => ({
+                    kind: 'plan',
+                    title: item.plan_id || item.shift || '策略计划',
+                    subtitle: item.shift || item.data_quality || 'plan',
+                    time: item.generated_at,
+                    summary: item.summary || '暂无摘要',
+                    detail: JSON.stringify(item.raw, null, 2),
+                })),
+                ...iterations.map(item => {
+                    const best = item.best || {};
+                    const bestLabel = best ? `${best.label || '--'} · ${best.return_pct != null ? Number(best.return_pct).toFixed(2) + '%' : '--'}` : '--';
+                    return {
+                        kind: 'iter',
+                        title: item.iteration_id || '参数迭代',
+                        subtitle: item.period || 'iteration',
+                        time: item.timestamp,
+                        summary: `best: ${bestLabel} | results: ${item.result_count || 0}`,
+                        detail: [
+                            `symbols: ${(item.symbols || []).join(', ') || '--'}`,
+                            `path: ${item.source_path || '--'}`,
+                        ].join('\n'),
+                    };
+                }),
+            ].sort((a, b) => {
+                const at = a.time ? new Date(a.time).getTime() : 0;
+                const bt = b.time ? new Date(b.time).getTime() : 0;
+                return bt - at;
+            }).slice(0, 10);
 
             box.innerHTML = `
                 <div class="space-y-4">
@@ -373,48 +402,31 @@
                         ` : ''}
                     </div>
 
-                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                        <div class="rounded border border-gray-700/60 bg-dark-900 p-4">
-                            <div class="text-sm font-medium text-gray-100 mb-2">近期策略计划历史</div>
-                            <div class="space-y-2 max-h-64 overflow-auto">
-                                ${(history.map(item => `
-                                    <details class="rounded border border-gray-700/50 bg-gray-800/40 px-3 py-2">
-                                        <summary class="cursor-pointer list-none">
-                                            <div class="flex items-center justify-between gap-2">
-                                                <div class="text-xs font-medium text-gray-200">${escapeHtml(item.plan_id || item.shift || '--')}</div>
-                                                <div class="text-xs text-gray-500">${fmtDateTime(item.generated_at)}</div>
-                                            </div>
-                                            <div class="text-xs text-gray-500 mt-1">${escapeHtml(item.summary || '')}</div>
-                                        </summary>
-                                        <pre class="mt-2 text-[11px] text-gray-400 whitespace-pre-wrap break-all">${escapeHtml(JSON.stringify(item.raw, null, 2))}</pre>
-                                    </details>
-                                `).join('') || '<div class="text-gray-500 text-sm">暂无历史记录</div>')}
-                            </div>
+                    <div class="rounded border border-gray-700/60 bg-dark-900 p-4">
+                        <div class="flex items-center justify-between gap-3 mb-3">
+                            <div class="text-sm font-medium text-gray-100">🕒 Strategist 调整时间线</div>
+                            <div class="text-xs text-gray-500">计划历史 + 参数迭代</div>
                         </div>
-
-                        <div class="rounded border border-gray-700/60 bg-dark-900 p-4">
-                            <div class="text-sm font-medium text-gray-100 mb-2">近期参数迭代</div>
-                            <div class="space-y-2 max-h-64 overflow-auto">
-                                ${(iterations.map(item => {
-                                    const best = item.best || {};
-                                    const bestLabel = best ? `${best.label || '--'} · ${best.return_pct != null ? Number(best.return_pct).toFixed(2) + '%' : '--'}` : '--';
-                                    return `
-                                        <details class="rounded border border-gray-700/50 bg-gray-800/40 px-3 py-2">
-                                            <summary class="cursor-pointer list-none">
-                                                <div class="flex items-center justify-between gap-2">
-                                                    <div class="text-xs font-medium text-gray-200">${escapeHtml(item.iteration_id || '--')}</div>
-                                                    <div class="text-xs text-gray-500">${fmtDateTime(item.timestamp)}</div>
+                        <div class="relative pl-6 max-h-[28rem] overflow-auto">
+                            <div class="absolute left-2 top-0 bottom-0 w-px bg-gray-700/70"></div>
+                            <div class="space-y-4">
+                                ${(timelineEntries.map((item, idx) => `
+                                    <details class="relative pl-5">
+                                        <div class="absolute left-[-0.25rem] top-2 h-2.5 w-2.5 rounded-full ${item.kind === 'plan' ? 'bg-tiger-500' : 'bg-cyan-400'} border border-gray-900"></div>
+                                        <summary class="cursor-pointer list-none rounded border border-gray-700/50 bg-gray-800/35 px-3 py-2 hover:bg-gray-800/55">
+                                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="badge ${item.kind === 'plan' ? 'bg-tiger-500/15 text-tiger-300 border-tiger-500/30' : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'}">${item.kind === 'plan' ? '计划' : '迭代'}</span>
+                                                    <span class="text-xs font-medium text-gray-200">${escapeHtml(item.title)}</span>
                                                 </div>
-                                                <div class="text-xs text-gray-500 mt-1">${escapeHtml(item.period || '--')}</div>
-                                                <div class="text-xs text-gray-400 mt-1">best: ${escapeHtml(bestLabel)} | results: ${item.result_count || 0}</div>
-                                            </summary>
-                                            <div class="mt-2 text-[11px] text-gray-400">
-                                                <div>symbols: ${(item.symbols || []).join(', ') || '--'}</div>
-                                                <div>path: <span class="mono break-all">${escapeHtml(item.source_path || '--')}</span></div>
+                                                <div class="text-xs text-gray-500">${fmtDateTime(item.time)}</div>
                                             </div>
-                                        </details>
-                                    `;
-                                }).join('') || '<div class="text-gray-500 text-sm">暂无迭代结果</div>')}
+                                            <div class="text-xs text-gray-500 mt-1">${escapeHtml(item.subtitle || '')}</div>
+                                            <div class="text-xs text-gray-400 mt-1">${escapeHtml(item.summary || '')}</div>
+                                        </summary>
+                                        <pre class="mt-2 ml-1 text-[11px] text-gray-400 whitespace-pre-wrap break-all">${escapeHtml(item.detail || '')}</pre>
+                                    </details>
+                                `).join('') || '<div class="text-gray-500 text-sm">暂无调整记录</div>')}
                             </div>
                         </div>
                     </div>

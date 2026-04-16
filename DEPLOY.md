@@ -7,6 +7,11 @@
 ```bash
 cd agent-trading
 
+# 准备本地环境变量
+cp .env.example .env
+# 编辑填入本地 Telegram 目标和必要变量
+vim .env
+
 # 准备凭证（从旧环境复制或重新生成）
 cp properties/tiger.properties.example properties/tiger.properties
 # 编辑填入真实凭证
@@ -74,9 +79,10 @@ docker compose run --rm -w /app engine \
 git clone git@github.com:IT-BillDeng/agent-trading.git
 cd agent-trading
 
-# 3. 准备凭证
+# 3. 准备本地环境变量与凭证
+cp .env.example .env
 cp properties/tiger.properties.example properties/tiger.properties
-# 填入凭证
+# 填入变量与凭证
 
 # 4. 构建（约 2 分钟，首次之后利用缓存秒建）
 docker compose build
@@ -94,6 +100,7 @@ docker compose run --rm engine \
 agent-trading/
 ├── docker-compose.yml          # 编排配置（2 个服务）
 ├── DEPLOY.md                   # 部署指南
+├── .env.example                # 本地环境变量样板
 ├── config/
 │   ├── app_config.docker.json  # 容器内路径版配置
 │   ├── tiger.properties        # API 凭证（.gitignore 排除）
@@ -120,15 +127,17 @@ agent-trading/
 └── docs/                       # 岗位说明、任务模板
 ```
 
-### 5. 配置说明
+### 6. 配置说明
 
 | 文件 | 容器内路径 | 说明 |
 |------|-----------|------|
+| `.env` | - | 本地环境变量，不进 git |
+| `.env.example` | - | 本地环境变量样板 |
 | `app_config.docker.json` | `/app/config/app_config.docker.json` | 已适配容器路径的配置 |
 | `tiger.properties` | `/app/properties/tiger.properties` | API 凭证 |
 | `watchlist.json` | `/app/data/watchlist.json` | 共享标的清单 |
 
-### 6. 注意事项
+### 7. 注意事项
 
 - **默认 guarded 模式**：`app_config.docker.json` 默认 `submit_mode: guarded`，不会真实下单
 - **切换 live**：修改 `submit_mode` 为 `live` + `live_submit: true`（需先生确认）
@@ -136,7 +145,7 @@ agent-trading/
 - **时区**：容器内设为 `Asia/Shanghai`
 - **容器以 root 运行**：为简化 volume mount 权限，容器内以 root 运行（本地开发工具，非生产暴露）
 
-### 7. 常见操作
+### 8. 常见操作
 
 ```bash
 # 查看最近日志

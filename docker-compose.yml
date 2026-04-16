@@ -22,20 +22,22 @@ services:
       - ./logs:/app/logs
       - ./runtime/engine:/app/runtime
     environment:
-      - TZ=Asia/Shanghai
-      - ENGINE_CONFIG_DIR=/app/config
-      - ENGINE_RULES_DIR=/app/rules
-      - ENGINE_NEWS_DIR=/app/news
-      - TIGER_PROPERTIES_DIR=/app/properties
-      - ENGINE_WORKSPACE=/app
-      - ENGINE_WATCHLIST_PATH=/app/data/watchlist.json
-      - ENGINE_QUOTE_PROVIDER=yfinance
-      - ENGINE_LOGS_DIR=/app/logs
-      - ENGINE_RUNTIME_DIR=/app/runtime
-      - ENGINE_APP_CONFIG=/app/config/app_config.docker.json
+      - TZ=${TZ:-Asia/Shanghai}
+      - ENGINE_CONFIG_DIR=${ENGINE_CONFIG_DIR:-/app/config}
+      - ENGINE_RULES_DIR=${ENGINE_RULES_DIR:-/app/rules}
+      - ENGINE_NEWS_DIR=${ENGINE_NEWS_DIR:-/app/news}
+      - TIGER_PROPERTIES_DIR=${TIGER_PROPERTIES_DIR:-/app/properties}
+      - ENGINE_WORKSPACE=${ENGINE_WORKSPACE:-/app}
+      - ENGINE_WATCHLIST_PATH=${ENGINE_WATCHLIST_PATH:-/app/data/watchlist.json}
+      - ENGINE_QUOTE_PROVIDER=${ENGINE_QUOTE_PROVIDER:-yfinance}
+      - ENGINE_LOGS_DIR=${ENGINE_LOGS_DIR:-/app/logs}
+      - ENGINE_RUNTIME_DIR=${ENGINE_RUNTIME_DIR:-/app/runtime}
+      - ENGINE_APP_CONFIG=${ENGINE_APP_CONFIG:-/app/config/app_config.docker.json}
+      - ENGINE_BROKER=${ENGINE_BROKER:-tiger}
       # 调度器配置
-      - ENGINE_SCHEDULER_PROVIDER=yfinance
-      - ENGINE_SCHEDULER_INTERVAL=60
+      - ENGINE_SCHEDULER_PROVIDER=${ENGINE_SCHEDULER_PROVIDER:-yfinance}
+      - ENGINE_SCHEDULER_INTERVAL=${ENGINE_SCHEDULER_INTERVAL:-60}
+      - ENGINE_ARTIFACTS_DIR=${ENGINE_ARTIFACTS_DIR:-/app/artifacts}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8088/health')"]
@@ -43,4 +45,3 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-

@@ -28,6 +28,7 @@ agent-trading/
     app.defaults.json
     app_config.docker.json
     user.settings.example.json
+  .env.example
   docs/
     roles/
     tasks/
@@ -57,6 +58,7 @@ agent-trading/
 - `docs/`：岗位说明、任务模板、协作说明
 - `data/`：本地用户状态、种子配置与少量实验产物
 - `config/`：项目默认配置、Docker 覆盖与本地用户设置示例
+- `.env`：本地运行变量，不进 git
 - `news/`：新闻源配置
 - `specs/`：规格文档与设计草案
 - `system/engine/`：核心执行引擎代码
@@ -65,6 +67,7 @@ agent-trading/
 说明：
 
 - `config/` 是当前推荐的配置分层入口
+- 根目录 `.env` 是本地覆盖；`.env.example` 是可提交样板
 - `system/engine/app_config.paper.json` 与 `system/engine/config.example.json` 仅保留兼容用途，不建议新流程继续引用
 
 ---

@@ -27,7 +27,9 @@ config/user.settings.json
 config/app_config.local.json
 config/secrets*
 *.env
-.env*
+.env
+.env.local
+.env.*.local
 
 rules/rules_backup/
 rules/rules.json

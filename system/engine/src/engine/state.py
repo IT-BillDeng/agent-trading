@@ -18,9 +18,19 @@ class StateStore:
         state = self._read()
         return idempotency_key in state.get('submitted', {})
 
+    def get_submitted_record(self, idempotency_key: str) -> dict[str, Any] | None:
+        state = self._read()
+        record = state.get('submitted', {}).get(idempotency_key)
+        return dict(record) if isinstance(record, dict) else None
+
     def get_submitted(self) -> dict[str, Any]:
         state = self._read()
         return dict(state.get('submitted', {}))
+
+    def get_sync_record(self, key: str) -> dict[str, Any] | None:
+        state = self._read()
+        record = state.get('sync', {}).get(key)
+        return dict(record) if isinstance(record, dict) else None
 
     def mark_preview(self, idempotency_key: str, record: dict[str, Any]) -> None:
         state = self._read()

@@ -38,6 +38,14 @@ class SubmitResult:
 
 
 class LiveExecutionAdapter:
+    TERMINAL_ORDER_STATUSES = {
+        'filled',
+        'cancelled',
+        'canceled',
+        'rejected',
+        'expired',
+    }
+
     def __init__(self, app_config: dict[str, Any], client: BrokerClient):
         execution = dict(app_config.get('execution', {}))
         system = dict(app_config.get('system', {}))
@@ -97,8 +105,9 @@ class LiveExecutionAdapter:
         gate_ok, gate_reason = self.control.can_trade(intent.get('market'), intent.get('symbol'))
         if not gate_ok:
             return SubmitResult(intent['intent_id'], intent['symbol'], False, self.submit_mode, gate_reason or 'trade_gate_blocked', None)
-        if self.state.has_submitted(idem):
-            return SubmitResult(intent['intent_id'], intent['symbol'], False, self.submit_mode, 'duplicate_idempotency_key', None)
+        existing_submission = self.state.get_submitted_record(idem)
+        if existing_submission and self._submission_is_active(idem, existing_submission):
+            return SubmitResult(intent['intent_id'], intent['symbol'], False, self.submit_mode, 'duplicate_active_submission', None)
 
         preview_result = self.preview_intent(intent, contracts) if self.enable_preview_check else None
         if preview_result and not preview_result.ok:
@@ -130,27 +139,9 @@ class LiveExecutionAdapter:
         submitted = self.state.get_submitted()
         snapshots: list[dict[str, Any]] = []
         for idem, record in submitted.items():
-            response_body = (record.get('response') or {}).get('body', {})
-            data = response_body.get('data') or {}
-            if isinstance(data, str):
-                try:
-                    import json
-                    data = json.loads(data)
-                except Exception:
-                    data = {}
-            order_id = data.get('order_id') or data.get('orderId') or (record.get('payload') or {}).get('order_id')
-            global_id = data.get('id')
-            order_snapshot = self.client.get_order(id=global_id, order_id=order_id)
-            transactions = self.client.get_transactions(order_id=order_id, symbol=record.get('symbol')) if order_id is not None else {'http_status': None, 'body': {'code': None, 'message': 'missing_order_id'}}
-            snapshot = {
-                'idempotency_key': idem,
-                'intent_id': record.get('intent_id'),
-                'symbol': record.get('symbol'),
-                'global_id': global_id,
-                'order_id': order_id,
-                'order': order_snapshot,
-                'transactions': transactions,
-            }
+            snapshot = self._build_submission_snapshot(idem, record)
+            if snapshot is None:
+                continue
             snapshot['normalized'] = normalize_order_snapshot(snapshot)
             self.state.mark_sync(idem, snapshot)
             snapshots.append(snapshot)
@@ -233,3 +224,62 @@ class LiveExecutionAdapter:
             raw = data.get('orderId') or data.get('order_id') or data.get('id')
             return int(raw) if raw is not None else None
         return None
+
+    def _submission_is_active(self, idem: str, record: dict[str, Any]) -> bool:
+        sync_record = self.state.get_sync_record(idem)
+        if sync_record and not self._normalized_snapshot_is_active(sync_record.get('normalized') or {}):
+            return False
+
+        snapshot = self._build_submission_snapshot(idem, record)
+        if snapshot is None:
+            return True
+        normalized = normalize_order_snapshot(snapshot)
+        snapshot['normalized'] = normalized
+        self.state.mark_sync(idem, snapshot)
+        return self._normalized_snapshot_is_active(normalized)
+
+    def _build_submission_snapshot(self, idem: str, record: dict[str, Any]) -> dict[str, Any] | None:
+        response_body = (record.get('response') or {}).get('body', {})
+        data = response_body.get('data') or {}
+        if isinstance(data, str):
+            try:
+                import json
+                data = json.loads(data)
+            except Exception:
+                data = {}
+        order_id = data.get('order_id') or data.get('orderId') or (record.get('payload') or {}).get('order_id')
+        global_id = data.get('id')
+        if order_id is None and global_id is None:
+            return None
+        order_snapshot = self.client.get_order(id=global_id, order_id=order_id)
+        transactions = self.client.get_transactions(order_id=order_id, symbol=record.get('symbol')) if order_id is not None else {'http_status': None, 'body': {'code': None, 'message': 'missing_order_id'}}
+        return {
+            'idempotency_key': idem,
+            'intent_id': record.get('intent_id'),
+            'symbol': record.get('symbol'),
+            'global_id': global_id,
+            'order_id': order_id,
+            'order': order_snapshot,
+            'transactions': transactions,
+        }
+
+    def _normalized_snapshot_is_active(self, normalized: dict[str, Any]) -> bool:
+        status = str(normalized.get('status') or '').strip().lower()
+        if not status:
+            return True
+        if status in self.TERMINAL_ORDER_STATUSES:
+            return False
+        filled = self._safe_float(normalized.get('filled_quantity'))
+        quantity = self._safe_float(normalized.get('quantity'))
+        remaining = normalized.get('remaining_quantity')
+        if remaining is not None and self._safe_float(remaining) <= 0:
+            return False
+        if quantity > 0 and filled >= quantity:
+            return False
+        return True
+
+    def _safe_float(self, value: Any) -> float:
+        try:
+            return float(value or 0)
+        except Exception:
+            return 0.0

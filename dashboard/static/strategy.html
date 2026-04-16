@@ -52,9 +52,9 @@
             </nav>
         </div>
         <div class="flex items-center gap-2 text-xs">
-            <button onclick="refreshAll()" class="px-3 py-1.5 rounded bg-tiger-600 hover:bg-tiger-700 text-white border border-tiger-700/60">刷新</button>
+            <button onclick="refreshAll()" class="px-3 py-1.5 rounded bg-sakura-600 hover:bg-sakura-700 text-white border border-sakura-700/60">刷新</button>
             <label class="flex items-center gap-1 text-gray-400">
-                <input type="checkbox" id="auto-refresh" class="accent-tiger-500" onchange="toggleAutoRefresh()" checked>
+                <input type="checkbox" id="auto-refresh" class="accent-sakura-500" onchange="toggleAutoRefresh()" checked>
                 自动
             </label>
             <span id="page-status" class="text-gray-500">--</span>
@@ -133,8 +133,8 @@
                         <div id="signals-meta" class="text-xs text-gray-500 mt-1">--</div>
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
-                        <input id="signal-search" type="text" placeholder="搜索股票 / 策略 / 理由..." class="bg-dark-900 border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:border-tiger-500" oninput="renderSignals(currentStrategyData)">
-                        <select id="signal-action-filter" class="bg-dark-900 border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:border-tiger-500" onchange="renderSignals(currentStrategyData)">
+                        <input id="signal-search" type="text" placeholder="搜索股票 / 策略 / 理由..." class="bg-dark-900 border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:border-sakura-500" oninput="renderSignals(currentStrategyData)">
+                        <select id="signal-action-filter" class="bg-dark-900 border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:border-sakura-500" onchange="renderSignals(currentStrategyData)">
                             <option value="all">全部动作</option>
                             <option value="BUY">BUY</option>
                             <option value="EXIT">EXIT</option>
@@ -209,7 +209,7 @@
 
         function ruleFilterClass(active) {
             return 'transition ' + (active
-                ? 'bg-tiger-600/30 text-tiger-400 border-tiger-600/50'
+                ? 'bg-sakura-600/30 text-sakura-400 border-sakura-600/50'
                 : 'text-gray-400 border-gray-600 hover:text-gray-200');
         }
 
@@ -383,7 +383,7 @@
             }).slice(0, 10);
 
             latestMeta.textContent = [latest.generated_at ? fmtDateTime(latest.generated_at) : null, latest.shift || latest.type || null].filter(Boolean).join(' | ') || '--';
-            latestBadge.innerHTML = `<span class="badge ${history.length > 0 ? 'bg-tiger-500/15 text-tiger-300 border-tiger-500/30' : 'bg-gray-700/60 text-gray-300 border-gray-600/40'}">${history.length > 0 ? '有历史记录' : '无历史记录'}</span>`;
+            latestBadge.innerHTML = `<span class="badge ${history.length > 0 ? 'bg-sakura-500/15 text-sakura-300 border-sakura-500/30' : 'bg-gray-700/60 text-gray-300 border-gray-600/40'}">${history.length > 0 ? '有历史记录' : '无历史记录'}</span>`;
 
             latestBox.innerHTML = `
                 <div class="space-y-4">
@@ -429,11 +429,11 @@
                     <div class="space-y-4">
                         ${(timelineEntries.map((item) => `
                             <details class="relative pl-5">
-                                <div class="absolute left-[-0.25rem] top-2 h-2.5 w-2.5 rounded-full ${item.kind === 'plan' ? 'bg-tiger-500' : 'bg-cyan-400'} border border-gray-900"></div>
+                                <div class="absolute left-[-0.25rem] top-2 h-2.5 w-2.5 rounded-full ${item.kind === 'plan' ? 'bg-sakura-500' : 'bg-cyan-400'} border border-gray-900"></div>
                                 <summary class="cursor-pointer list-none rounded border border-gray-700/50 bg-gray-800/35 px-3 py-2 hover:bg-gray-800/55">
                                     <div class="flex flex-wrap items-center justify-between gap-2">
                                         <div class="flex items-center gap-2">
-                                            <span class="badge ${item.kind === 'plan' ? 'bg-tiger-500/15 text-tiger-300 border-tiger-500/30' : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'}">${item.kind === 'plan' ? '计划' : '迭代'}</span>
+                                            <span class="badge ${item.kind === 'plan' ? 'bg-sakura-500/15 text-sakura-300 border-sakura-500/30' : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'}">${item.kind === 'plan' ? '计划' : '迭代'}</span>
                                             <span class="text-xs font-medium text-gray-200">${escapeHtml(item.title)}</span>
                                         </div>
                                         <div class="text-xs text-gray-500">${fmtDateTime(item.time)}</div>

@@ -144,7 +144,7 @@
             <div class="card flex flex-col h-[32rem] min-h-0">
                 <div class="flex items-center justify-between mb-2">
                     <div class="card-title mb-0">📈 自选行情</div>
-                    <select id="quote-provider" class="bg-dark-900 border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:border-tiger-500" onchange="setQuoteProvider(this.value)">
+                    <select id="quote-provider" class="bg-dark-900 border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:border-sakura-500" onchange="setQuoteProvider(this.value)">
                         <option value="yfinance">Yahoo Finance</option>
                         <option value="tiger">当前 API</option>
                     </select>
@@ -216,7 +216,7 @@
             <div class="flex flex-wrap gap-2 mb-3 items-center">
                 <!-- Search -->
                 <div class="flex-1 min-w-48">
-                    <input id="wl-search" type="text" placeholder="搜索代码或名称..." class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-tiger-500">
+                    <input id="wl-search" type="text" placeholder="搜索代码或名称..." class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-sakura-500">
                 </div>
                 <!-- Status Filter -->
                 <div class="flex gap-1">
@@ -239,12 +239,12 @@
 
             <!-- Add Form -->
             <div class="flex gap-2 mb-3 items-center">
-                <input id="wl-symbol" type="text" placeholder="股票代码（如 AAPL）" class="flex-1 min-w-32 bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-tiger-500" onkeypress="if(event.key==='Enter') addWatchlist()">
-                <select id="wl-market" class="bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-tiger-500">
+                <input id="wl-symbol" type="text" placeholder="股票代码（如 AAPL）" class="flex-1 min-w-32 bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-sakura-500" onkeypress="if(event.key==='Enter') addWatchlist()">
+                <select id="wl-market" class="bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-sakura-500">
                     <option value="US">市场: US</option>
                 </select>
-                <input id="wl-name" type="text" placeholder="显示名称（可选）" class="flex-1 min-w-32 bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-tiger-500">
-                <button id="btn-add-watchlist" onclick="addWatchlist()" class="bg-tiger-600 hover:bg-tiger-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium transition whitespace-nowrap">添加到自选</button>
+                <input id="wl-name" type="text" placeholder="显示名称（可选）" class="flex-1 min-w-32 bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-sakura-500">
+                <button id="btn-add-watchlist" onclick="addWatchlist()" class="bg-sakura-600 hover:bg-sakura-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium transition whitespace-nowrap">添加到自选</button>
             </div>
 
             <!-- Table Header -->
@@ -294,24 +294,24 @@
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                 <div>
                     <div class="text-xs text-gray-500 mb-1">标的（逗号分隔）</div>
-                    <input id="bt-symbols" type="text" value="AAPL" class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-tiger-500" placeholder="AAPL,MSFT,NVDA">
+                    <input id="bt-symbols" type="text" value="AAPL" class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-sakura-500" placeholder="AAPL,MSFT,NVDA">
                 </div>
                 <div>
                     <div class="text-xs text-gray-500 mb-1">开始日期</div>
-                    <input id="bt-start" type="date" value="2026-01-01" class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-tiger-500">
+                    <input id="bt-start" type="date" value="2026-01-01" class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-sakura-500">
                 </div>
                 <div>
                     <div class="text-xs text-gray-500 mb-1">结束日期</div>
-                    <input id="bt-end" type="date" value="2026-04-01" class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-tiger-500">
+                    <input id="bt-end" type="date" value="2026-04-01" class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-sakura-500">
                 </div>
                 <div>
                     <div class="text-xs text-gray-500 mb-1">初始资金</div>
-                    <input id="bt-capital" type="number" value="100000" class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-tiger-500">
+                    <input id="bt-capital" type="number" value="100000" class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-sakura-500">
                 </div>
             </div>
             <div class="text-xs text-gray-500 mb-4">数据源：当前 API（免费历史K线，模拟盘账户可用）</div>
             <div class="flex gap-2 mb-4">
-                <button onclick="runBacktest()" class="bg-tiger-600 hover:bg-tiger-700 text-white px-4 py-2 rounded text-sm font-medium transition">🚀 运行回测</button>
+                <button onclick="runBacktest()" class="bg-sakura-600 hover:bg-sakura-700 text-white px-4 py-2 rounded text-sm font-medium transition">🚀 运行回测</button>
                 <span id="bt-status" class="text-xs text-gray-500 self-center"></span>
             </div>
             
@@ -404,7 +404,7 @@
             </div>
             <!-- Upload -->
             <div class="mt-4 flex gap-2 items-center">
-                <label class="bg-tiger-600 hover:bg-tiger-700 text-white px-3 py-2 rounded text-sm font-medium transition cursor-pointer">
+                <label class="bg-sakura-600 hover:bg-sakura-700 text-white px-3 py-2 rounded text-sm font-medium transition cursor-pointer">
                     📤 选择配置文件
                     <input id="broker-config-file" type="file" accept=".properties,.txt,.cfg,.conf" class="hidden" onchange="uploadBrokerConfig()">
                 </label>
@@ -538,13 +538,13 @@
         function stockAnalysisSortIndicator(key) {
             if (stockAnalysisSortKey !== key) return '<span class="text-gray-600 ml-1">↕</span>';
             return stockAnalysisSortDir === 'asc'
-                ? '<span class="text-tiger-400 ml-1">↑</span>'
-                : '<span class="text-tiger-400 ml-1">↓</span>';
+                ? '<span class="text-sakura-400 ml-1">↑</span>'
+                : '<span class="text-sakura-400 ml-1">↓</span>';
         }
         function stockAnalysisHeaderClass(key, align = 'left') {
             const active = stockAnalysisSortKey === key;
             const justify = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start';
-            return `w-full flex items-center ${justify} gap-1 hover:text-gray-300 transition ${active ? 'text-tiger-400' : 'text-gray-500'}`;
+            return `w-full flex items-center ${justify} gap-1 hover:text-gray-300 transition ${active ? 'text-sakura-400' : 'text-gray-500'}`;
         }
         function positionsSortDefaultDir(key) {
             return key === 'symbol' ? 'asc' : 'desc';
@@ -552,13 +552,13 @@
         function positionsSortIndicator(key) {
             if (positionsSortKey !== key) return '<span class="text-gray-600 ml-1">↕</span>';
             return positionsSortDir === 'asc'
-                ? '<span class="text-tiger-400 ml-1">↑</span>'
-                : '<span class="text-tiger-400 ml-1">↓</span>';
+                ? '<span class="text-sakura-400 ml-1">↑</span>'
+                : '<span class="text-sakura-400 ml-1">↓</span>';
         }
         function positionsHeaderClass(key, align = 'left') {
             const active = positionsSortKey === key;
             const justify = align === 'right' ? 'justify-end' : 'justify-start';
-            return `w-full flex items-center ${justify} gap-1 hover:text-gray-300 transition ${active ? 'text-tiger-400' : 'text-gray-500'}`;
+            return `w-full flex items-center ${justify} gap-1 hover:text-gray-300 transition ${active ? 'text-sakura-400' : 'text-gray-500'}`;
         }
         function setPositionsSort(key) {
             if (positionsSortKey === key) {
@@ -666,7 +666,7 @@
         function stockAnalysisBtnClass(active) {
             return 'px-2 py-1 rounded text-xs border transition ' + (
                 active
-                    ? 'bg-tiger-600/30 text-tiger-500 border-tiger-600/40'
+                    ? 'bg-sakura-600/30 text-sakura-500 border-sakura-600/40'
                     : 'border-gray-600 text-gray-400 hover:text-gray-200'
             );
         }
@@ -704,13 +704,13 @@
         function quoteSortIndicator(key) {
             if (quoteSortKey !== key) return '<span class="text-gray-600 ml-1">↕</span>';
             return quoteSortDir === 'asc'
-                ? '<span class="text-tiger-400 ml-1">↑</span>'
-                : '<span class="text-tiger-400 ml-1">↓</span>';
+                ? '<span class="text-sakura-400 ml-1">↑</span>'
+                : '<span class="text-sakura-400 ml-1">↓</span>';
         }
         function quoteHeaderClass(key, align = 'left') {
             const active = quoteSortKey === key;
             const justify = align === 'right' ? 'justify-end' : 'justify-start';
-            return `w-full flex items-center ${justify} gap-1 hover:text-gray-300 transition ${active ? 'text-tiger-400' : 'text-gray-500'}`;
+            return `w-full flex items-center ${justify} gap-1 hover:text-gray-300 transition ${active ? 'text-sakura-400' : 'text-gray-500'}`;
         }
         function setQuoteSort(key) {
             if (quoteSortKey === key) {
@@ -1074,8 +1074,8 @@
             // Update button styles
             document.querySelectorAll('.filter-btn[data-filter="' + type + '"]').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.value === value);
-                btn.classList.toggle('bg-tiger-600', btn.dataset.value === value);
-                btn.classList.toggle('border-tiger-600', btn.dataset.value === value);
+                btn.classList.toggle('bg-sakura-600', btn.dataset.value === value);
+                btn.classList.toggle('border-sakura-600', btn.dataset.value === value);
             });
             // Re-render with current watchlist data
             fetchWatchlist();
@@ -1825,7 +1825,7 @@
                     label.innerHTML = `
                         <input type="checkbox" ${src.enabled ? 'checked' : ''} 
                             onchange="toggleNewsSource('${src.id}', this.checked)"
-                            class="accent-tiger-500">
+                            class="accent-sakura-500">
                         <span class="text-gray-400">${src.name}</span>
                     `;
                     container.appendChild(label);
@@ -1851,8 +1851,8 @@
             newsFilter = filter;
             document.querySelectorAll('.news-filter-btn').forEach(b => {
                 b.classList.toggle('active', b.dataset.value === filter);
-                b.classList.toggle('bg-tiger-600/30', b.dataset.value === filter);
-                b.classList.toggle('text-tiger-500', b.dataset.value === filter);
+                b.classList.toggle('bg-sakura-600/30', b.dataset.value === filter);
+                b.classList.toggle('text-sakura-500', b.dataset.value === filter);
             });
             renderNews();
         }
@@ -1882,7 +1882,7 @@
                 const sentIcon = sentIcons[item.sentiment] || '➖';
                 const symBadge = item.symbol ? `<span class="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium">${item.symbol}</span>` : '<span class="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">宏观</span>';
                 const tags = (item.tags || []).map(t => `<span class="text-xs px-1 py-0.5 rounded bg-gray-700 text-gray-400">${t}</span>`).join(' ');
-                const urlLink = item.url ? `<a href="${item.url}" target="_blank" class="text-xs text-tiger-500 hover:underline ml-2">来源 ↗</a>` : '';
+                const urlLink = item.url ? `<a href="${item.url}" target="_blank" class="text-xs text-sakura-500 hover:underline ml-2">来源 ↗</a>` : '';
                 const timeStr = item.published_at ? new Date(item.published_at).toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'}) : '';
                 return `
                     <div class="flex items-start gap-3 p-2 rounded hover:bg-gray-700/30 transition">

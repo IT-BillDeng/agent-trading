@@ -107,6 +107,12 @@ async def index():
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/logs")
+async def logs_page():
+    """Serve logs dashboard HTML."""
+    return FileResponse(STATIC_DIR / "logs.html")
+
+
 # --- Health ---
 
 @app.get("/health")

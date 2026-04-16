@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Trading Logs</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📜</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        tiger: { 50: '#fff7ed', 500: '#f97316', 600: '#ea580c', 700: '#c2410c' },
+                        dark: { 800: '#1e1e2e', 900: '#11111b', 700: '#2a2a3c', 950: '#0b0b12' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', -apple-system, sans-serif; }
+        .card {
+            background-color: #2a2a3c;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            border: 1px solid rgba(107, 114, 128, 0.5);
+        }
+        .card-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #9ca3af;
+            margin-bottom: 0.75rem;
+        }
+        .positive { color: #22c55e; }
+        .negative { color: #ef4444; }
+        .neutral { color: #a1a1aa; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        .mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+        .log-row:hover { background: rgba(75, 85, 99, 0.15); }
+    </style>
+</head>
+<body class="bg-dark-900 text-gray-100 min-h-screen">
+    <header class="sticky top-0 z-40 border-b border-gray-700/50 px-6 py-3 flex items-center justify-between" style="background-color: #11111b;">
+        <div class="flex items-center gap-3">
+            <span class="text-2xl">📜</span>
+            <h1 class="text-lg font-semibold">Agent Trading Logs</h1>
+            <nav class="ml-4 flex items-center gap-2 text-xs">
+                <a href="/" class="px-2 py-1 rounded bg-gray-800/60 text-gray-400 hover:text-gray-200 border border-gray-700/60">总览</a>
+                <a href="/logs" class="px-2 py-1 rounded bg-gray-700/60 text-gray-200 border border-gray-600/60">日志</a>
+            </nav>
+        </div>
+        <div class="flex items-center gap-2 text-xs">
+            <button onclick="refreshAll()" class="px-3 py-1.5 rounded bg-tiger-600 hover:bg-tiger-700 text-white border border-tiger-700/60">刷新</button>
+            <label class="flex items-center gap-1 text-gray-400">
+                <input type="checkbox" id="auto-refresh" class="accent-tiger-500" onchange="toggleAutoRefresh()" checked>
+                自动
+            </label>
+            <span id="page-status" class="text-gray-500">--</span>
+        </div>
+    </header>
+
+    <main class="p-6 max-w-7xl mx-auto space-y-6">
+        <section class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="card">
+                <div class="card-title">日志根目录</div>
+                <div id="logs-root" class="mono text-sm break-all text-gray-200">--</div>
+            </div>
+            <div class="card">
+                <div class="card-title">最新快照目录</div>
+                <div id="latest-dir" class="mono text-sm break-all text-gray-200">--</div>
+            </div>
+            <div class="card">
+                <div class="card-title">日志分区</div>
+                <div id="section-stats" class="text-sm text-gray-200">--</div>
+            </div>
+            <div class="card">
+                <div class="card-title">最近刷新</div>
+                <div id="overview-generated" class="text-sm text-gray-200">--</div>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div class="card">
+                <div class="card-title">🧭 最新快照</div>
+                <div id="snapshot-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="text-gray-500 text-sm">加载中...</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">🤖 Agent 状态</div>
+                <div id="agents-status" class="space-y-2">
+                    <div class="text-gray-500 text-sm">加载中...</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            <div class="card xl:col-span-4 flex flex-col h-[42rem] min-h-0">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="card-title mb-0">🗂️ 日志文件</div>
+                    <div class="text-xs text-gray-500" id="log-list-meta">--</div>
+                </div>
+                <div id="log-list" class="flex-1 min-h-0 overflow-auto space-y-2">
+                    <div class="text-gray-500 text-sm">加载中...</div>
+                </div>
+            </div>
+
+            <div class="card xl:col-span-8 flex flex-col h-[42rem] min-h-0">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                    <div>
+                        <div class="card-title mb-0">📖 日志详情</div>
+                        <div id="log-meta" class="text-xs text-gray-500 mt-1">选择左侧日志开始查看</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <select id="log-lines" class="bg-dark-900 border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:border-tiger-500" onchange="reloadCurrentLog()">
+                            <option value="50">50 行</option>
+                            <option value="100" selected>100 行</option>
+                            <option value="200">200 行</option>
+                            <option value="500">500 行</option>
+                        </select>
+                        <button onclick="reloadCurrentLog()" class="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded border border-gray-600">刷新当前</button>
+                    </div>
+                </div>
+                <div id="log-viewer" class="flex-1 min-h-0 overflow-auto bg-dark-950 rounded border border-gray-700/50 mono text-[11px] leading-5">
+                    <div class="text-gray-500 p-3">选择日志文件开始查看...</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const API_BASE = '';
+        let currentLogName = null;
+        let autoRefreshTimer = null;
+        let cachedLogs = [];
+
+        function escapeHtml(s) {
+            return String(s ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        function fmtBytes(bytes) {
+            if (bytes === null || bytes === undefined || isNaN(bytes)) return '--';
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let value = Number(bytes);
+            let idx = 0;
+            while (value >= 1024 && idx < units.length - 1) {
+                value /= 1024;
+                idx += 1;
+            }
+            return value.toFixed(value >= 10 || idx === 0 ? 0 : 1) + ' ' + units[idx];
+        }
+
+        function fmtDateTime(value) {
+            if (!value) return '--';
+            try {
+                return new Date(value).toLocaleString('zh-CN');
+            } catch (_) {
+                return String(value);
+            }
+        }
+
+        function truthBadge(ok) {
+            return ok
+                ? '<span class="text-green-400">存在</span>'
+                : '<span class="text-red-400">缺失</span>';
+        }
+
+        function renderOverview(data) {
+            document.getElementById('logs-root').textContent = data.logs_root || '--';
+            document.getElementById('latest-dir').textContent = data.latest_dir || '--';
+            document.getElementById('overview-generated').textContent = fmtDateTime(data.generated_at);
+
+            const sectionStats = Object.entries(data.sections || {}).map(([name, items]) =>
+                `<div><span class="text-gray-500">${escapeHtml(name)}</span>: <span class="text-gray-200">${Array.isArray(items) ? items.length : 0}</span></div>`
+            ).join('');
+            document.getElementById('section-stats').innerHTML = sectionStats || '--';
+
+            const snapshots = Object.entries(data.latest_snapshots || {});
+            const snapshotGrid = document.getElementById('snapshot-grid');
+            snapshotGrid.innerHTML = snapshots.map(([name, item]) => `
+                <div class="rounded border border-gray-700/60 bg-dark-900 px-3 py-2">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="text-sm font-medium text-gray-100">${escapeHtml(name)}</div>
+                        <div class="text-xs">${truthBadge(item.synced)}</div>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1 mono break-all">${escapeHtml(item.path || '--')}</div>
+                    <div class="text-xs text-gray-400 mt-2 flex items-center justify-between gap-2">
+                        <span>${fmtBytes(item.size)}</span>
+                        <span>${fmtDateTime(item.modified)}</span>
+                    </div>
+                </div>
+            `).join('') || '<div class="text-gray-500 text-sm">暂无快照</div>';
+
+            const agents = data.agents_status?.agents || {};
+            const agentsStatus = document.getElementById('agents-status');
+            agentsStatus.innerHTML = Object.entries(agents).map(([name, item]) => {
+                const latest = item.latest_output || {};
+                const history = item.history_output || {};
+                const serviceLog = item.service_log || {};
+                return `
+                    <div class="rounded border border-gray-700/60 bg-dark-900 px-3 py-2">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="text-sm font-medium text-gray-100">${escapeHtml(name)}</div>
+                            <div class="text-xs">${truthBadge(latest.exists || history.exists || serviceLog.exists)}</div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 mt-2 text-xs">
+                            <div>
+                                <div class="text-gray-500">latest</div>
+                                <div class="${latest.exists ? 'text-green-400' : 'text-red-400'}">${latest.exists ? 'ok' : 'missing'}</div>
+                            </div>
+                            <div>
+                                <div class="text-gray-500">history</div>
+                                <div class="${history.exists ? 'text-green-400' : 'text-red-400'}">${history.exists ? 'ok' : 'missing'}</div>
+                            </div>
+                            <div>
+                                <div class="text-gray-500">service</div>
+                                <div class="${serviceLog.exists ? 'text-green-400' : 'text-gray-500'}">${serviceLog.exists ? 'ok' : '--'}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('') || '<div class="text-gray-500 text-sm">暂无 agent 状态</div>';
+        }
+
+        function renderLogList(logs) {
+            cachedLogs = Array.isArray(logs) ? logs : [];
+            const container = document.getElementById('log-list');
+            const meta = document.getElementById('log-list-meta');
+            meta.textContent = `${cachedLogs.length} 个文件`;
+            container.innerHTML = cachedLogs.map(item => {
+                const active = currentLogName === item.name;
+                return `
+                    <button onclick="loadLog('${escapeHtml(item.name)}')" class="w-full text-left rounded border px-3 py-2 transition ${active ? 'border-tiger-500 bg-tiger-500/10' : 'border-gray-700/60 bg-dark-900 hover:bg-gray-800/40'}">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="text-sm font-medium text-gray-100">${escapeHtml(item.name)}</div>
+                            <div class="text-[11px] px-2 py-0.5 rounded ${item.section === 'audit' ? 'bg-blue-500/20 text-blue-300' : item.section === 'service' ? 'bg-green-500/20 text-green-300' : 'bg-gray-700/60 text-gray-300'}">${escapeHtml(item.section || '--')}</div>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1 mono break-all">${escapeHtml(item.path || '--')}</div>
+                        <div class="text-xs text-gray-400 mt-2 flex items-center justify-between gap-2">
+                            <span>${item.lines ?? '--'} 行</span>
+                            <span>${fmtDateTime(item.modified)}</span>
+                        </div>
+                    </button>
+                `;
+            }).join('') || '<div class="text-gray-500 text-sm">暂无日志文件</div>';
+        }
+
+        function formatLogEntry(entry) {
+            if (entry._raw) {
+                return `<div class="px-3 py-2 border-b border-gray-800/60 text-gray-400">${escapeHtml(entry._raw)}</div>`;
+            }
+
+            const ts = entry.timestamp || entry.time || entry.ts || entry.generated_at || '';
+            let timeStr = '';
+            if (ts) {
+                try {
+                    timeStr = new Date(typeof ts === 'number' ? ts : ts).toLocaleString('zh-CN');
+                } catch (_) {
+                    timeStr = String(ts);
+                }
+            }
+
+            const parts = [];
+            if (timeStr) parts.push(`<span class="text-gray-500">${escapeHtml(timeStr)}</span>`);
+            if (entry.symbol) parts.push(`<span class="text-cyan-400 font-medium">${escapeHtml(entry.symbol)}</span>`);
+            if (entry.action || entry.side) parts.push(`<span class="text-yellow-300">${escapeHtml(entry.action || entry.side)}</span>`);
+            if (entry.status) parts.push(`<span class="text-purple-300">[${escapeHtml(entry.status)}]</span>`);
+            if (entry.reason || entry.message || entry.error) parts.push(`<span class="text-gray-300">${escapeHtml(entry.reason || entry.message || entry.error)}</span>`);
+
+            const compact = parts.join(' ');
+            const pretty = escapeHtml(JSON.stringify(entry, null, 2));
+
+            return `
+                <details class="log-row border-b border-gray-800/60 px-3 py-2">
+                    <summary class="cursor-pointer list-none">
+                        <div class="text-gray-200">${compact || '<span class="text-gray-400">结构化记录</span>'}</div>
+                    </summary>
+                    <pre class="mt-2 text-gray-400 whitespace-pre-wrap break-all">${pretty}</pre>
+                </details>
+            `;
+        }
+
+        function loadOverview() {
+            return fetch(API_BASE + '/api/logs-overview')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    renderOverview(data);
+                });
+        }
+
+        function loadLogsList() {
+            return fetch(API_BASE + '/api/logs-list')
+                .then(r => r.json())
+                .then(data => {
+                    renderLogList(data.logs || []);
+                    if (!currentLogName && Array.isArray(data.logs) && data.logs.length > 0) {
+                        const preferred = new URLSearchParams(window.location.search).get('log');
+                        const initial = data.logs.find(item => item.name === preferred)?.name || data.logs[0].name;
+                        if (initial) loadLog(initial);
+                    }
+                });
+        }
+
+        function loadLog(name) {
+            currentLogName = name;
+            renderLogList(cachedLogs);
+            const lines = document.getElementById('log-lines').value;
+            const viewer = document.getElementById('log-viewer');
+            const meta = document.getElementById('log-meta');
+            viewer.innerHTML = '<div class="text-gray-500 p-3">加载中...</div>';
+            fetch(API_BASE + '/api/logs/' + encodeURIComponent(name) + '?lines=' + lines)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        viewer.innerHTML = '<div class="text-red-400 p-3">错误: ' + escapeHtml(data.error) + '</div>';
+                        meta.textContent = '';
+                        return;
+                    }
+                    meta.textContent = `${data.log} | ${data.section} | 共 ${data.total_lines} 行，当前显示 ${data.returned} 行`;
+                    viewer.innerHTML = (data.entries || []).map(formatLogEntry).join('') || '<div class="text-gray-500 p-3">日志为空</div>';
+                })
+                .catch(err => {
+                    viewer.innerHTML = '<div class="text-red-400 p-3">错误: ' + escapeHtml(err.message) + '</div>';
+                    meta.textContent = '';
+                });
+        }
+
+        function reloadCurrentLog() {
+            if (currentLogName) loadLog(currentLogName);
+        }
+
+        function refreshAll() {
+            document.getElementById('page-status').textContent = '刷新中...';
+            Promise.all([loadOverview(), loadLogsList()])
+                .then(() => {
+                    if (currentLogName) {
+                        return fetch(API_BASE + '/api/logs/' + encodeURIComponent(currentLogName) + '?lines=' + document.getElementById('log-lines').value)
+                            .then(r => r.json())
+                            .then(data => {
+                                if (!data.error) {
+                                    document.getElementById('log-meta').textContent = `${data.log} | ${data.section} | 共 ${data.total_lines} 行，当前显示 ${data.returned} 行`;
+                                    document.getElementById('log-viewer').innerHTML = (data.entries || []).map(formatLogEntry).join('') || '<div class="text-gray-500 p-3">日志为空</div>';
+                                }
+                            });
+                    }
+                })
+                .then(() => {
+                    document.getElementById('page-status').textContent = '已刷新 ' + new Date().toLocaleTimeString('zh-CN');
+                })
+                .catch(err => {
+                    document.getElementById('page-status').textContent = '刷新失败';
+                    console.error(err);
+                });
+        }
+
+        function toggleAutoRefresh() {
+            if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+            if (document.getElementById('auto-refresh').checked) {
+                autoRefreshTimer = setInterval(refreshAll, 15000);
+            }
+        }
+
+        refreshAll();
+        toggleAutoRefresh();
+    </script>
+</body>
+</html>

@@ -82,6 +82,7 @@
   - `runtime/state/`
   - `runtime/outbox/`
   - `system/engine/`
+- [ ] 明确根目录 `logs/` 作为统一观测入口，并迁移可巡检日志/历史产物
 - [ ] 消除重复运行产物路径
 - [ ] 确认 `.last_execution_cycle.json` 单一来源
 - [ ] 确认状态文件、日志文件、outbox 文件的统一落点

@@ -13,7 +13,7 @@
 
 本文档的核心建议是：
 
-> 在 `runtime/` 下新增一个更高一级的总入口目录：`runtime/observability/`
+> 在项目根目录新增统一观测入口：`logs/`
 
 以后所有“为了看系统是否正常运行而读取的内容”，都尽量从这里进入。
 
@@ -106,16 +106,16 @@
 建议新增：
 
 ```text
-runtime/observability/
+logs/
 ```
 
 它的职责不是替代全部运行目录，而是成为“系统巡检总入口”。
 
 也就是说：
 
-- `runtime/state/` 仍然可以保留控制态
-- `runtime/outbox/` 仍然可以保留待发送产物
-- 但凡是“需要被看、被查、被诊断”的内容，尽量归拢到 `runtime/observability/`
+- `runtime/state/` 仍然保留控制态
+- `runtime/outbox/` 仍然保留待发送产物
+- 但凡是“需要被看、被查、被诊断”的内容，尽量归拢到根目录 `logs/`
 
 ---
 
@@ -124,57 +124,54 @@ runtime/observability/
 建议目标结构如下：
 
 ```text
+logs/
+  latest/
+    engine_cycle.json
+    market_context.json
+    dashboard_snapshot.json
+    agents_status.json
+
+  audit/
+    cycles.jsonl
+    strategy.jsonl
+    risk.jsonl
+    intents.jsonl
+    notifications.jsonl
+    dispatch_queue.jsonl
+    execution.jsonl
+
+  service/
+    scheduler.jsonl
+    watcher.jsonl
+    dashboard.jsonl
+
+  agents/
+    strategist/
+      run.jsonl
+      strategy_plan_history.jsonl
+      iterations/
+    newswire/
+      run.jsonl
+      history.jsonl
+    watcher/
+      run.jsonl
+      history.jsonl
+    executor/
+      run.jsonl
+      checklist_history.jsonl
+    scout/
+      run.jsonl
+      candidates_history.jsonl
+    closer/
+      run.jsonl
+      summary_history.jsonl
+
+  manifests/
+    log_index.json
+    retention_policy.json
+    sources.json
+
 runtime/
-  observability/
-    latest/
-      engine_cycle.json
-      market_context.json
-      dashboard_snapshot.json
-      agents_status.json
-
-    logs/
-      audit/
-        cycles.jsonl
-        strategy.jsonl
-        risk.jsonl
-        intents.jsonl
-        notifications.jsonl
-        dispatch_queue.jsonl
-        execution.jsonl
-
-      service/
-        scheduler.jsonl
-        watcher.jsonl
-        dashboard.jsonl
-
-      agents/
-        strategist.jsonl
-        newswire.jsonl
-        watcher.jsonl
-        executor.jsonl
-        scout.jsonl
-        closer.jsonl
-
-    history/
-      newswire/
-        history.jsonl
-      watcher/
-        history.jsonl
-      strategist/
-        strategy_plan_history.jsonl
-        iterations/
-      executor/
-        checklist_history.jsonl
-      scout/
-        candidates_history.jsonl
-      closer/
-        summary_history.jsonl
-
-    manifests/
-      log_index.json
-      retention_policy.json
-      sources.json
-
   state/
     control_state.json
     execution_state.json
@@ -188,7 +185,7 @@ runtime/
 
 ## 五、目录职责定义
 
-### 1. `runtime/observability/latest/`
+### 1. `logs/latest/`
 
 放“最新状态快照”。
 
@@ -205,7 +202,7 @@ runtime/
 - 文件名固定
 - 可直接被 Dashboard 或 CLI 巡检脚本消费
 
-### 2. `runtime/observability/logs/audit/`
+### 2. `logs/audit/`
 
 放“系统行为审计日志”。
 
@@ -222,7 +219,7 @@ runtime/
 - 一行一条结构化记录
 - 主要由 engine 代码自动写入
 
-### 3. `runtime/observability/logs/service/`
+### 3. `logs/service/`
 
 放“组件运行日志”。
 
@@ -238,7 +235,7 @@ runtime/
 - 允许带 `level`
 - 与审计日志分开，避免行为记录和报错混在一起
 
-### 4. `runtime/observability/logs/agents/`
+### 4. `logs/agents/`
 
 放“agent 级运行日志”。
 
@@ -253,9 +250,9 @@ runtime/
 - 这里存的是“运行日志”
 - 不是最终业务产物本身
 
-### 5. `runtime/observability/history/`
+### 5. `logs/agents/<agent_name>/`
 
-放“结构化业务历史产物”。
+既放 agent 运行日志，也放对应的结构化业务历史产物。
 
 例如：
 
@@ -266,9 +263,9 @@ runtime/
 
 特点：
 
-- 更偏结果归档
-- 可长期保留
-- 便于复盘和审计
+- 一个 agent 一处目录
+- 便于人工巡检
+- 便于后续按 agent 做 retention 和索引
 
 ### 6. `runtime/state/`
 
@@ -381,9 +378,9 @@ runtime/
 
 ## 八、建议新增的总览文件
 
-为了方便“视察系统运行状态”，建议在 `runtime/observability/` 下增加两个总览文件：
+为了方便“视察系统运行状态”，建议在 `logs/` 下增加两个总览文件：
 
-### 1. `runtime/observability/latest/agents_status.json`
+### 1. `logs/latest/agents_status.json`
 
 建议汇总：
 
@@ -392,7 +389,7 @@ runtime/
 - 最近输出文件路径
 - 最近错误摘要
 
-### 2. `runtime/observability/manifests/log_index.json`
+### 2. `logs/manifests/log_index.json`
 
 建议汇总：
 
@@ -414,7 +411,7 @@ runtime/
 
 ### Step 1：先建立规范与映射
 
-先新增 `runtime/observability/`，但允许底层实现暂时仍写旧路径。
+先新增根目录 `logs/`，但允许底层实现暂时仍写旧路径。
 
 先完成：
 
@@ -426,9 +423,10 @@ runtime/
 
 对新增功能或新日志，直接写到：
 
-- `runtime/observability/logs/...`
-- `runtime/observability/history/...`
-- `runtime/observability/latest/...`
+- `logs/audit/...`
+- `logs/service/...`
+- `logs/agents/...`
+- `logs/latest/...`
 
 ### Step 3：逐步迁移旧路径
 
@@ -439,7 +437,7 @@ runtime/
 - `runtime/engine/watcher/*`
 - `runtime/engine/strategy_plan_*`
 
-迁到新结构，并保留一段时间兼容读取。
+迁到根目录 `logs/` 结构下，并保留一段时间兼容读取。
 
 ---
 
@@ -448,16 +446,17 @@ runtime/
 就当前项目阶段，我建议优先做这三件事：
 
 1. 在 `docs/` 中冻结本规范
-2. 在 `runtime/` 下引入 `observability/` 作为统一巡检入口
+2. 在项目根目录引入 `logs/` 作为统一巡检入口
 3. 后续把 `Phase 2.3` 和 `Phase 3.1` 以这份规范为准推进
 
 如果只做最小一步，也建议先做到：
 
 ```text
-runtime/observability/
+logs/
   latest/
-  logs/
-  history/
+  audit/
+  service/
+  agents/
 ```
 
 这已经能显著改善系统可观测性。
@@ -475,5 +474,5 @@ runtime/observability/
 
 因此，建议不是“补一个日志文件”，而是：
 
-> 建立 `runtime/observability/` 作为更高一级的总入口目录，
-> 统一管理日志、最新状态和历史产物，提升系统巡检与问题排查效率。
+> 建立项目根目录 `logs/` 作为更高一级的总入口目录，
+> 统一管理日志、最新状态和 agent 历史产物，提升系统巡检与问题排查效率。

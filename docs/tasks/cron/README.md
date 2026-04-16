@@ -15,14 +15,14 @@
 
 | Cron 配置 | 任务正文 |
 |---|---|
-| `watcher-cron.json` | `watcher.md` |
-| `newswire-premarket.json` | `newswire-premarket.md` |
-| `newswire-intraday.json` | `newswire-intraday.md` |
-| `newswire-afterhours.json` | `newswire-afterhours.md` |
-| `strategist-premarket.json` | `strategist-premarket.md` |
-| `strategist-intraday.json` | `strategist-intraday.md` |
-| `strategist-afterhours.json` | `strategist-afterhours.md` |
-| `closer-us-cron.json` | `closer-us.md` |
+| `trading-watcher-cron.json` | `watcher.md` |
+| `trading-newswire-premarket.json` | `newswire-premarket.md` |
+| `trading-newswire-intraday.json` | `newswire-intraday.md` |
+| `trading-newswire-afterhours.json` | `newswire-afterhours.md` |
+| `trading-strategist-premarket.json` | `strategist-premarket.md` |
+| `trading-strategist-intraday.json` | `strategist-intraday.md` |
+| `trading-strategist-afterhours.json` | `strategist-afterhours.md` |
+| `trading-closer-us-cron.json` | `closer-us.md` |
 
 ## 使用方式
 

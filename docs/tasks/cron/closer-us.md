@@ -1,6 +1,6 @@
 # 美股收盘后生成总结报告（16:00 ET）
 
-- 来源 cron: `closer-us-cron.json`
+- 来源 cron: `trading-closer-us-cron.json`
 - taskFile: `docs/tasks/cron/closer-us.md`
 - 调度名: `closer-us`
 

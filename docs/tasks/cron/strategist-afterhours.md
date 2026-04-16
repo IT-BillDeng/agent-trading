@@ -1,6 +1,6 @@
 # US 盘后信号质量分析 + 明日策略调整
 
-- 来源 cron: `strategist-afterhours.json`
+- 来源 cron: `trading-strategist-afterhours.json`
 - taskFile: `docs/tasks/cron/strategist-afterhours.md`
 - 调度名: `trading-strategist-afterhours`
 

@@ -1,6 +1,6 @@
 # US 盘前新闻扫描（v3优化：web_fetch优先+批量搜索≤2次）
 
-- 来源 cron: `newswire-premarket.json`
+- 来源 cron: `trading-newswire-premarket.json`
 - taskFile: `docs/tasks/cron/newswire-premarket.md`
 - 调度名: `trading-newswire-premarket`
 

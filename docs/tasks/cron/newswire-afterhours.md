@@ -1,6 +1,6 @@
 # US 盘后新闻扫描（v3优化：web_fetch优先+批量搜索≤2次）
 
-- 来源 cron: `newswire-afterhours.json`
+- 来源 cron: `trading-newswire-afterhours.json`
 - taskFile: `docs/tasks/cron/newswire-afterhours.md`
 - 调度名: `trading-newswire-afterhours`
 

@@ -1,6 +1,6 @@
 # US 盘前策略复盘 + 设定今日参数
 
-- 来源 cron: `strategist-premarket.json`
+- 来源 cron: `trading-strategist-premarket.json`
 - taskFile: `docs/tasks/cron/strategist-premarket.md`
 - 调度名: `trading-strategist-premarket`
 

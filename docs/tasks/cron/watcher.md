@@ -1,6 +1,6 @@
 # 系统健康监护人 - 每 15 分钟通过 API 检查系统状态
 
-- 来源 cron: `watcher-cron.json`
+- 来源 cron: `trading-watcher-cron.json`
 - taskFile: `docs/tasks/cron/watcher.md`
 - 调度名: `watcher`
 

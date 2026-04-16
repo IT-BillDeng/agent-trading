@@ -1,6 +1,6 @@
 # US 盘中异常监控（1h，omni 模型）
 
-- 来源 cron: `strategist-intraday.json`
+- 来源 cron: `trading-strategist-intraday.json`
 - taskFile: `docs/tasks/cron/strategist-intraday.md`
 - 调度名: `trading-strategist-intraday`
 

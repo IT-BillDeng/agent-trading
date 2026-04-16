@@ -1,4 +1,4 @@
-# TIGER Strategist Brief
+# Strategist Brief
 
 `strategist` 的职责：基于本地股票清单、现有风控和当前周期状态，输出**交易计划草案**。
 

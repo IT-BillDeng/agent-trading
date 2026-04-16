@@ -1,10 +1,10 @@
-# TIGER Executor Task Template
+# Executor Task Template
 
 给 `executor` 派工时，优先使用这份模板。
 
 ---
 
-目标：审查当前 Tiger paper 执行链的准备度，并把计划转成最短执行检查单。
+目标：审查当前 paper 执行链的准备度，并把计划转成最短执行检查单。
 
 工作目录：`/workspace/agent-trading/`
 

@@ -1,4 +1,4 @@
-# TIGER Watcher Task Template
+# Watcher Task Template
 
 给 `watcher` 派工时，优先使用这份模板。
 

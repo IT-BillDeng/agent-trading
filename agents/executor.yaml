@@ -1,4 +1,4 @@
-# Tiger Executor Agent Configuration
+# Executor Agent Configuration
 # 职责：执行检查单/参数校验（把计划转成可执行检查单）
 # 频率：策略完成后触发
 

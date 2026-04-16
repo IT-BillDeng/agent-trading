@@ -1,4 +1,4 @@
-# TIGER Newswire Task Template
+# Newswire Task Template
 
 给 `newswire` 派工时，使用当前任务正文 [NEWSWIRE_TASK.md](./NEWSWIRE_TASK.md)。简要要点：
 

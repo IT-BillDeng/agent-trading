@@ -1,4 +1,4 @@
-# TIGER Strategist Task Template
+# Strategist Task Template
 
 给 `strategist` 派工时，优先使用这份模板。
 

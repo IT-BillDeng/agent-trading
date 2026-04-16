@@ -1,4 +1,4 @@
-# TIGER Newswire Brief
+# Newswire Brief
 
 `newswire` 的职责：为本地股票清单提供**新闻、事件、催化与时间线整理**。
 

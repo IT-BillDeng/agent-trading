@@ -80,7 +80,7 @@
 
 例如：
 
-- `tiger_closer_outbox.json`
+- `closer_outbox.json`
 
 ---
 
@@ -232,7 +232,7 @@
 |------|----------|----------|----------|--------------|
 | 最新收盘总结 | `runtime/engine/closer_summary_latest.json` | 当前市场收盘总结 | `artifacts` | `artifacts/closer/summary_latest.json` |
 | 收盘总结历史 | `runtime/engine/closer_summary_history.jsonl` | 历史收盘总结 | `artifacts` | `artifacts/closer/summary_history.jsonl` |
-| 待发送消息 | `runtime/outbox/tiger_closer_outbox.json` | 待发送或待消费消息 | `outbox` | `runtime/outbox/tiger_closer_outbox.json` |
+| 待发送消息 | `runtime/outbox/closer_outbox.json` | 待发送或待消费消息 | `outbox` | `runtime/outbox/closer_outbox.json` |
 
 主要消费者：
 

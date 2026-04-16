@@ -1,4 +1,4 @@
-# Tiger Closer Agent Configuration
+# Closer Agent Configuration
 # 职责：收盘总结/复盘/明日关注（每个市场收盘后输出总结）
 # 频率：每市场收盘后
 
@@ -23,7 +23,7 @@ input_files:
 
 # 输出文件
 output_files:
-  - /workspace/agent-trading/runtime/outbox/tiger_closer_outbox.json
+  - /workspace/agent-trading/runtime/outbox/closer_outbox.json
   - /workspace/agent-trading/runtime/engine/closer_summary_latest.json
   - /workspace/agent-trading/runtime/engine/closer_summary_history.jsonl
 

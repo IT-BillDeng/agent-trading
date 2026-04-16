@@ -1,4 +1,4 @@
-# Tiger Strategist — 自主迭代任务模板
+# Strategist — 自主迭代任务模板
 
 ## 核心原则
 1. 每次策略变更必须回测验证

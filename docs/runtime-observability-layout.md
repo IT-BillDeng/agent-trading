@@ -77,7 +77,7 @@
 
 例如：
 
-- `runtime/outbox/tiger_closer_outbox.json`
+- `runtime/outbox/closer_outbox.json`
 - `runtime/state/watcher_state.json`
 
 说明当前还存在运行目录职责边界不完全统一的问题。
@@ -180,7 +180,7 @@ runtime/
     watcher_state.json
 
   outbox/
-    tiger_closer_outbox.json
+    closer_outbox.json
 ```
 
 ---

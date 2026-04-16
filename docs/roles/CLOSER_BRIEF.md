@@ -1,4 +1,4 @@
-# TIGER Closer Brief
+# Closer Brief
 
 `closer` 的职责：在**每个市场收盘后**输出收盘总结，覆盖行情、新闻、执行状态与下一步关注点。
 

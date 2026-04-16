@@ -1,6 +1,6 @@
-# TIGER Watcher Brief
+# Watcher Brief
 
-`watcher` 的职责：做 Tiger 交易系统里的**高频行情监控 agent**。
+`watcher` 的职责：做 交易系统里的**高频行情监控 agent**。
 
 工作目录：`/workspace/agent-trading/`
 

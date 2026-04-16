@@ -1,4 +1,4 @@
-# TIGER Executor Brief
+# Executor Brief
 
 `executor` 的职责：把经 `Operator` 确认的计划，转成**可执行检查单与执行链状态审查**。
 

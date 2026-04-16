@@ -1,10 +1,10 @@
-# Tiger Newswire Agent Configuration
+# Newswire Agent Configuration
 # 职责：新闻/催化扫描（个股新闻 + 宏观/行业/大盘）
 # 频率：US 盘前 / 盘中 q30 / 盘后 q2h
 # 模型：omni（通用任务）
 
 agent_id: newswire
-model: xiaomi-tp/mimo-v2-omni
+model: xiaomi/mimo-v2-omni
 description: "新闻/催化扫描：个股新闻、宏观事件、行业动态（v3优化版）"
 
 # Tool 权限配置

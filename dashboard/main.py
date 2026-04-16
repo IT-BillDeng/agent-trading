@@ -586,7 +586,7 @@ def _build_agents_status() -> dict[str, Any]:
         "closer": {
             "latest_output": _file_meta(RUNTIME_DIR / "closer_summary_latest.json"),
             "history_output": _file_meta(RUNTIME_DIR / "closer_summary_history.jsonl"),
-            "outbox": _file_meta(RUNTIME_DIR.parent / "outbox" / "tiger_closer_outbox.json"),
+            "outbox": _file_meta(RUNTIME_DIR.parent / "outbox" / "closer_outbox.json"),
         },
     }
     status = {
@@ -1048,7 +1048,7 @@ async def api_control(action: str):
     """Reset paper account local state.
 
     Clears all local order tracking (submitted, previews, sync, history)
-    so the system can trade freely after a Tiger paper account reset.
+    so the system can trade freely after a paper account reset.
     Also locks the engine as a safety measure.
     """
     import json as _json

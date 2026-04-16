@@ -1,4 +1,4 @@
-# TIGER Closer Task Template
+# Closer Task Template
 
 给 `closer` 派工时，优先使用这份模板。
 

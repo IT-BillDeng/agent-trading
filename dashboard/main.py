@@ -1497,6 +1497,7 @@ async def api_news_sources_update(body: dict):
 @app.get("/api/logs/{log_name}")
 async def api_logs(log_name: str = "execution", lines: int = 100):
     """Read log files from root logs/ first, with runtime/logs fallback."""
+    import json
     resolved = _resolve_log_file(log_name)
     if not resolved:
         available = [path.stem for _, path in _iter_log_files()]

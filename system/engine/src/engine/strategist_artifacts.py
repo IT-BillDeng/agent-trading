@@ -2,10 +2,30 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
 from .artifacts import append_jsonl, resolve_artifacts_root, write_json
+
+
+APPROVAL_STATUSES = {
+    "draft",
+    "validated",
+    "awaiting_approval",
+    "approved",
+    "rejected",
+    "applied",
+}
+
+ALLOWED_APPROVAL_TRANSITIONS = {
+    "draft": {"validated", "rejected"},
+    "validated": {"awaiting_approval", "rejected"},
+    "awaiting_approval": {"approved", "rejected"},
+    "approved": {"applied"},
+    "rejected": set(),
+    "applied": set(),
+}
 
 
 def resolve_strategist_dir(base_dir: str | Path | None = None) -> Path:
@@ -69,6 +89,41 @@ def record_rollback_note(record: dict[str, Any], base_dir: str | Path | None = N
 def queue_approval_request(proposal_id: str, record: dict[str, Any], base_dir: str | Path | None = None) -> Path:
     paths = ensure_strategist_dirs(base_dir)
     queue_path = paths["approval_queue_dir"] / f"{proposal_id}.json"
+    status = record.get("status", "draft")
+    if status not in APPROVAL_STATUSES:
+        raise ValueError(f"unknown approval status: {status}")
+    write_json(queue_path, record)
+    return queue_path
+
+
+def load_approval_request(proposal_id: str, base_dir: str | Path | None = None) -> dict[str, Any]:
+    paths = ensure_strategist_dirs(base_dir)
+    queue_path = paths["approval_queue_dir"] / f"{proposal_id}.json"
+    if not queue_path.exists():
+        raise FileNotFoundError(queue_path)
+    return json.loads(queue_path.read_text())
+
+
+def transition_approval_status(
+    proposal_id: str,
+    new_status: str,
+    updates: dict[str, Any] | None = None,
+    base_dir: str | Path | None = None,
+) -> Path:
+    if new_status not in APPROVAL_STATUSES:
+        raise ValueError(f"unknown approval status: {new_status}")
+
+    paths = ensure_strategist_dirs(base_dir)
+    queue_path = paths["approval_queue_dir"] / f"{proposal_id}.json"
+    record = load_approval_request(proposal_id, base_dir)
+    current_status = record.get("status", "draft")
+    allowed = ALLOWED_APPROVAL_TRANSITIONS.get(current_status, set())
+    if new_status not in allowed:
+        raise ValueError(f"invalid approval transition: {current_status} -> {new_status}")
+
+    record["status"] = new_status
+    if updates:
+        record.update(updates)
     write_json(queue_path, record)
     return queue_path
 
@@ -83,3 +138,57 @@ def record_deployment_record(record: dict[str, Any], base_dir: str | Path | None
     paths = ensure_strategist_dirs(base_dir)
     append_jsonl(paths["deployment_records"], record)
     return paths["deployment_records"]
+
+
+def approve_request(
+    proposal_id: str,
+    decision_record: dict[str, Any],
+    base_dir: str | Path | None = None,
+) -> tuple[Path, Path]:
+    queue_path = transition_approval_status(
+        proposal_id,
+        "approved",
+        updates={"decision": "approved", **decision_record},
+        base_dir=base_dir,
+    )
+    decision_path = record_approval_decision(
+        {"proposal_id": proposal_id, "decision": "approved", **decision_record},
+        base_dir=base_dir,
+    )
+    return queue_path, decision_path
+
+
+def reject_request(
+    proposal_id: str,
+    decision_record: dict[str, Any],
+    base_dir: str | Path | None = None,
+) -> tuple[Path, Path]:
+    queue_path = transition_approval_status(
+        proposal_id,
+        "rejected",
+        updates={"decision": "rejected", **decision_record},
+        base_dir=base_dir,
+    )
+    decision_path = record_approval_decision(
+        {"proposal_id": proposal_id, "decision": "rejected", **decision_record},
+        base_dir=base_dir,
+    )
+    return queue_path, decision_path
+
+
+def mark_request_applied(
+    proposal_id: str,
+    deployment_record: dict[str, Any],
+    base_dir: str | Path | None = None,
+) -> tuple[Path, Path]:
+    queue_path = transition_approval_status(
+        proposal_id,
+        "applied",
+        updates={"applied": True, **deployment_record},
+        base_dir=base_dir,
+    )
+    deployment_path = record_deployment_record(
+        {"proposal_id": proposal_id, **deployment_record},
+        base_dir=base_dir,
+    )
+    return queue_path, deployment_path

@@ -11,14 +11,19 @@ if str(ENGINE_SRC) not in sys.path:
     sys.path.insert(0, str(ENGINE_SRC))
 
 from engine.strategist_artifacts import (  # noqa: E402
+    approve_request,
     ensure_strategist_dirs,
+    load_approval_request,
+    mark_request_applied,
     queue_approval_request,
+    reject_request,
     record_approval_decision,
     record_code_change_proposal,
     record_code_change_result,
     record_deployment_record,
     record_rollback_note,
     strategist_paths,
+    transition_approval_status,
 )
 
 
@@ -136,6 +141,89 @@ class StrategistArtifactTests(unittest.TestCase):
             self.assertEqual(queue_record["recommended_update_mode"], "cold")
             self.assertEqual(decision_record["decision"], "approved")
             self.assertTrue(deployment_record["success"])
+
+    def test_l3b_state_machine_happy_path(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            artifacts_dir = Path(tmpdir) / "artifacts"
+            old_env = os.environ.get("ENGINE_ARTIFACTS_DIR")
+            os.environ["ENGINE_ARTIFACTS_DIR"] = str(artifacts_dir)
+            try:
+                queue_approval_request(
+                    "prop_003",
+                    {
+                        "proposal_id": "prop_003",
+                        "status": "validated",
+                    },
+                )
+                transition_approval_status("prop_003", "awaiting_approval")
+                queue_path, decision_path = approve_request(
+                    "prop_003",
+                    {
+                        "decider_type": "human",
+                        "decider_id": "teacher",
+                    },
+                )
+                applied_queue_path, deployment_path = mark_request_applied(
+                    "prop_003",
+                    {
+                        "update_mode": "cold",
+                        "success": True,
+                    },
+                )
+                final_record = load_approval_request("prop_003")
+            finally:
+                if old_env is None:
+                    os.environ.pop("ENGINE_ARTIFACTS_DIR", None)
+                else:
+                    os.environ["ENGINE_ARTIFACTS_DIR"] = old_env
+
+            self.assertEqual(queue_path, applied_queue_path)
+            self.assertEqual(final_record["status"], "applied")
+            self.assertEqual(final_record["decision"], "approved")
+            self.assertTrue(final_record["applied"])
+            self.assertEqual(json.loads(decision_path.read_text().splitlines()[0])["decision"], "approved")
+            self.assertTrue(json.loads(deployment_path.read_text().splitlines()[0])["success"])
+
+    def test_l3b_state_machine_rejects_invalid_transition(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            artifacts_dir = Path(tmpdir) / "artifacts"
+            old_env = os.environ.get("ENGINE_ARTIFACTS_DIR")
+            os.environ["ENGINE_ARTIFACTS_DIR"] = str(artifacts_dir)
+            try:
+                queue_approval_request(
+                    "prop_004",
+                    {
+                        "proposal_id": "prop_004",
+                        "status": "awaiting_approval",
+                    },
+                )
+                with self.assertRaises(ValueError):
+                    mark_request_applied(
+                        "prop_004",
+                        {
+                            "update_mode": "cold",
+                            "success": True,
+                        },
+                    )
+                queue_path, decision_path = reject_request(
+                    "prop_004",
+                    {
+                        "decider_type": "agent",
+                        "decider_id": "yuuka",
+                        "reason": "insufficient evidence",
+                    },
+                )
+                final_record = load_approval_request("prop_004")
+            finally:
+                if old_env is None:
+                    os.environ.pop("ENGINE_ARTIFACTS_DIR", None)
+                else:
+                    os.environ["ENGINE_ARTIFACTS_DIR"] = old_env
+
+            self.assertEqual(final_record["status"], "rejected")
+            self.assertEqual(final_record["decision"], "rejected")
+            self.assertEqual(json.loads(queue_path.read_text())["reason"], "insufficient evidence")
+            self.assertEqual(json.loads(decision_path.read_text().splitlines()[0])["decision"], "rejected")
 
 
 if __name__ == "__main__":

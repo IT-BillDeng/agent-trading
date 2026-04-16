@@ -43,7 +43,7 @@ def create_data_provider(provider: str = "tiger", **kwargs) -> DataProvider:
     """Factory: create data provider by name.
 
     Args:
-        provider: 'tiger' | 'yfinance'
+        provider: current broker platform | 'yfinance'
         kwargs: passed to provider constructor
     """
     if provider == "tiger":

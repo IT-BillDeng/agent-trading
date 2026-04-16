@@ -101,7 +101,7 @@ class BacktestConfig:
     commission_rate: float = 0.001  # 0.1%
     slippage_rate: float = 0.001  # 0.1%
     max_position_pct: float = 0.2  # 单标的最大仓位比例
-    data_source: str = 'tiger'  # 默认使用当前 broker 的历史数据提供器（兼容 tiger provider）
+    data_source: str = 'tiger'  # 默认使用当前券商的历史数据提供器（兼容历史 provider 名）
     
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

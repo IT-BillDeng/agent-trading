@@ -9,7 +9,7 @@ class QuoteProvider(ABC):
     @property
     @abstractmethod
     def name(self) -> str:
-        """Provider identifier (e.g. 'tiger', 'yfinance')."""
+        """Provider identifier (e.g. current broker platform, 'yfinance')."""
 
     @abstractmethod
     def get_quote(self, symbols: list[str], market: str = "US") -> list[dict]:
@@ -29,7 +29,7 @@ def get_quote_provider(provider: str = "yfinance", **kwargs) -> QuoteProvider:
     """Factory: create a quote provider by name.
 
     Args:
-        provider: 'tiger' | 'yfinance'
+        provider: current broker platform | 'yfinance'
         kwargs: passed to provider constructor
     """
     if provider == "tiger":

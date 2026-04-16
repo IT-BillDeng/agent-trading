@@ -3,7 +3,7 @@
 Usage:
     from dashboard.normalize import get_normalizer
 
-    norm = get_normalizer("tiger")  # or "ib", "futu", etc.
+    norm = get_normalizer(current_broker_platform())  # or "ib", "futu", etc.
     account = norm.account(raw_data)
     positions = norm.positions(raw_list)
 

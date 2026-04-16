@@ -114,3 +114,17 @@ DefaultBrokerClient (default implementation)
 ## 6. 结论
 
 **当前项目已经 broker-neutral 到“文档和部分数据层”，但执行层还需要一个真正的 BrokerClient 接口才能算完成抽象。**
+
+## 7. Compatibility-only names
+
+当前活跃仓库里仍保留的一些 `tiger` 命名，主要是兼容层或实现层，不再代表项目叙事中心：
+
+- `dashboard/tiger_client.py`
+- `dashboard/tiger_quote_provider.py`
+- `system/engine/src/engine/tiger_client.py`
+- `system/engine/src/engine/tiger_data_provider.py`
+- `tigeropen` 第三方 SDK
+- `tiger_openapi_config.properties`
+- 历史兼容的 `tiger` provider / normalizer 注册名
+
+这些名字可以先保留，避免破坏现有兼容性；新文档和配置应优先使用 `broker.platform`、`current broker`、`default broker implementation` 之类的中性表述。

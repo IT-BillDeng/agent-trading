@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Manual order placement for debugging.
-Usage: python3 manual_order.py <tiger_props> <symbol> <quantity> <sl_pct> <tp_pct>
+Usage: python3 manual_order.py <broker_props> <symbol> <quantity> <sl_pct> <tp_pct>
 """
 import json
 import sys
@@ -14,7 +14,7 @@ from engine.config import load_tiger_props
 
 def main():
     if len(sys.argv) != 6:
-        print("usage: python3 manual_order.py <tiger_props> <symbol> <quantity> <sl_pct> <tp_pct>")
+        print("usage: python3 manual_order.py <broker_props> <symbol> <quantity> <sl_pct> <tp_pct>")
         print("example: python3 manual_order.py properties/tiger.properties NVDA 100 5 5")
         return 1
 

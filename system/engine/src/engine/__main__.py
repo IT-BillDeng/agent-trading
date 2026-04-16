@@ -35,7 +35,7 @@ def main() -> int:
     # Create data provider
     if provider == "yfinance":
         data = create_data_provider("yfinance")
-        # yfinance doesn't need TigerClient, but we still create one for trade ops
+        # yfinance doesn't need the broker client, but we still create one for trade ops
         client = None
         if props_path:
             props = load_tiger_props(props_path)

@@ -16,7 +16,7 @@ from .notifier import NotificationBuilder
 from .risk import RiskManager
 from .strategy import StrategyEngine
 from .rule_engine import RuleEngine
-from .tiger_client import TigerClient
+from .broker_client import BrokerClient
 
 
 def _unwrap_data(resp: dict[str, Any]) -> Any:
@@ -96,7 +96,7 @@ def _log_dir(app: AppConfig) -> Path:
     return log_dir
 
 
-def fetch_cycle_raw(client: TigerClient, app: AppConfig) -> dict[str, Any]:
+def fetch_cycle_raw(client: BrokerClient, app: AppConfig) -> dict[str, Any]:
     symbols_by_market: dict[str, list[str]] = {}
     for item in app.symbols:
         symbols_by_market.setdefault(item['market'], []).append(item['symbol'])
@@ -124,17 +124,17 @@ def fetch_cycle_raw(client: TigerClient, app: AppConfig) -> dict[str, Any]:
     return result
 
 
-def run_readonly_cycle(client: TigerClient, app: AppConfig) -> dict[str, Any]:
+def run_readonly_cycle(client: BrokerClient, app: AppConfig) -> dict[str, Any]:
     raw = fetch_cycle_raw(client, app)
     return summarize_cycle(raw)
 
 
-def run_strategy_cycle(client: TigerClient, app: AppConfig) -> dict[str, Any]:
+def run_strategy_cycle(client: BrokerClient, app: AppConfig) -> dict[str, Any]:
     raw = fetch_cycle_raw(client, app)
     return build_strategy_summary(raw, app)
 
 
-def run_dry_run_cycle(client: TigerClient, app: AppConfig, write_logs: bool = True) -> dict[str, Any]:
+def run_dry_run_cycle(client: BrokerClient, app: AppConfig, write_logs: bool = True) -> dict[str, Any]:
     raw = fetch_cycle_raw(client, app)
     summary = build_execution_summary(raw, app)
     summary['execution_submit'] = {
@@ -148,7 +148,7 @@ def run_dry_run_cycle(client: TigerClient, app: AppConfig, write_logs: bool = Tr
     return summary
 
 
-def run_execution_cycle(client: TigerClient, app: AppConfig, write_logs: bool = True) -> dict[str, Any]:
+def run_execution_cycle(client: BrokerClient, app: AppConfig, write_logs: bool = True) -> dict[str, Any]:
     control = ControlPlane(_state_dir(app))
     try:
         raw = fetch_cycle_raw(client, app)
@@ -373,10 +373,10 @@ def summarize_cycle(raw: dict[str, Any]) -> dict[str, Any]:
     return summary
 
 
-def fetch_cycle_raw_with_provider(client: TigerClient | None, data: Any, app: AppConfig) -> dict[str, Any]:
+def fetch_cycle_raw_with_provider(client: BrokerClient | None, data: Any, app: AppConfig) -> dict[str, Any]:
     """Fetch cycle data using a DataProvider for market data.
 
-    Trade operations (accounts/positions/orders) still use TigerClient.
+    Trade operations (accounts/positions/orders) still use the broker client.
     Market data (bars/quotes/contracts) uses the DataProvider.
     If client is None, trade operations return empty/error responses.
     """
@@ -417,12 +417,12 @@ def fetch_cycle_raw_with_provider(client: TigerClient | None, data: Any, app: Ap
     return result
 
 
-def run_cycle(mode: str, client: TigerClient | None, data: Any, app: AppConfig) -> dict[str, Any]:
+def run_cycle(mode: str, client: BrokerClient | None, data: Any, app: AppConfig) -> dict[str, Any]:
     """Run a cycle with pluggable data provider.
 
     Args:
         mode: 'readonly' | 'strategy' | 'dry-run' | 'execution'
-        client: TigerClient for trade ops (None for data-only mode)
+        client: broker client for trade ops (None for data-only mode)
         data: DataProvider for market data
         app: AppConfig
     """
@@ -436,7 +436,7 @@ def run_cycle(mode: str, client: TigerClient | None, data: Any, app: AppConfig) 
         return build_execution_summary(raw, app)
     elif mode == 'execution':
         if client is None:
-            return {'error': 'execution mode requires TigerClient (tiger provider)'}
+            return {'error': 'execution mode requires broker client'}
         return run_execution_cycle(client, app)
     else:
         return {'error': f'unknown mode: {mode}'}

@@ -7,7 +7,7 @@ from typing import Any
 from .control import ControlPlane
 from .state import StateStore
 from .sync import normalize_order_snapshot
-from .tiger_client import TigerClient
+from .broker_client import BrokerClient
 
 
 @dataclass
@@ -38,7 +38,7 @@ class SubmitResult:
 
 
 class LiveExecutionAdapter:
-    def __init__(self, app_config: dict[str, Any], client: TigerClient):
+    def __init__(self, app_config: dict[str, Any], client: BrokerClient):
         execution = dict(app_config.get('execution', {}))
         system = dict(app_config.get('system', {}))
         self.client = client

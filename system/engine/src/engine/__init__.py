@@ -1,5 +1,6 @@
 __all__ = [
     'config',
+    'broker_client',
     'tiger_client',
     'runtime',
     'indicators',

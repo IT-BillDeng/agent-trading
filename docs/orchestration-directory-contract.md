@@ -118,7 +118,33 @@
 - Dashboard 展示运行状态
 - 排查某轮周期为什么没跑、为什么被阻断
 
-### 5. `runtime/state/`
+### 5. `artifacts/`
+
+职责：**agent 业务产物与学习成果**
+
+放什么：
+
+- 策略计划
+- 新闻批次
+- 健康检查结果
+- 执行检查单
+- 候选扫描结果
+- 收盘总结
+- 经验记录、提案、拒绝记录、回测结果
+
+不放什么：
+
+- 纯运行日志
+- 控制状态
+- 待发送 outbox
+
+适用场景：
+
+- Dashboard / Operator 读取 agent 产出的业务结果
+- Strategist / Newswire / Watcher / Executor / Scout / Closer 继续在下一轮读取历史产物
+- 人工回看某个 agent 的长期演进记录
+
+### 6. `runtime/state/`
 
 职责：**控制态 / 内部状态**
 
@@ -139,7 +165,7 @@
 - 引擎运行时读写内部状态
 - 需要保留但不需要直接展示给用户的状态
 
-### 6. `runtime/outbox/`
+### 7. `runtime/outbox/`
 
 职责：**待发送消息 / 待消费产物**
 
@@ -223,9 +249,9 @@
 当前建议是：
 
 1. `logs/` 只承接“运行状态与诊断”
-2. `runtime/state/` 保留控制态
-3. `runtime/outbox/` 保留待发送消息
-4. `artifacts/` 若后续启用，用来承接真正的 agent 业务产物
+2. `artifacts/` 承接真正的 agent 业务产物
+3. `runtime/state/` 保留控制态
+4. `runtime/outbox/` 保留待发送消息
 
 ---
 
@@ -260,5 +286,6 @@
 - `agents/` = 谁来跑
 - `docs/tasks/` = 跑什么
 - `logs/` = 跑完看什么
+- `artifacts/` = 跑完留下些什么
 - `runtime/state/` = 当前记住什么
 - `runtime/outbox/` = 接下来要发什么

@@ -35,7 +35,7 @@
 
 建议路径：
 
-- `logs/latest/strategist_memory.json`
+- `artifacts/strategist/memory/latest.json`
 
 用途：
 
@@ -56,7 +56,7 @@
 
 建议路径：
 
-- `logs/agents/strategist/learning_log.jsonl`
+- `artifacts/strategist/memory/history.jsonl`
 
 用途：
 
@@ -81,8 +81,8 @@
 
 建议路径：
 
-- `logs/agents/strategist/proposals.jsonl`
-- `logs/agents/strategist/rejections.jsonl`
+- `artifacts/strategist/proposals.jsonl`
+- `artifacts/strategist/rejections.jsonl`
 
 用途：
 
@@ -107,8 +107,8 @@
 
 更新：
 
-- `logs/latest/strategist_memory.json`
-- 必要时追加 `learning_log.jsonl`
+- `artifacts/strategist/memory/latest.json`
+- 必要时追加 `artifacts/strategist/memory/history.jsonl`
 
 盘前重点：
 
@@ -130,8 +130,8 @@
 
 必须更新：
 
-- `logs/latest/strategist_memory.json`
-- `logs/agents/strategist/learning_log.jsonl`
+- `artifacts/strategist/memory/latest.json`
+- `artifacts/strategist/memory/history.jsonl`
 - 如有提案，写入 proposal / rejection 记录
 
 盘后是 strategist 最重要的学习沉淀点。
@@ -142,13 +142,12 @@
 
 strategist 在新一轮运行时，推荐按这个顺序读取：
 
-1. `logs/latest/strategist_memory.json`
-2. `runtime/engine/.last_execution_cycle.json`
-3. `runtime/engine/strategy_plan_latest.json`
-4. `strategy_plan_history.jsonl`
-5. `rules/rules.json`
-6. 最近的 `learning_log.jsonl`
-7. 最近的 proposal / rejection 记录
+1. `artifacts/strategist/memory/latest.json`
+2. `artifacts/strategist/strategy_plan_latest.json`
+3. `artifacts/strategist/strategy_plan_history.jsonl`
+4. `rules/rules.json`
+5. `artifacts/strategist/memory/history.jsonl`
+6. 最近的 proposal / rejection 记录
 
 这样可以把“当前状态”和“长期经验”一起纳入判断。
 
@@ -180,19 +179,14 @@ strategist 在新一轮运行时，推荐按这个顺序读取：
 
 ---
 
-## 六、和现有 `learning_log/` 的关系
+## 六、迁移说明
 
-仓库根目录下可能会出现 `learning_log/` 这类本地学习记录。
-如果后续要正式化，建议把它视为 **迁移来源**，而不是最终 canonical path。
+早期可能存在本地草稿式学习记录。现在不建议继续扩展这种独立目录；如果要正式化，统一迁移到：
 
-最终建议的 canonical path 仍然是：
-
-- `logs/latest/strategist_memory.json`
-- `logs/agents/strategist/learning_log.jsonl`
-- `logs/agents/strategist/proposals.jsonl`
-- `logs/agents/strategist/rejections.jsonl`
-
-如果 `learning_log/` 继续存在，只建议作为本地草稿区或过渡区，不建议再扩展成新的主存储入口。
+- `artifacts/strategist/memory/latest.json`
+- `artifacts/strategist/memory/history.jsonl`
+- `artifacts/strategist/proposals.jsonl`
+- `artifacts/strategist/rejections.jsonl`
 
 ---
 

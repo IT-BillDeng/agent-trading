@@ -484,32 +484,6 @@
             </div>
         </section>
 
-        <!-- Log Viewer -->
-        <section class="mt-6 card">
-            <div class="flex items-center justify-between mb-3">
-                <div class="card-title mb-0">📋 日志查看器</div>
-                <div class="flex items-center gap-2">
-                    <select id="log-selector" class="bg-dark-900 border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:border-tiger-500" onchange="loadLog(this.value)">
-                        <option value="execution">执行日志</option>
-                        <option value="dispatch_queue">调度队列</option>
-                    </select>
-                    <select id="log-lines" class="bg-dark-900 border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:border-tiger-500" onchange="loadLog(document.getElementById('log-selector').value)">
-                        <option value="50">50 行</option>
-                        <option value="100" selected>100 行</option>
-                        <option value="200">200 行</option>
-                        <option value="500">500 行</option>
-                    </select>
-                    <button onclick="loadLog(document.getElementById('log-selector').value)" class="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded border border-gray-600">🔄 刷新</button>
-                    <label class="flex items-center gap-1 text-xs text-gray-400">
-                        <input type="checkbox" id="log-autorefresh" onchange="toggleLogAutoRefresh()" class="accent-tiger-500"> 自动
-                    </label>
-                </div>
-            </div>
-            <div id="log-meta" class="text-xs text-gray-500 mb-2"></div>
-            <div id="log-container" class="bg-dark-950 rounded border border-gray-700/50 overflow-auto" style="max-height: 500px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11px; line-height: 1.5;">
-                <div class="text-gray-500 p-3">选择日志文件开始查看...</div>
-            </div>
-        </section>
     </main>
 
     <script>
@@ -2018,96 +1992,9 @@
             window._marketInfo = data;
         }
 
-        // --- Log Viewer ---
-        let logAutoRefreshTimer = null;
-
-        function loadLog(name) {
-            const lines = document.getElementById('log-lines').value;
-            const container = document.getElementById('log-container');
-            const meta = document.getElementById('log-meta');
-            container.innerHTML = '<div class="text-gray-500 p-3">加载中...</div>';
-            fetch(API_BASE + '/api/logs/' + name + '?lines=' + lines)
-                .then(r => r.json())
-                .then(data => {
-                    if (data.error) {
-                        container.innerHTML = '<div class="text-red-400 p-3">错误: ' + data.error + '</div>';
-                        meta.textContent = '';
-                        return;
-                    }
-                    meta.textContent = `共 ${data.total_lines} 行，显示最近 ${data.returned} 行`;
-                    if (!data.entries || data.entries.length === 0) {
-                        container.innerHTML = '<div class="text-gray-500 p-3">日志为空</div>';
-                        return;
-                    }
-                    container.innerHTML = data.entries.map((entry, i) => {
-                        const ts = entry.timestamp || entry.time || entry.ts || '';
-                        const symbol = entry.symbol || '';
-                        const action = entry.action || entry.side || '';
-                        const status = entry.status || '';
-                        const msg = entry.message || entry.reason || entry.error || '';
-                        const raw = entry._raw || '';
-
-                        // Color by status/action
-                        let statusCls = 'text-gray-400';
-                        if (status === 'SUBMITTED' || status === 'submitted' || entry.submitted === true) statusCls = 'text-green-400';
-                        else if (status.includes('BLOCKED') || entry.submitted === false) statusCls = 'text-red-400';
-                        else if (action === 'BUY') statusCls = 'text-green-400';
-                        else if (action === 'SELL' || action === 'EXIT') statusCls = 'text-red-400';
-
-                        // Format timestamp
-                        let timeStr = '';
-                        if (ts) {
-                            try {
-                                const d = new Date(typeof ts === 'number' ? ts : ts);
-                                timeStr = d.toLocaleString('zh-CN', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
-                            } catch(e) { timeStr = String(ts).slice(0, 19); }
-                        }
-
-                        if (raw) {
-                            return '<div class="px-3 py-0.5 border-b border-gray-800/50 hover:bg-gray-800/30"><span class="text-gray-500">' + escapeHtml(raw) + '</span></div>';
-                        }
-
-                        const parts = [];
-                        if (timeStr) parts.push('<span class="text-gray-500">' + timeStr + '</span>');
-                        if (symbol) parts.push('<span class="text-cyan-400 font-medium">' + symbol + '</span>');
-                        if (action) parts.push('<span class="' + statusCls + '">' + action + '</span>');
-                        if (status) parts.push('<span class="' + statusCls + '">[' + status + ']</span>');
-                        if (msg) parts.push('<span class="text-gray-300">' + escapeHtml(msg) + '</span>');
-
-                        // Show extra fields
-                        const extra = [];
-                        if (entry.quantity) extra.push('qty=' + entry.quantity);
-                        if (entry.limit_price) extra.push('@ $' + entry.limit_price);
-                        if (entry.mode) extra.push('mode=' + entry.mode);
-                        if (entry.cycle_id) extra.push('cycle=' + entry.cycle_id);
-                        if (extra.length) parts.push('<span class="text-gray-500">(' + extra.join(', ') + ')</span>');
-
-                        return '<div class="px-3 py-0.5 border-b border-gray-800/50 hover:bg-gray-800/30">' + parts.join(' ') + '</div>';
-                    }).join('');
-                    // Scroll to bottom
-                    container.scrollTop = container.scrollHeight;
-                })
-                .catch(e => {
-                    container.innerHTML = '<div class="text-red-400 p-3">请求失败: ' + e.message + '</div>';
-                });
-        }
-
         function escapeHtml(str) {
             if (!str) return '';
             return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-        }
-
-        function toggleLogAutoRefresh() {
-            const cb = document.getElementById('log-autorefresh');
-            if (cb.checked) {
-                logAutoRefreshTimer = setInterval(() => {
-                    const sel = document.getElementById('log-selector');
-                    loadLog(sel.value);
-                }, 10000);
-            } else {
-                if (logAutoRefreshTimer) clearInterval(logAutoRefreshTimer);
-                logAutoRefreshTimer = null;
-            }
         }
 
         // Init news
@@ -2120,8 +2007,6 @@
         setInterval(fetchEngine, 30000);
         setInterval(fetchNewSections, 30000);
 
-        // Load default log
-        loadLog('execution');
     </script>
 </body>
 </html>

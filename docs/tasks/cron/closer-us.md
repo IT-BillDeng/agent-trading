@@ -2,7 +2,7 @@
 
 - 来源 cron: `trading-closer-us-cron.json`
 - taskFile: `docs/tasks/cron/closer-us.md`
-- 调度名: `closer-us`
+- 调度名: `trading-closer-us-cron`
 
 ## 任务正文
 

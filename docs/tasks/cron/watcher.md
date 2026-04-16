@@ -2,7 +2,7 @@
 
 - 来源 cron: `trading-watcher-cron.json`
 - taskFile: `docs/tasks/cron/watcher.md`
-- 调度名: `watcher`
+- 调度名: `trading-watcher-cron`
 
 ## 任务正文
 

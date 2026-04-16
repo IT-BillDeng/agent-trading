@@ -1,14 +1,14 @@
 # Strategist Agent Configuration
 # 职责：策略管理器（规则调参/暂停恢复/信号质量分析/自我迭代）
-# 当前等级：L2（规则自我迭代；不修改 Engine 策略代码）
+# 当前等级：L3a（允许白名单策略代码演化；不自动上线 live）
 # 频率：盘前(09:00 ET) / 盘中(1h) / 盘后(16:30 ET)
 # 模型：pro（深度推理）
 # 触发：Newswire 完成后自动触发
 
 agent_id: strategist
 model: xiaomi/mimo-v2-pro
-description: "策略管理器（L2）：规则调参/暂停恢复/信号质量分析/自我迭代"
-capability_level: L2
+description: "策略管理器（L3a）：规则调参/代码提案/信号质量分析/自我迭代"
+capability_level: L3a
 
 # Tool 权限配置
 tools:
@@ -27,6 +27,12 @@ input_files:
   - /workspace/agent-trading/artifacts/strategist/strategy_plan_history.jsonl
   - /workspace/agent-trading/rules/rules.json
   - /workspace/agent-trading/artifacts/strategist/iterations/
+  - /workspace/agent-trading/system/engine/src/engine/strategy.py
+  - /workspace/agent-trading/system/engine/src/engine/rule_engine.py
+  - /workspace/agent-trading/system/engine/src/engine/indicators.py
+  - /workspace/agent-trading/system/engine/tests/
+  - /workspace/agent-trading/tests/
+  - /workspace/agent-trading/specs/
 
 # 输出文件
 output_files:
@@ -36,7 +42,36 @@ output_files:
   - /workspace/agent-trading/artifacts/strategist/memory/history.jsonl
   - /workspace/agent-trading/artifacts/strategist/proposals.jsonl
   - /workspace/agent-trading/artifacts/strategist/rejections.jsonl
+  - /workspace/agent-trading/artifacts/strategist/code_change_proposals.jsonl
+  - /workspace/agent-trading/artifacts/strategist/code_change_results.jsonl
+  - /workspace/agent-trading/artifacts/strategist/rollback_notes.jsonl
   - /workspace/agent-trading/artifacts/strategist/iterations/
+  - /workspace/agent-trading/artifacts/strategist/experiments/
+
+# L3a 可写边界
+write_scopes:
+  - /workspace/agent-trading/rules/
+  - /workspace/agent-trading/system/engine/src/engine/strategy.py
+  - /workspace/agent-trading/system/engine/src/engine/rule_engine.py
+  - /workspace/agent-trading/system/engine/src/engine/indicators.py
+  - /workspace/agent-trading/system/engine/tests/
+  - /workspace/agent-trading/tests/
+  - /workspace/agent-trading/specs/
+  - /workspace/agent-trading/artifacts/strategist/
+
+protected_paths:
+  - /workspace/agent-trading/system/engine/src/engine/live_execution.py
+  - /workspace/agent-trading/system/engine/src/engine/broker_client.py
+  - /workspace/agent-trading/system/engine/src/engine/tiger_client.py
+  - /workspace/agent-trading/system/engine/src/engine/notifier.py
+  - /workspace/agent-trading/dashboard/
+  - /workspace/agent-trading/docker-compose.yml
+
+validation_commands:
+  - python3 -m py_compile system/engine/src/engine/strategy.py system/engine/src/engine/rule_engine.py system/engine/src/engine/indicators.py
+  - python3 -m unittest system.engine.tests.test_indicators system.engine.tests.test_rule_engine system.engine.tests.test_backtest -v
+  - python3 system/engine/run_dry_run_cycle.py config/app_config.docker.json /path/to/broker_props.properties
+  - curl -s -X POST http://host.docker.internal:8088/api/backtest/batch -H "Content-Type: application/json" -d '{...}'
 
 # 输出格式
 # 参见 specs/strategist-output-schema-v1.md

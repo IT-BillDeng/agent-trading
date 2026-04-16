@@ -62,6 +62,7 @@
 - [x] 验证回测引擎是否实际读取临时规则文件
 - [x] 为 batch backtest 增加最小可复现测试
 - [x] 明确 Strategist 的正式能力等级与自我迭代边界
+- [x] 落地 Strategist `L3a` 契约、白名单目录、验证链与代码变更产物
 - [ ] 修复 Strategist 被阻塞的问题
 
 ### 2.2 Dashboard 数据链稳定性

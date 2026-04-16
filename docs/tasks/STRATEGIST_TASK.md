@@ -5,7 +5,7 @@
 2. 任何参数变更必须回测验证通过才上线
 3. 盘中绝不改规则参数
 4. 每次策略调整必须通知先生（Telegram）
-5. 当前能力等级为 `L2`，允许规则自我迭代，不允许修改 Engine 策略代码或扩张股票池
+5. 当前能力等级为 `L3a`，允许在白名单目录内做策略代码提案，但不自动上线 live
 
 工作目录：`/workspace/agent-trading/`
 能力契约：`docs/strategist-capability-contract.md`
@@ -17,14 +17,40 @@
 - 调整现有规则参数
 - 启用 / 停用 / 暂停 / 恢复现有规则
 - 调用回测 API 验证候选方案
+- 在白名单目录内修改策略代码与测试代码
+- 运行 `py_compile`、单元测试、dry-run、回测
+- 生成代码变更提案、验证结果与回滚记录
 - 沉淀长期记忆、提案与拒绝原因
 
 不允许：
 
-- 编写或修改 Engine Python 策略代码
 - 自行创造新的执行链路
 - 盘中修改规则参数
 - 未经验证直接落地规则变更
+- 自动上线 live
+- 修改 broker / execution / deploy / infra
+
+## L3a 白名单目录
+
+- `./rules/`
+- `./system/engine/src/engine/strategy.py`
+- `./system/engine/src/engine/rule_engine.py`
+- `./system/engine/src/engine/indicators.py`
+- `./system/engine/tests/`
+- `./tests/`
+- `./specs/`
+- `./artifacts/strategist/`
+
+## L3a 必须通过的验证
+
+1. `python3 -m py_compile system/engine/src/engine/strategy.py system/engine/src/engine/rule_engine.py system/engine/src/engine/indicators.py`
+2. `python3 -m unittest system.engine.tests.test_indicators system.engine.tests.test_rule_engine system.engine.tests.test_backtest -v`
+3. 如具备 broker props，执行一次 dry-run
+4. 运行 `/api/backtest` 或 `/api/backtest/batch`
+5. 把结果写入：
+   - `./artifacts/strategist/code_change_proposals.jsonl`
+   - `./artifacts/strategist/code_change_results.jsonl`
+   - `./artifacts/strategist/rollback_notes.jsonl`
 
 ## 三班执行流程
 
@@ -72,6 +98,7 @@ curl -s -X POST http://host.docker.internal:8088/api/backtest \
 ### 盘后 (16:30 ET) — Analysis
 分析今日信号质量。提出明日迭代方案。回测验证。通知先生。
 盘后同时更新 strategist 的长期产物，沉淀可复用经验、被拒绝提案与下一步假设，写入 `artifacts/strategist/`。
+如识别出明确代码级策略假设，可进入 `L3a` 代码提案流程，在白名单目录内修改策略代码与测试代码，并执行完整验证链。
 
 ---
 

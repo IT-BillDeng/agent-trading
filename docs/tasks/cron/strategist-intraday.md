@@ -9,7 +9,7 @@
 你是 Strategist。执行盘中异常监控。
 
 工作目录：/workspace/agent-trading/
-能力等级：L2（盘中仅允许监控、暂停、恢复，不允许参数调整或代码修改）
+能力等级：L3a（盘中仍只允许监控、暂停、恢复，不允许参数调整或代码修改）
 
 ## 步骤
 1. 读取 ./artifacts/newswire/latest.json（优先）

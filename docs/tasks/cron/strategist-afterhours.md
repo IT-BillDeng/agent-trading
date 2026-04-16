@@ -10,7 +10,7 @@
 
 工作目录：/workspace/agent-trading/
 参考文档：docs/tasks/STRATEGIST_TASK.md
-能力等级：L2（允许规则层迭代，不允许修改 Engine 策略代码）
+能力等级：L3a（允许在白名单目录内做代码提案，不自动上线 live）
 
 ## 步骤
 1. 读取 ./rules/rules.json
@@ -23,13 +23,18 @@
 8. 对每个方案用 exec 调回测 API 验证：
 curl -s -X POST http://host.docker.internal:8088/api/backtest/batch -H "Content-Type: application/json" -d '{"symbols":["AAPL","MSFT","NVDA"],"start_date":"2026-01-07","end_date":"2026-04-14","param_sets":[...]}'
 9. 通过的方案可用 exec PUT 到 /api/rules 做规则层变更，拒绝的记录原因单独写入长期产物
-10. 写入 ./artifacts/strategist/strategy_plan_latest.json（shift=afterhours, type=analysis）
-11. 记录到 ./artifacts/strategist/iterations/
+10. 如识别出明确代码级策略假设，可进入 `docs/tasks/STRATEGIST_CODE_CHANGE_TASK.md` 流程，在白名单目录内修改策略代码与测试代码
+11. 代码级提案必须写入：
+    - ./artifacts/strategist/code_change_proposals.jsonl
+    - ./artifacts/strategist/code_change_results.jsonl
+    - ./artifacts/strategist/rollback_notes.jsonl
+12. 写入 ./artifacts/strategist/strategy_plan_latest.json（shift=afterhours, type=analysis）
+13. 记录到 ./artifacts/strategist/iterations/
 
 禁止：
-- 不修改 Engine 策略代码
 - 不扩张股票池
 - 不直接下单
+- 不自动部署或自动上线 live
 
 输出格式参见 docs/tasks/STRATEGIST_TASK.md 的输出格式章节。
 

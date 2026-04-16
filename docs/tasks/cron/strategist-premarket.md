@@ -10,7 +10,7 @@
 
 工作目录：/workspace/agent-trading/
 参考文档：docs/tasks/STRATEGIST_TASK.md
-能力等级：L2（允许规则层参数调整，不允许修改 Engine 策略代码）
+能力等级：L3a（盘前允许规则层调整；代码级提案仅可读取待批准结果，不在盘前直接改代码）
 
 ## 步骤
 1. 读取 ./rules/rules.json — 当前规则
@@ -22,8 +22,12 @@
 7. 复盘昨日信号质量
 8. 从 newswire 提取 high importance 新闻，判断对规则的影响
 9. 如需调整，用 exec 调回测 API 验证（curl http://host.docker.internal:8088/api/backtest）
-10. 如方案通过，可在规则层落地参数 / 启停变更，但不得修改策略代码或扩张股票池
+10. 如方案通过，可在规则层落地参数 / 启停变更
 11. 写入 ./artifacts/strategist/strategy_plan_latest.json（shift=premarket, type=daily_setup），历史追加到 ./artifacts/strategist/strategy_plan_history.jsonl
+
+说明：
+- 盘前不直接做新的代码级策略改动
+- 如存在上一轮 afterhours 已验证的代码提案，只能读取其结果，不得在盘前临时扩张变更范围
 
 输出格式参见 docs/tasks/STRATEGIST_TASK.md 的输出格式章节。
 

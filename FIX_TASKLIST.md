@@ -1,6 +1,6 @@
 # Agent Trading 修复任务清单
 
-更新时间：2026-04-16
+更新时间：2026-04-17
 
 ## 目标
 
@@ -9,10 +9,12 @@
 ## 当前状态
 
 - `Phase 1` 已完成
-- `Phase 2` 进行中
-  - `2.1` 已修复 `/api/backtest/batch` 参数覆盖 `enabled` 开关失效问题
-  - `2.2` 已完成 Tiger 首页口径切换、ET 当日边界修正、缓存刷新阻塞修复
-- `Phase 3-5` 尚未正式展开
+- `Phase 2` 进入收口阶段
+  - `2.1` 的 batch backtest 问题已修复，当前仅剩 Strategist 阻塞问题待定
+  - `2.2` 已完成 Dashboard 数据链稳定性修复
+  - `2.3` 已完成 cron / agent 运行一致性收口
+- 配置分层、`.env`、`logs/`、`artifacts/`、调试入口与目录契约已经落地
+- `Phase 3-5` 已部分展开，当前主要剩目录边界、命名残留、结构拆分与少量文档收口
 
 ---
 
@@ -72,25 +74,32 @@
 - [x] 排查 agent 文档与真实工作目录是否一致
 - [x] 确认 watcher / strategist / closer / newswire 读取的是统一 runtime 路径
 
+### 2.4 配置分层与本地环境
+- [x] 将 `config/app_config.docker.json` 拆成 `app.defaults.json` + docker overlay + user settings
+- [x] 落地根目录 `.env` / `.env.example`
+- [x] 将 `telegram_target` 改为 `${ENGINE_TELEGRAM_TARGET}` 占位符
+- [x] 保留旧入口为兼容参考，但不再作为新流程主入口
+
 ---
 
 ## Phase 3，目录与运行产物整理
 
 ### 3.1 统一 runtime 目录
-- [ ] 梳理以下目录的职责边界：
+- [x] 明确根目录 `logs/` 作为统一观测入口
+- [x] 将 strategist / watcher / closer / newswire / executor 的长期产物收口到 `artifacts/`
+- [ ] 梳理以下目录的最终职责边界：
   - `runtime/engine/`
   - `runtime/state/`
   - `runtime/outbox/`
   - `system/engine/`
-- [ ] 明确根目录 `logs/` 作为统一观测入口，并迁移可巡检日志/历史产物
 - [ ] 消除重复运行产物路径
 - [ ] 确认 `.last_execution_cycle.json` 单一来源
 - [ ] 确认状态文件、日志文件、outbox 文件的统一落点
 
 ### 3.2 清理命名漂移
-- [ ] 全量排查 `tiger-trading` 残留引用
-- [ ] 全量排查旧 engine/tiger_engine 命名残留
-- [ ] 更新 docs / cron / agents / memory 中的过期路径说明
+- [x] 全量排查 `tiger-trading` 残留引用（活跃文档已收口）
+- [x] 全量排查旧 engine/tiger_engine 命名残留（活跃入口已收口）
+- [ ] 更新 docs / cron / agents / memory 中仍保留的历史兼容说明
 
 ---
 
@@ -125,43 +134,40 @@
 ## Phase 5，文档同步
 
 ### 5.1 项目文档修正
-- [ ] 更新 `README.md` 使其与真实目录一致
-- [ ] 更新 `dashboard/README.md`
-- [ ] 更新 `system/engine/README.md`
-- [ ] 增加一份“当前真实运行架构图”文档
+- [x] 更新 `README.md` 使其与真实目录一致
+- [x] 更新 `system/engine/README.md`
+- [x] 增加当前真实运行架构 / 目录职责说明
+- [ ] 视需要补充 `dashboard` 页面说明索引
 
 ### 5.2 运维与协作文档
-- [ ] 更新 cron 配置文档
-- [ ] 更新岗位职责文档
-- [ ] 增加“调试入口索引”文档
+- [x] 更新 cron 配置文档
+- [x] 更新岗位职责文档
+- [x] 增加“调试入口索引”文档
 
 ---
 
 ## 建议优先级
 
 ### P0，立即处理
-1. 盈亏口径统一
-2. Dashboard 盈亏显示修复
-3. `/api/backtest/batch` 参数失效问题
+1. 修复 Strategist 被阻塞的问题
 
 ### P1，短期处理
-4. runtime 目录统一
-5. cron 路径与产物路径统一
-6. Dashboard 数据链稳定性修复
+2. 收口 runtime / logs / artifacts 的最终边界与重复路径
+3. 继续清理历史兼容入口与命名残留
 
 ### P2，中期处理
-7. `main.py` / `index.html` 拆分
-8. 文档与目录结构同步
-9. 测试补齐
+4. `main.py` / `index.html` 结构拆分
+5. 剩余文档索引与说明补齐
+6. 按需补齐结构测试
 
 ---
 
 ## 当前建议执行顺序
 
-1. 已完成 **Phase 1**
-2. 当前优先处理 **Phase 2.1 backtest batch**
-3. 然后做 **Phase 2.3 / Phase 3 目录与运行产物统一**
-4. 最后推进 **Phase 4-5 结构优化与文档同步**
+1. 处理 **Strategist 被阻塞的问题**
+2. 继续收口 **Phase 3 目录 / 产物 / 命名残留**
+3. 视需要推进 **Phase 4 代码结构优化**
+4. 最后补齐 **Phase 5 文档同步**
 
 ---
 

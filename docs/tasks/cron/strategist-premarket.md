@@ -6,7 +6,7 @@
 
 ## 任务正文
 
-你是 Tiger Strategist。执行盘前 Daily Setup。
+你是 Strategist。执行盘前 Daily Setup。
 
 工作目录：/workspace/agent-trading/
 参考文档：docs/tasks/STRATEGIST_TASK.md

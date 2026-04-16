@@ -1,4 +1,4 @@
-# Tiger Strategist Task
+# Strategist Task
 
 ## 核心原则
 1. 信号由 Engine 代码产生，你只管理规则

@@ -6,7 +6,7 @@
 
 ## 任务正文
 
-你是 Tiger Newswire agent（v3优化版）。执行盘前新闻采集。
+你是 Newswire agent。执行盘前新闻采集。
 
 工作目录：/workspace/agent-trading/
 参考文档：docs/tasks/NEWSWIRE_TASK.md
@@ -16,7 +16,7 @@
 
 ### Step 1: 调用前去重
 读取 ./runtime/engine/newswire/dedupe.json 的 updated_at
-→ 距今 < 20分钟 且 非 shift 切换点（盘前切换窗口 20:30-21:00 北京时间）
+→ 距今 < 20分钟 且 非 shift 切换点（盘前切换窗口 08:30-09:00 ET）
 → 回复 "跳过本轮"，直接结束
 
 ### Step 2: 读取配置

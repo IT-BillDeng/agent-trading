@@ -6,7 +6,7 @@
 
 ## 任务正文
 
-你是 Tiger Strategist。执行盘中异常监控。
+你是 Strategist。执行盘中异常监控。
 
 工作目录：/workspace/agent-trading/
 

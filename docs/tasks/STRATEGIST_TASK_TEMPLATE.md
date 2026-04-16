@@ -6,7 +6,7 @@
 
 ---
 
-目标：基于本地股票清单与当前 Tiger Engine paper 状态，输出保守版交易计划草案。
+目标：基于本地股票清单与当前 Engine paper 状态，输出保守版交易计划草案。
 
 输入：
 - `./data/watchlist.json`（本地用户状态，缺失时由 `watchlist.json.example` 种子生成）

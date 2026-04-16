@@ -1,4 +1,4 @@
-# Tiger 系统健康监护人 - 每 15 分钟通过 API 检查系统状态
+# 系统健康监护人 - 每 15 分钟通过 API 检查系统状态
 
 - 来源 cron: `watcher-cron.json`
 - taskFile: `docs/tasks/cron/watcher.md`
@@ -6,7 +6,7 @@
 
 ## 任务正文
 
-执行 Tiger Watcher 健康检查：
+执行系统健康检查：
 
 工作目录：`/workspace/agent-trading/`
 

@@ -1,4 +1,4 @@
-# 美股收盘后生成总结报告（16:00 ET = 次日 04:00 北京时间）
+# 美股收盘后生成总结报告（16:00 ET）
 
 - 来源 cron: `closer-us-cron.json`
 - taskFile: `docs/tasks/cron/closer-us.md`

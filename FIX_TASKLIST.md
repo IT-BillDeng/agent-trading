@@ -69,8 +69,8 @@
 
 ### 2.3 cron / agent 运行一致性
 - [x] 排查所有 cron 配置中的旧路径残留
-- [ ] 排查 agent 文档与真实工作目录是否一致
-- [ ] 确认 watcher / strategist / closer / newswire 读取的是统一 runtime 路径
+- [x] 排查 agent 文档与真实工作目录是否一致
+- [x] 确认 watcher / strategist / closer / newswire 读取的是统一 runtime 路径
 
 ---
 

@@ -6,6 +6,8 @@
 
 目标：审查当前 Tiger paper 执行链的准备度，并把计划转成最短执行检查单。
 
+工作目录：`/workspace/agent-trading/`
+
 输入：
 - `./data/watchlist.json`（本地用户状态）
 - `./system/engine/README.md`

@@ -4,6 +4,8 @@
 
 给 `newswire` 派工时，使用 V3 模板。简要要点：
 
+工作目录：`/workspace/agent-trading/`
+
 ---
 
 目标：为本地股票清单提供一轮新闻与催化扫描。

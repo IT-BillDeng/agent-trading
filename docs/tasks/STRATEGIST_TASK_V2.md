@@ -6,15 +6,17 @@
 3. 盘中绝不改规则参数
 4. 每次策略调整必须通知先生（Telegram）
 
+工作目录：`/workspace/agent-trading/`
+
 ## 三班执行流程
 
 ### 盘前 (09:00 ET) — Daily Setup
 
 **Step 1: 读取输入**
-- `rules/rules.json` — 当前规则配置
-- `runtime/engine/newswire/latest.json` — 盘前新闻
-- `data/watchlist.json` — 本地标的清单（缺失时由 `watchlist.json.example` 种子生成）
-- `runtime/engine/.last_execution_cycle.json`（如存在）
+- `./rules/rules.json` — 当前规则配置
+- `./runtime/engine/newswire/latest.json` — 盘前新闻
+- `./data/watchlist.json` — 本地标的清单（缺失时由 `watchlist.json.example` 种子生成）
+- `./runtime/engine/.last_execution_cycle.json`（如存在）
 
 **Step 2: 复盘昨日信号**
 分析 last_cycle 中的信号数量、方向、风控结果。总结问题。
@@ -54,7 +56,7 @@ curl -s -X POST http://host.docker.internal:8088/api/backtest \
 
 ## ⚠️ 输出格式（严格遵守）
 
-必须输出到 `runtime/engine/strategy_plan_latest.json`，格式如下：
+必须输出到 `./runtime/engine/strategy_plan_latest.json`，格式如下：
 
 ```json
 {

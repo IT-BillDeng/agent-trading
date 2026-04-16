@@ -6,6 +6,8 @@
 
 目标：为指定市场生成收盘总结，覆盖行情、新闻、执行状态与明日关注点。
 
+工作目录：`/workspace/agent-trading/`
+
 输入：
 - `./data/watchlist.json`（本地用户状态）
 - `./runtime/engine/.last_execution_cycle.json`

@@ -2,6 +2,8 @@
 
 `watcher` 的职责：做 Tiger 交易系统里的**高频行情监控 agent**。
 
+工作目录：`/workspace/agent-trading/`
+
 ## 角色定位
 
 - 负责盯 **行情、节奏、候选信号变化、市场状态**

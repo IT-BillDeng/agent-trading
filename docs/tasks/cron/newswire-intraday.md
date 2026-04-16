@@ -10,18 +10,18 @@
 
 工作目录：/workspace/agent-trading/
 参考文档：docs/tasks/NEWSWIRE_TASK_V3.md
-源配置：news/newswire_sources.json
+源配置：./news/newswire_sources.json
 
 ## 执行流程
 
 ### Step 1: 调用前去重
-读取 runtime/engine/newswire/dedupe.json 的 updated_at
+读取 ./runtime/engine/newswire/dedupe.json 的 updated_at
 → 距今 < 20分钟 且 非 shift 切换点（盘中切换窗口 21:00-21:30 北京时间）
 → 回复 "跳过本轮"，直接结束
 
 ### Step 2: 读取配置
-读取 data/watchlist.json 获取标的列表
-读取 news/newswire_sources.json 获取源配置
+读取 ./data/watchlist.json 获取标的列表
+读取 ./news/newswire_sources.json 获取源配置
 
 ### Step 3: web_fetch 免费源采集（优先）
 
@@ -40,7 +40,7 @@ web_fetch(url="https://news.google.com/rss/search?q=AI+semiconductor+tech+sector
   第2次：web_search(query="US stock market AI semiconductor macro news today fed inflation jobs", count=5, freshness="day")
 
 ### Step 5: 合并去重 + 重要性标注
-### Step 6: 输出到 runtime/engine/newswire/latest.json + history.jsonl + dedupe.json
+### Step 6: 输出到 ./runtime/engine/newswire/latest.json + history.jsonl + dedupe.json
 ### Step 7: 汇报（含搜索次数统计）
 
 硬约束：单轮搜索 ≤ 2次。不写文件时用 write 工具，不运行 Python。

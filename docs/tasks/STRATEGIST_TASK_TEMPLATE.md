@@ -2,6 +2,8 @@
 
 给 `strategist` 派工时，优先使用这份模板。
 
+工作目录：`/workspace/agent-trading/`
+
 ---
 
 目标：基于本地股票清单与当前 Tiger Engine paper 状态，输出保守版交易计划草案。

@@ -6,6 +6,8 @@
 
 目标：执行一轮只读高频行情监控，并写入结构化 watcher 输出。
 
+工作目录：`/workspace/agent-trading/`
+
 输入：
 - `./data/watchlist.json`（本地用户状态）
 - `./runtime/engine/.last_execution_cycle.json`

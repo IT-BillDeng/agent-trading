@@ -8,7 +8,9 @@
 
 执行 Tiger Watcher 健康检查：
 
-1. 运行脚本：python3 /workspace/agent-trading/system/engine/src/engine/watcher_api.py
+工作目录：`/workspace/agent-trading/`
+
+1. 运行脚本：python3 ./system/engine/src/engine/watcher_api.py
 2. 解析输出的 JSON 报告
 3. 根据级别处理：
    - info: 仅记录，不通知

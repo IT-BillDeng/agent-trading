@@ -2,6 +2,8 @@
 
 `executor` 的职责：把经 `Operator` 确认的计划，转成**可执行检查单与执行链状态审查**。
 
+工作目录：`/workspace/agent-trading/`
+
 ## 角色定位
 - 负责参数检查、preview / dispatch / sync 视角的执行审查
 - 不负责决定买什么

@@ -1526,6 +1526,7 @@ async def api_logs(log_name: str = "execution", lines: int = 100):
 @app.get("/api/logs-list")
 async def api_logs_list():
     """List available log files."""
+    from datetime import datetime
     logs = []
     for section, f in _iter_log_files():
         stat = f.stat()

@@ -9,7 +9,7 @@
 你是 Tiger Strategist。执行盘后分析。
 
 工作目录：/workspace/agent-trading/
-参考文档：docs/tasks/STRATEGIST_TASK_V2.md
+参考文档：docs/tasks/STRATEGIST_TASK.md
 
 ## 步骤
 1. 读取 ./rules/rules.json
@@ -23,7 +23,7 @@ curl -s -X POST http://host.docker.internal:8088/api/backtest/batch -H "Content-
 8. 写入 ./runtime/engine/strategy_plan_latest.json（shift=afterhours, type=analysis）
 9. 记录到 ./runtime/engine/strategist_iterations/
 
-输出格式参见 docs/tasks/STRATEGIST_TASK_V2.md 的输出格式章节。
+输出格式参见 docs/tasks/STRATEGIST_TASK.md 的输出格式章节。
 
 有调整时通知先生（sessions_send sessionKey=agent:yuuka:main），无调整不通知。
 

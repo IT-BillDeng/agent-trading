@@ -14,10 +14,9 @@
   - 面向 subagent 的通用任务模板
   - 适合派工时复用
 
-- `docs/tasks/*_TASK_V*.md`
-  - 某个任务的正式版本
-  - 例如 `NEWSWIRE_TASK_V3.md`
-  - 如果有明确演进版本，优先看最新版
+- `docs/tasks/*_TASK.md`
+  - 某个任务的当前正文
+  - 例如 `NEWSWIRE_TASK.md`、`STRATEGIST_TASK.md`
 
 - `docs/tasks/*_ITERATION_TASK.md`
   - 某个 agent 的专项流程模板
@@ -30,13 +29,13 @@
 
 1. cron 调度任务时，优先读取 `docs/tasks/cron/*.md`
 2. 需要给 subagent 派工时，优先读取对应 `*_TASK_TEMPLATE.md`
-3. 看到 `V2 / V3` 时，优先使用版本号更高、且正文中明确标注“已替代”的文件
+3. 如果看到历史版本文件，优先使用无版本号的当前任务正文
 4. 如果任务正文变更，只改 `docs/tasks/` 下的文本，不改 `cron/*.json`
 
 ## 当前目录里常见文件
 
-- `NEWSWIRE_TASK_V3.md`：newswire 的正式任务版本
-- `STRATEGIST_TASK_V2.md`：strategist 的较完整版本说明
+- `NEWSWIRE_TASK.md`：newswire 的当前任务正文
+- `STRATEGIST_TASK.md`：strategist 的当前任务正文
 - `STRATEGIST_ITERATION_TASK.md`：strategist 的回测/迭代专用模板
 - `WATCHER_TASK_TEMPLATE.md`：watcher 通用模板
 - `EXECUTOR_TASK_TEMPLATE.md`：executor 通用模板

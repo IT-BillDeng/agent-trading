@@ -42,6 +42,7 @@
 - 作为默认汇报目标 `agent:yuuka:main`
 
 如果你在看的是“谁来发起任务、谁来收集结果、谁来做总协调”，那就是主 agent 的职责。
+主 agent 的 cron 配置流程见：[docs/main-agent-cron-playbook.md](../docs/main-agent-cron-playbook.md)。
 
 ## 运行入口
 

@@ -41,6 +41,7 @@
 
 - 主 agent / 管理 agent 读取后，创建、更新、启停定时任务
 - 人工查看当前系统有哪些定时任务
+- 主 agent 按 [docs/main-agent-cron-playbook.md](./main-agent-cron-playbook.md) 将仓库 `cron/` 当作 desired state 并与 live 任务 reconcile
 
 ### 2. `agents/`
 

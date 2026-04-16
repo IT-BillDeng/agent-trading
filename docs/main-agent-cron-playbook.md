@@ -1,0 +1,42 @@
+# Main Agent Cron Playbook
+
+更新时间：2026-04-16
+
+这是一份给主 agent / 管理 agent 的简短操作约定，用来把仓库里的 `cron/` 当成调度的 **desired state**。
+
+## 核心原则
+
+1. `cron/*.json` 是调度声明，不是任务正文。
+2. `docs/tasks/cron/*.md` 是任务正文唯一来源。
+3. 主 agent 配 cron 时，优先参考仓库里的 `cron/`，再和当前 live 环境做 reconcile。
+4. 如果 live 环境里存在旧任务，而仓库里已经没有对应定义，应优先停用或迁移旧任务。
+
+## 推荐流程
+
+1. 读取 `cron/*.json`。
+2. 读取每个 `payload.taskFile` 指向的正文。
+3. 检查 live 任务是否与仓库定义一致：
+   - 时区
+   - 模型
+   - 是否启用
+   - 任务正文路径
+4. 对齐时只做最小变更：
+   - 正文变化，只改 `docs/tasks/cron/*.md`
+   - 调度变化，只改 `cron/*.json`
+5. 如果发现遗留旧任务，例如旧时区、旧模型名、旧路径或旧 job id，先停用它，再让新定义接管。
+
+## 对主 agent 的约束
+
+- 不要把任务正文塞回 `cron/*.json`
+- 不要把运行结果写回 `cron/*.json`
+- 不要假设 live 环境一定已经跟仓库同步
+- 不要同时修改调度和正文，除非确实需要联动变更
+
+## 适用范围
+
+- `watcher`
+- `newswire`
+- `strategist`
+- `closer`
+
+这四类任务都应优先按该流程维护。

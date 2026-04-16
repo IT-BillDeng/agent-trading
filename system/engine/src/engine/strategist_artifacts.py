@@ -27,6 +27,18 @@ ALLOWED_APPROVAL_TRANSITIONS = {
     "applied": set(),
 }
 
+HOT_UPDATE_PREFIXES = (
+    "rules/",
+    "./rules/",
+    "/workspace/agent-trading/rules/",
+)
+
+COLD_UPDATE_MARKERS = (
+    "system/engine/src/engine/strategy.py",
+    "system/engine/src/engine/rule_engine.py",
+    "system/engine/src/engine/indicators.py",
+)
+
 
 def resolve_strategist_dir(base_dir: str | Path | None = None) -> Path:
     return resolve_artifacts_root(base_dir) / "strategist"
@@ -102,6 +114,53 @@ def load_approval_request(proposal_id: str, base_dir: str | Path | None = None) 
     if not queue_path.exists():
         raise FileNotFoundError(queue_path)
     return json.loads(queue_path.read_text())
+
+
+def infer_update_mode(record: dict[str, Any]) -> str:
+    target_files = record.get("target_files") or []
+    if not target_files:
+        return "cold"
+
+    normalized = [str(path) for path in target_files]
+
+    if all(
+        any(path.startswith(prefix) for prefix in HOT_UPDATE_PREFIXES)
+        for path in normalized
+    ):
+        return "hot"
+
+    if any(marker in path for marker in COLD_UPDATE_MARKERS for path in normalized):
+        return "cold"
+
+    return "cold"
+
+
+def resolve_apply_gate(proposal_id: str, base_dir: str | Path | None = None) -> dict[str, Any]:
+    record = load_approval_request(proposal_id, base_dir)
+    status = record.get("status")
+    if status != "approved":
+        raise ValueError(f"proposal {proposal_id} is not approved: {status}")
+
+    inferred_mode = infer_update_mode(record)
+    recommended_mode = record.get("recommended_update_mode", inferred_mode)
+    if recommended_mode not in {"hot", "cold"}:
+        raise ValueError(f"invalid recommended_update_mode: {recommended_mode}")
+
+    if inferred_mode == "cold" and recommended_mode == "hot":
+        raise ValueError("code-changing proposal cannot be applied as hot update")
+
+    requires_restart = record.get("requires_restart")
+    if requires_restart is None:
+        requires_restart = recommended_mode == "cold"
+
+    return {
+        "proposal_id": proposal_id,
+        "approved": True,
+        "update_mode": recommended_mode,
+        "requires_restart": bool(requires_restart),
+        "apply_action": "apply_rules_only" if recommended_mode == "hot" else "require_restart",
+        "target_files": record.get("target_files", []),
+    }
 
 
 def transition_approval_status(
@@ -181,14 +240,20 @@ def mark_request_applied(
     deployment_record: dict[str, Any],
     base_dir: str | Path | None = None,
 ) -> tuple[Path, Path]:
+    gate = resolve_apply_gate(proposal_id, base_dir)
+    requested_mode = deployment_record.get("update_mode", gate["update_mode"])
+    if requested_mode != gate["update_mode"]:
+        raise ValueError(
+            f"deployment mode mismatch for {proposal_id}: expected {gate['update_mode']}, got {requested_mode}"
+        )
     queue_path = transition_approval_status(
         proposal_id,
         "applied",
-        updates={"applied": True, **deployment_record},
+        updates={"applied": True, "apply_gate": gate, **deployment_record},
         base_dir=base_dir,
     )
     deployment_path = record_deployment_record(
-        {"proposal_id": proposal_id, **deployment_record},
+        {"proposal_id": proposal_id, "apply_gate": gate, **deployment_record},
         base_dir=base_dir,
     )
     return queue_path, deployment_path

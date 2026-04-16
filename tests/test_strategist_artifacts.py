@@ -13,6 +13,7 @@ if str(ENGINE_SRC) not in sys.path:
 from engine.strategist_artifacts import (  # noqa: E402
     approve_request,
     ensure_strategist_dirs,
+    infer_update_mode,
     load_approval_request,
     mark_request_applied,
     queue_approval_request,
@@ -22,6 +23,7 @@ from engine.strategist_artifacts import (  # noqa: E402
     record_code_change_result,
     record_deployment_record,
     record_rollback_note,
+    resolve_apply_gate,
     strategist_paths,
     transition_approval_status,
 )
@@ -153,6 +155,8 @@ class StrategistArtifactTests(unittest.TestCase):
                     {
                         "proposal_id": "prop_003",
                         "status": "validated",
+                        "target_files": ["system/engine/src/engine/strategy.py"],
+                        "recommended_update_mode": "cold",
                     },
                 )
                 transition_approval_status("prop_003", "awaiting_approval")
@@ -195,6 +199,8 @@ class StrategistArtifactTests(unittest.TestCase):
                     {
                         "proposal_id": "prop_004",
                         "status": "awaiting_approval",
+                        "target_files": ["rules/rules.json"],
+                        "recommended_update_mode": "hot",
                     },
                 )
                 with self.assertRaises(ValueError):
@@ -224,6 +230,94 @@ class StrategistArtifactTests(unittest.TestCase):
             self.assertEqual(final_record["decision"], "rejected")
             self.assertEqual(json.loads(queue_path.read_text())["reason"], "insufficient evidence")
             self.assertEqual(json.loads(decision_path.read_text().splitlines()[0])["decision"], "rejected")
+
+    def test_apply_gate_infers_hot_for_rules_only(self):
+        record = {
+            "proposal_id": "prop_hot",
+            "target_files": ["rules/rules.json"],
+        }
+        self.assertEqual(infer_update_mode(record), "hot")
+
+    def test_apply_gate_infers_cold_for_strategy_code(self):
+        record = {
+            "proposal_id": "prop_cold",
+            "target_files": ["system/engine/src/engine/strategy.py"],
+        }
+        self.assertEqual(infer_update_mode(record), "cold")
+
+    def test_resolve_apply_gate_requires_approved_status(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            artifacts_dir = Path(tmpdir) / "artifacts"
+            old_env = os.environ.get("ENGINE_ARTIFACTS_DIR")
+            os.environ["ENGINE_ARTIFACTS_DIR"] = str(artifacts_dir)
+            try:
+                queue_approval_request(
+                    "prop_005",
+                    {
+                        "proposal_id": "prop_005",
+                        "status": "awaiting_approval",
+                        "target_files": ["rules/rules.json"],
+                    },
+                )
+                with self.assertRaises(ValueError):
+                    resolve_apply_gate("prop_005")
+            finally:
+                if old_env is None:
+                    os.environ.pop("ENGINE_ARTIFACTS_DIR", None)
+                else:
+                    os.environ["ENGINE_ARTIFACTS_DIR"] = old_env
+
+    def test_resolve_apply_gate_blocks_hot_for_code_change(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            artifacts_dir = Path(tmpdir) / "artifacts"
+            old_env = os.environ.get("ENGINE_ARTIFACTS_DIR")
+            os.environ["ENGINE_ARTIFACTS_DIR"] = str(artifacts_dir)
+            try:
+                queue_approval_request(
+                    "prop_006",
+                    {
+                        "proposal_id": "prop_006",
+                        "status": "approved",
+                        "target_files": ["system/engine/src/engine/rule_engine.py"],
+                        "recommended_update_mode": "hot",
+                    },
+                )
+                with self.assertRaises(ValueError):
+                    resolve_apply_gate("prop_006")
+            finally:
+                if old_env is None:
+                    os.environ.pop("ENGINE_ARTIFACTS_DIR", None)
+                else:
+                    os.environ["ENGINE_ARTIFACTS_DIR"] = old_env
+
+    def test_mark_request_applied_rejects_mode_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            artifacts_dir = Path(tmpdir) / "artifacts"
+            old_env = os.environ.get("ENGINE_ARTIFACTS_DIR")
+            os.environ["ENGINE_ARTIFACTS_DIR"] = str(artifacts_dir)
+            try:
+                queue_approval_request(
+                    "prop_007",
+                    {
+                        "proposal_id": "prop_007",
+                        "status": "approved",
+                        "target_files": ["rules/rules.json"],
+                        "recommended_update_mode": "hot",
+                    },
+                )
+                with self.assertRaises(ValueError):
+                    mark_request_applied(
+                        "prop_007",
+                        {
+                            "update_mode": "cold",
+                            "success": True,
+                        },
+                    )
+            finally:
+                if old_env is None:
+                    os.environ.pop("ENGINE_ARTIFACTS_DIR", None)
+                else:
+                    os.environ["ENGINE_ARTIFACTS_DIR"] = old_env
 
 
 if __name__ == "__main__":

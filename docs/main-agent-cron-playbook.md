@@ -11,11 +11,12 @@
 3. 主 agent 配 cron 时，优先参考仓库里的 `cron/`，再和当前 live 环境做 reconcile。
 4. 如果 live 环境里存在旧任务，而仓库里已经没有对应定义，应优先停用或迁移旧任务。
 5. 仓库侧优先用 `name` 作为稳定标识，`id` 只作为 live 映射的可选字段。
+6. `payload.taskFile` 在 live 环境中优先使用绝对项目路径，例如 `/workspace/agent-trading/docs/tasks/cron/strategist-premarket.md`。
 
 ## 推荐流程
 
 1. 读取 `cron/*.json`。
-2. 读取每个 `payload.taskFile` 指向的正文。
+2. 读取每个 `payload.taskFile` 指向的正文。不要依赖当前工作目录去猜 repo root。
 3. 检查 live 任务是否与仓库定义一致：
    - 时区
    - 模型
@@ -26,6 +27,7 @@
 4. 对齐时只做最小变更：
    - 正文变化，只改 `docs/tasks/cron/*.md`
    - 调度变化，只改 `cron/*.json`
+   - 如果 live 环境曾错误地从 `/workspace/docs/tasks/cron/` 读取，应优先修成绝对项目路径，而不是兼容错误根目录
 5. 如果发现遗留旧任务，例如旧时区、旧模型名、旧路径或旧 job id，先停用它，再让新定义接管。
 6. 如果 live 环境已有任务但仓库里缺少 `id`，可以先按 `name` 对齐，再在 live 侧补回映射，不要求仓库强制拥有 `id`。
 7. 如果投递目标是敏感值，不要硬编码在仓库里，优先写成 `${ENGINE_TELEGRAM_TARGET}` 这类占位符，由私有环境变量注入。

@@ -2,6 +2,8 @@
 
 本目录包含 Agent Trading 项目的 6 个 subagent 配置文件与部署脚本。
 
+统一的目录职责规范见：[docs/orchestration-directory-contract.md](../docs/orchestration-directory-contract.md)
+
 当前建议把 `agents/` 理解为：
 
 - OpenClaw subagent 的参考配置目录

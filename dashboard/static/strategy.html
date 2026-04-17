@@ -11,7 +11,7 @@
             theme: {
                 extend: {
                     colors: {
-                        tiger: { 50: '#fff7ed', 500: '#f97316', 600: '#ea580c', 700: '#c2410c' },
+                        sakura: { 50: '#fff1f5', 500: '#ec4899', 600: '#db2777', 700: '#be185d' },
                         dark: { 800: '#1e1e2e', 900: '#11111b', 950: '#0b0b12' }
                     }
                 }
@@ -125,6 +125,93 @@
             </div>
         </section>
 
+        <section class="card">
+            <div class="card-title">📈 回测报告</div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">标的（逗号分隔）</div>
+                    <input id="bt-symbols" type="text" value="AAPL" class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-sakura-500" placeholder="AAPL,MSFT,NVDA">
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">开始日期</div>
+                    <input id="bt-start" type="date" value="2026-01-01" class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-sakura-500">
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">结束日期</div>
+                    <input id="bt-end" type="date" value="2026-04-01" class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-sakura-500">
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">初始资金</div>
+                    <input id="bt-capital" type="number" value="100000" class="w-full bg-dark-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-sakura-500">
+                </div>
+            </div>
+            <div class="text-xs text-gray-500 mb-4">数据源：当前 API（免费历史K线，模拟盘账户可用）</div>
+            <div class="flex gap-2 mb-4">
+                <button onclick="runBacktest()" class="bg-sakura-600 hover:bg-sakura-700 text-white px-4 py-2 rounded text-sm font-medium transition">🚀 运行回测</button>
+                <span id="bt-status" class="text-xs text-gray-500 self-center">--</span>
+            </div>
+            <div id="bt-results" class="hidden">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">总收益率</div>
+                        <div id="bt-return" class="text-xl font-bold">--</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">总交易次数</div>
+                        <div id="bt-trades" class="text-xl font-bold">--</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">胜率</div>
+                        <div id="bt-winrate" class="text-xl font-bold">--</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">最大回撤</div>
+                        <div id="bt-drawdown" class="text-xl font-bold">--</div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">夏普比率</div>
+                        <div id="bt-sharpe" class="text-lg">--</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">盈亏比</div>
+                        <div id="bt-profit-factor" class="text-lg">--</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">平均盈利</div>
+                        <div id="bt-avg-win" class="text-lg text-green-400">--</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">平均亏损</div>
+                        <div id="bt-avg-loss" class="text-lg text-red-400">--</div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">手续费合计</div>
+                        <div id="bt-commission-total" class="text-lg text-amber-300">--</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">滑点合计</div>
+                        <div id="bt-slippage-total" class="text-lg text-amber-300">--</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">交易成本合计</div>
+                        <div id="bt-cost-total" class="text-lg text-amber-300">--</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">费率拖累</div>
+                        <div id="bt-fee-drag" class="text-lg text-amber-300">--</div>
+                    </div>
+                </div>
+                <details class="text-xs text-gray-500">
+                    <summary class="cursor-pointer hover:text-gray-300">查看交易记录</summary>
+                    <div id="bt-trades-list" class="mt-2 bg-dark-900 rounded p-3 overflow-auto max-h-64 text-gray-400">--</div>
+                </details>
+            </div>
+        </section>
+
         <section class="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <div class="card flex flex-col h-[34rem] min-h-0">
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
@@ -205,6 +292,20 @@
             const n = Number(value);
             if (!Number.isFinite(n)) return '--';
             return n.toLocaleString('zh-CN');
+        }
+
+        function fmt(value, digits = 2) {
+            const n = Number(value);
+            if (!Number.isFinite(n)) return '--';
+            return n.toFixed(digits);
+        }
+
+        function pnlClass(value) {
+            const n = Number(value);
+            if (!Number.isFinite(n)) return 'text-gray-200';
+            if (n > 0) return 'text-green-400';
+            if (n < 0) return 'text-red-400';
+            return 'text-gray-200';
         }
 
         function ruleFilterClass(active) {
@@ -451,6 +552,84 @@
                     </div>
                 </div>
             `;
+        }
+
+        async function runBacktest() {
+            const statusEl = document.getElementById('bt-status');
+            const resultsEl = document.getElementById('bt-results');
+            statusEl.textContent = '运行中...';
+            statusEl.className = 'text-xs text-amber-300 self-center';
+            resultsEl.classList.add('hidden');
+
+            try {
+                const symbols = (document.getElementById('bt-symbols').value || 'AAPL')
+                    .split(',')
+                    .map(item => item.trim().toUpperCase())
+                    .filter(Boolean);
+                const startDate = document.getElementById('bt-start').value;
+                const endDate = document.getElementById('bt-end').value;
+                const capital = Number(document.getElementById('bt-capital').value || 100000);
+
+                const res = await fetch(API_BASE + '/api/backtest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        symbols,
+                        start_date: startDate,
+                        end_date: endDate,
+                        initial_capital: capital,
+                        timeframe: '30min'
+                    }),
+                });
+
+                const data = await res.json();
+                if (data.error) {
+                    statusEl.textContent = '错误: ' + data.error;
+                    statusEl.className = 'text-xs text-red-400 self-center';
+                    return;
+                }
+
+                const result = data.result;
+                document.getElementById('bt-return').textContent = (result.total_return_pct >= 0 ? '+' : '') + fmt(result.total_return_pct) + '%';
+                document.getElementById('bt-return').className = 'text-xl font-bold ' + pnlClass(result.total_return);
+                document.getElementById('bt-trades').textContent = result.total_trades || 0;
+
+                const winRate = result.win_rate ? (result.win_rate * 100) : 0;
+                document.getElementById('bt-winrate').textContent = fmt(winRate) + '%';
+                document.getElementById('bt-winrate').className = 'text-xl font-bold ' + (winRate >= 50 ? 'text-green-400' : 'text-red-400');
+
+                document.getElementById('bt-drawdown').textContent = '-' + fmt(result.max_drawdown_pct) + '%';
+                document.getElementById('bt-drawdown').className = 'text-xl font-bold text-red-400';
+                document.getElementById('bt-sharpe').textContent = fmt(result.sharpe_ratio, 2);
+                document.getElementById('bt-profit-factor').textContent = result.profit_factor === Infinity ? '∞' : fmt(result.profit_factor, 2);
+                document.getElementById('bt-avg-win').textContent = '$' + fmt(result.avg_win);
+                document.getElementById('bt-avg-loss').textContent = '$' + fmt(result.avg_loss);
+                document.getElementById('bt-commission-total').textContent = '$' + fmt(result.commission_total);
+                document.getElementById('bt-slippage-total').textContent = '$' + fmt(result.slippage_total);
+                document.getElementById('bt-cost-total').textContent = '$' + fmt(result.transaction_cost_total);
+                document.getElementById('bt-fee-drag').textContent = fmt(result.fee_drag_pct) + '%';
+
+                const tradesList = document.getElementById('bt-trades-list');
+                if (result.trades && result.trades.length > 0) {
+                    tradesList.innerHTML = result.trades.slice(-20).map(t => {
+                        const sideCls = t.side === 'BUY' ? 'text-green-400' : 'text-red-400';
+                        return `<div class="flex justify-between py-1 border-b border-gray-700/30">
+                            <span><span class="${sideCls}">${t.side}</span> ${escapeHtml(t.symbol)}</span>
+                            <span>${t.quantity}股 @ $${fmt(t.price)} · fee $${fmt(t.commission || 0)} · slip $${fmt(t.slippage || 0)}</span>
+                        </div>`;
+                    }).join('');
+                } else {
+                    tradesList.textContent = '无交易记录';
+                }
+
+                resultsEl.classList.remove('hidden');
+                statusEl.textContent = '回测完成';
+                statusEl.className = 'text-xs text-green-400 self-center';
+            } catch (e) {
+                console.error(e);
+                statusEl.textContent = '回测失败';
+                statusEl.className = 'text-xs text-red-400 self-center';
+            }
         }
 
         async function refreshAll() {

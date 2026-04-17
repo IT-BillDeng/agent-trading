@@ -1633,9 +1633,16 @@ async def api_backtest_batch(body: dict):
                 "error": str(e),
             })
 
-    # Find best by return_pct
+    # Find best by net return, then prefer stronger sharpe and lower fee drag.
     valid = [r for r in results if "error" not in r and r.get("trades", 0) > 0]
-    best = max(valid, key=lambda r: r.get("return_pct", 0)) if valid else None
+    best = max(
+        valid,
+        key=lambda r: (
+            r.get("return_pct", 0),
+            r.get("sharpe") or float("-inf"),
+            -(r.get("fee_drag_pct") or 0),
+        ),
+    ) if valid else None
 
     # Save iteration results
     iterations_dir = STRATEGIST_ITERATIONS_ARTIFACT_DIR

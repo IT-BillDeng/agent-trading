@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from .broker_fee import build_fee_calibration_record, extract_actual_charges_total, load_fee_schedule
+
 
 def unwrap_data(resp: dict[str, Any] | None) -> Any:
     if not isinstance(resp, dict):
@@ -99,6 +101,7 @@ def normalize_order_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
         'remaining_quantity': None,
         'avg_fill_price': avg_fill_price,
         'commission_total': round(total_commission, 6),
+        'actual_charges_total': None,
         'transactions_count': len(normalized_transactions),
         'transactions': normalized_transactions,
         'raw': {
@@ -108,6 +111,20 @@ def normalize_order_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
     }
 
     if isinstance(order_item, dict):
+        actual_charges_total = extract_actual_charges_total(order_item)
+        fee_schedule = load_fee_schedule('tiger')
+        price_for_calibration = order_item.get('avgFillPrice') or order_item.get('avg_fill_price') or avg_fill_price
+        quantity_for_calibration = total_filled_qty or order_item.get('filledQuantity') or order_item.get('filled_quantity')
+        fee_calibration = build_fee_calibration_record(
+            broker_platform='tiger',
+            market='US',
+            symbol=snapshot.get('symbol'),
+            side=order_item.get('action'),
+            price=_safe_float(price_for_calibration) if price_for_calibration is not None else None,
+            quantity=_safe_float(quantity_for_calibration) if quantity_for_calibration is not None else None,
+            actual_total=actual_charges_total,
+            fee_schedule=fee_schedule,
+        )
         normalized.update({
             'status': order_item.get('status'),
             'quantity': order_item.get('totalQuantity') or order_item.get('quantity'),
@@ -119,6 +136,8 @@ def normalize_order_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
             'order_type': order_item.get('orderType') or order_item.get('order_type'),
             'side': order_item.get('action'),
             'update_time': order_item.get('updateTime') or order_item.get('update_time'),
+            'actual_charges_total': actual_charges_total,
+            'fee_calibration': fee_calibration,
         })
 
     return normalized

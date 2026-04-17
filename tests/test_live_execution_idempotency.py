@@ -50,7 +50,7 @@ class FakeBrokerClient:
     def get_filled_orders(self, limit: int = 20) -> dict[str, Any]:
         return {"http_status": 200, "body": {"code": 0, "data": {"items": []}}}
 
-    def get_order(self, id: Optional[int] = None, order_id: Optional[int] = None) -> dict[str, Any]:
+    def get_order(self, id: Optional[int] = None, order_id: Optional[int] = None, show_charges: bool = False) -> dict[str, Any]:
         return _response(self._order_snapshot)
 
     def get_transactions(self, order_id: Optional[int] = None, symbol: Optional[str] = None, limit: int = 50) -> dict[str, Any]:

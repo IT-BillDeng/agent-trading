@@ -86,12 +86,14 @@ class TigerClient:
     def get_filled_orders(self, limit: int = 20) -> dict[str, Any]:
         return self.request('filled_orders', {'account': self.props.account, 'secret_key': self.props.secret_key, 'limit': limit})
 
-    def get_order(self, id: int | None = None, order_id: int | None = None) -> dict[str, Any]:
+    def get_order(self, id: int | None = None, order_id: int | None = None, show_charges: bool = False) -> dict[str, Any]:
         payload: dict[str, Any] = {'account': self.props.account, 'secret_key': self.props.secret_key}
         if id is not None:
             payload['id'] = id
         if order_id is not None:
             payload['order_id'] = order_id
+        if show_charges:
+            payload['show_charges'] = True
         return self.request('orders', payload)
 
     def get_transactions(self, order_id: int | None = None, symbol: str | None = None, limit: int = 50) -> dict[str, Any]:

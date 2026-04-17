@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from .broker_fee_artifacts import record_fee_calibration
 from .control import ControlPlane
 from .state import StateStore
 from .sync import normalize_order_snapshot
@@ -144,6 +145,15 @@ class LiveExecutionAdapter:
                 continue
             snapshot['normalized'] = normalize_order_snapshot(snapshot)
             self.state.mark_sync(idem, snapshot)
+            fee_calibration = snapshot['normalized'].get('fee_calibration')
+            if fee_calibration:
+                record_fee_calibration({
+                    'idempotency_key': idem,
+                    'intent_id': record.get('intent_id'),
+                    'order_id': snapshot.get('order_id'),
+                    'global_id': snapshot.get('global_id'),
+                    **fee_calibration,
+                })
             snapshots.append(snapshot)
         return snapshots
 
@@ -251,7 +261,7 @@ class LiveExecutionAdapter:
         global_id = data.get('id')
         if order_id is None and global_id is None:
             return None
-        order_snapshot = self.client.get_order(id=global_id, order_id=order_id)
+        order_snapshot = self.client.get_order(id=global_id, order_id=order_id, show_charges=True)
         transactions = self.client.get_transactions(order_id=order_id, symbol=record.get('symbol')) if order_id is not None else {'http_status': None, 'body': {'code': None, 'message': 'missing_order_id'}}
         return {
             'idempotency_key': idem,

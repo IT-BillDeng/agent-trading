@@ -11,6 +11,7 @@ from typing import Any, Iterator
 
 import yfinance as yf
 
+from .broker_fee import estimate_order_fee_breakdown, load_fee_schedule
 from .rule_engine import RuleEngine
 
 
@@ -371,49 +372,14 @@ class OrderSimulator:
     def calculate_fee_breakdown(self, price: float, quantity: int, side: str) -> dict[str, float]:
         if self.fee_model != 'broker_default':
             return {}
-        if self.broker_platform == 'tiger' and self.market == 'US':
-            return self._calculate_tiger_us_stock_fee_breakdown(price, quantity, side)
-        return {}
-
-    def _calculate_tiger_us_stock_fee_breakdown(self, price: float, quantity: int, side: str) -> dict[str, float]:
-        product = (
-            self.fee_schedule.get('markets', {})
-            .get('US', {})
-            .get('stocks_etf', {})
+        return estimate_order_fee_breakdown(
+            broker_platform=self.broker_platform,
+            market=self.market,
+            side=side,
+            price=price,
+            quantity=quantity,
+            fee_schedule=self.fee_schedule,
         )
-        if not product:
-            return {}
-
-        trade_value = price * quantity
-        breakdown: dict[str, float] = {}
-
-        commission = max(quantity * float(product.get('commission_per_share', 0.0)), float(product.get('commission_min', 0.0)))
-        breakdown['commission'] = round(commission, 6)
-
-        platform_fee = max(quantity * float(product.get('platform_per_share', 0.0)), float(product.get('platform_min', 0.0)))
-        platform_cap = trade_value * float(product.get('platform_max_pct_trade_value', 0.0))
-        if platform_cap > 0:
-            platform_fee = min(platform_fee, platform_cap)
-        breakdown['platform_fee'] = round(platform_fee, 6)
-
-        settlement_fee = quantity * float(product.get('settlement_per_share', 0.0))
-        settlement_cap = trade_value * float(product.get('settlement_max_pct_trade_value', 0.0))
-        if settlement_cap > 0:
-            settlement_fee = min(settlement_fee, settlement_cap)
-        breakdown['settlement_fee'] = round(settlement_fee, 6)
-
-        if side == 'SELL':
-            sec_fee = max(trade_value * float(product.get('sec_sell_rate', 0.0)), float(product.get('sec_sell_min', 0.0)))
-            breakdown['sec_fee'] = round(sec_fee, 6)
-
-            taf_fee = quantity * float(product.get('taf_sell_per_share', 0.0))
-            taf_fee = max(taf_fee, float(product.get('taf_sell_min', 0.0)))
-            taf_cap = float(product.get('taf_sell_max', 0.0))
-            if taf_cap > 0:
-                taf_fee = min(taf_fee, taf_cap)
-            breakdown['taf_fee'] = round(taf_fee, 6)
-
-        return breakdown
     
     def calculate_slippage(self, price: float, quantity: int, side: str) -> float:
         """计算滑点"""
@@ -473,21 +439,10 @@ class BacktestEngine:
 
     @staticmethod
     def _load_fee_schedule(broker_platform: str) -> dict[str, Any]:
-        config_dir = Path(
-            os.environ.get(
-                'ENGINE_CONFIG_DIR',
-                str(Path(__file__).resolve().parents[4] / 'config'),
-            )
-        )
-        schedule_file = config_dir / f'broker_fee.{broker_platform}.json'
-        if not schedule_file.exists():
-            return {}
-        try:
-            payload = json.loads(schedule_file.read_text())
-            return payload if isinstance(payload, dict) else {}
-        except Exception as exc:
-            print(f"[Backtest] Failed to load fee schedule {schedule_file}: {exc}")
-            return {}
+        payload = load_fee_schedule(broker_platform)
+        if not payload:
+            print(f"[Backtest] No fee schedule found for broker {broker_platform}")
+        return payload
     
     def load_data(self):
         """加载历史数据"""

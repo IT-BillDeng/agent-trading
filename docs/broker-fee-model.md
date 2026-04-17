@@ -170,3 +170,27 @@
 - 用真实订单费用校准静态模型
 - 输出 `estimated_cost_error`
 - 把“费用偏差”也纳入 strategist 记忆
+
+## 校准产物
+
+当前真实费用校准记录会写到：
+
+- `artifacts/broker/fee_calibration.jsonl`
+
+每条记录至少包含：
+
+- `broker_platform`
+- `market`
+- `symbol`
+- `side`
+- `price`
+- `quantity`
+- `estimated_total`
+- `actual_total`
+- `delta`
+
+这份文件的作用是：
+
+- 对比静态 fee model 与 broker 实际 charges
+- 识别哪些市场 / 产品 / 价格带偏差最大
+- 后续更新 `config/broker_fee.*.json` 时提供依据

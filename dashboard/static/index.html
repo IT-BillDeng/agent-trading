@@ -245,7 +245,6 @@
                 <div class="flex flex-wrap gap-2 pt-1">
                     <a href="/strategy" class="px-3 py-1.5 rounded bg-sakura-600/20 hover:bg-sakura-600/30 text-sakura-300 border border-sakura-600/30 text-xs transition">前往策略工作台</a>
                     <a href="/logs" class="px-3 py-1.5 rounded bg-gray-700/40 hover:bg-gray-700/60 text-gray-300 border border-gray-600/40 text-xs transition">查看系统日志</a>
-                    <button id="advanced-toggle" onclick="toggleAdvancedPanels()" class="px-3 py-1.5 rounded bg-gray-700/40 hover:bg-gray-700/60 text-gray-300 border border-gray-600/40 text-xs transition">显示高级面板</button>
                 </div>
             </section>
 
@@ -293,6 +292,10 @@
             <div id="news-list" class="space-y-2 max-h-96 overflow-y-auto">
                 <div class="text-gray-500 text-sm">加载中...</div>
             </div>
+        </section>
+
+        <section class="mt-6 flex justify-center">
+            <button id="advanced-toggle" onclick="toggleAdvancedPanels()" class="px-4 py-2 rounded bg-gray-700/40 hover:bg-gray-700/60 text-gray-300 border border-gray-600/40 text-sm transition">显示高级面板</button>
         </section>
 
         <!-- Watchlist Management -->

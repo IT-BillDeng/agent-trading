@@ -3,7 +3,7 @@
 # 频率：每市场收盘后
 
 agent_id: closer
-model: xiaomi/mimo-v2-omni
+model: openai-codex/gpt-5.4-mini
 description: "收盘总结/复盘/明日关注：每个市场收盘后输出总结"
 frequency: "每市场收盘后"
 

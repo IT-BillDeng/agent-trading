@@ -25,12 +25,12 @@
 
 | Agent | 职责 | 频率 | 模型 |
 |-------|------|------|------|
-| watcher | 系统健康监控 | 每 15 分钟 | `xiaomi/mimo-v2-omni` |
-| newswire | 新闻/催化扫描 | US 盘前 / 盘中 q30 / 盘后 q2h | `xiaomi/mimo-v2-omni` |
-| strategist | 交易计划草案 / 参数迭代 | 信号触发或定时 | `xiaomi/mimo-v2-pro` |
-| executor | 执行检查单/参数校验 | 策略完成后触发 | `xiaomi/mimo-v2-omni` |
-| scout | 候选标的/异常波动扫描 | 按需或定时 | `xiaomi/mimo-v2-omni` |
-| closer | 收盘总结/复盘/明日关注 | 每市场收盘后 | `xiaomi/mimo-v2-omni` |
+| watcher | 系统健康监控 | 每 15 分钟 | `openai-codex/gpt-5.4-nano` |
+| newswire | 新闻/催化扫描 | US 盘前 / 盘中 q30 / 盘后 q2h | `openai-codex/gpt-5.4-mini` |
+| strategist | 交易计划草案 / 参数迭代 | 信号触发或定时 | `openai-codex/gpt-5.4` |
+| executor | 执行检查单/参数校验 | 策略完成后触发 | `openai-codex/gpt-5.4-mini` |
+| scout | 候选标的/异常波动扫描 | 按需或定时 | `openai-codex/gpt-5.4-mini` |
+| closer | 收盘总结/复盘/明日关注 | 每市场收盘后 | `openai-codex/gpt-5.4-mini` |
 
 ## 主 Agent 中枢
 

@@ -3,7 +3,7 @@
 # 频率：按需或定时
 
 agent_id: scout
-model: xiaomi/mimo-v2-omni
+model: openai-codex/gpt-5.4-mini
 description: "候选标的/异常波动扫描：扫描候选标的、异常波动检测"
 frequency: "按需或定时"
 

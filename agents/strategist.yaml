@@ -2,11 +2,11 @@
 # 职责：策略管理器（规则调参/暂停恢复/信号质量分析/自我迭代）
 # 当前等级：L3a（允许白名单策略代码演化；不自动上线 live）
 # 频率：盘前(09:00 ET) / 盘中(1h) / 盘后(16:30 ET)
-# 模型：pro（深度推理）
+# 模型：gpt-5.4（深度推理）
 # 触发：Newswire 完成后自动触发
 
 agent_id: strategist
-model: xiaomi/mimo-v2-pro
+model: openai-codex/gpt-5.4
 description: "策略管理器（L3a）：规则调参/代码提案/信号质量分析/自我迭代"
 capability_level: L3a
 

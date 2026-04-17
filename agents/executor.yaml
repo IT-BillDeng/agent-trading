@@ -3,7 +3,7 @@
 # 频率：策略完成后触发
 
 agent_id: executor
-model: xiaomi/mimo-v2-omni
+model: openai-codex/gpt-5.4-mini
 description: "执行检查单/参数校验：把计划转成可执行检查单"
 frequency: "策略完成后触发"
 

@@ -3,7 +3,7 @@
 # 频率：按需触发（非 cron）
 
 agent_id: applier
-model: xiaomi/mimo-v2-omni
+model: openai-codex/gpt-5.4-mini
 description: "变更应用器：应用已批准的策略更新并记录部署结果"
 frequency: "按需触发"
 

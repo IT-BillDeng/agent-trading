@@ -1,4 +1,4 @@
-# US 盘中异常监控（1h，omni 模型）
+# US 盘中异常监控（1h，gpt-5.4-mini）
 
 - 来源 cron: `trading-strategist-intraday.json`
 - taskFile: `docs/tasks/cron/strategist-intraday.md`

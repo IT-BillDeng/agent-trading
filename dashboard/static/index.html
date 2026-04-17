@@ -944,8 +944,8 @@
                 list.innerHTML = '<div class="text-gray-500 text-sm">暂无订单记录</div>';
                 return;
             }
-            // Sort by time desc, limit to 10
-            const sorted = [...data].sort((a, b) => (b.submitted_at || 0) - (a.submitted_at || 0)).slice(0, 10);
+            // Sort by time desc and let the fixed-height panel handle scrolling.
+            const sorted = [...data].sort((a, b) => (b.submitted_at || 0) - (a.submitted_at || 0));
             list.innerHTML = sorted.map(o => {
                 const isBuy = (o.action || o.side) === 'BUY';
                 const icon = isBuy ? '🟢' : '🔴';

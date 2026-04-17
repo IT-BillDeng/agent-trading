@@ -14,6 +14,12 @@
 
 ## 执行流程
 
+### Step 0: 先判断今日是否为交易日
+执行：
+`curl -s "http://host.docker.internal:8088/api/trading-day?market=US"`
+
+- 如果 `is_trading_day=false`，回复“非交易日，跳过盘中新闻采集”并结束
+
 ### Step 1: 调用前去重
 读取 ./runtime/state/newswire_dedupe.json 的 updated_at
 → 距今 < 20分钟 且 非 shift 切换点（盘中切换窗口 09:00-09:30 ET）

@@ -11,6 +11,8 @@
 - `docs/tasks/cron/*.md` 保存真正会变化的任务正文
 - 当任务步骤更新时，只改这里，不改 cron 配置
 - 运行时的 `payload.taskFile` 优先写成绝对项目路径：`/workspace/agent-trading/docs/tasks/cron/*.md`
+- 对美股盘前、盘中、盘后、收盘总结类任务，默认先查询 `http://host.docker.internal:8088/api/trading-day?market=US`
+- 若返回 `is_trading_day=false`，对应任务应直接跳过，不再自行用 weekday 近似判断
 
 ## 目录映射
 

@@ -10,13 +10,15 @@
 
 工作目录：`/workspace/agent-trading/`
 
-1. 运行脚本：python3 ./system/engine/src/engine/closer.py US
-2. 解析输出的 JSON：
+1. 先查询 `curl -s "http://host.docker.internal:8088/api/trading-day?market=US"`
+2. 如果 `is_trading_day=false`，直接回复 `HEARTBEAT_OK` 并结束，不运行 closer
+3. 运行脚本：python3 ./system/engine/src/engine/closer.py US
+4. 解析输出的 JSON：
    - 如果 status 是 'skipped' 且 reason 是 '非交易日'，直接回复 HEARTBEAT_OK
    - 否则提取 report 字段
-3. 将报告内容通过 message 工具发送到 Telegram（channel: telegram, target: ${ENGINE_TELEGRAM_TARGET}）
-4. 如果有异常或风险，在报告末尾添加 ⚠️ 标记
-5. 运行结果会同步落到 `./artifacts/closer/summary_latest.json` 和 `./artifacts/closer/summary_history.jsonl`
+5. 将报告内容通过 message 工具发送到 Telegram（channel: telegram, target: ${ENGINE_TELEGRAM_TARGET}）
+6. 如果有异常或风险，在报告末尾添加 ⚠️ 标记
+7. 运行结果会同步落到 `./artifacts/closer/summary_latest.json` 和 `./artifacts/closer/summary_history.jsonl`
 
 注意：API 地址 http://host.docker.internal:8088
 

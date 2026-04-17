@@ -2,7 +2,7 @@
 
 import json
 import os
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Any
@@ -19,6 +19,7 @@ from .quote_provider import get_quote_provider
 from .scheduler import SignalScheduler
 from .normalize import get_normalizer, available_brokers
 from .service_logs import append_service_log
+from .trading_day import get_us_trading_day_status
 from system.engine.src.engine.config import (
     load_app_config_raw,
     merge_user_settings,
@@ -283,6 +284,43 @@ async def api_stock_analysis(period: str = "all"):
     if not cache:
         return JSONResponse({"error": "not ready"}, status_code=503)
     return cache.get_stock_analysis(period=period)
+
+
+@app.get("/api/trading-day")
+async def api_trading_day(date_str: str | None = None, market: str = "US"):
+    """Check whether the target day is a trading day using an online calendar source."""
+    normalized_market = market.upper()
+    if normalized_market != "US":
+        return JSONResponse({"error": "unsupported market"}, status_code=400)
+
+    try:
+        target_date = date.fromisoformat(date_str) if date_str else None
+    except ValueError:
+        return JSONResponse({"error": "invalid date, expected YYYY-MM-DD"}, status_code=400)
+
+    try:
+        status = get_us_trading_day_status(target_date=target_date)
+    except Exception as e:
+        append_service_log(
+            "dashboard",
+            "warning",
+            "Trading day lookup failed",
+            kind="online_lookup_warning",
+            market=normalized_market,
+            date=date_str,
+            error=str(e),
+        )
+        return JSONResponse(
+            {
+                "market": normalized_market,
+                "date": target_date.isoformat() if target_date else None,
+                "error": "online lookup failed",
+                "detail": str(e),
+            },
+            status_code=503,
+        )
+
+    return status.__dict__
 
 
 @app.get("/api/lookup/{symbol}")

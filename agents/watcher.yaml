@@ -3,7 +3,7 @@
 # 频率：每 15 分钟
 
 agent_id: watcher
-model: ollama/gemma4:e4b
+model: openai-codex/gpt-5.4-mini
 description: "系统健康监控：engine 心跳、Docker 状态、API 权限"
 frequency: "每 15 分钟"
 

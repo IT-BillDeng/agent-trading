@@ -176,6 +176,7 @@
 当前真实费用校准记录会写到：
 
 - `artifacts/broker/fee_calibration.jsonl`
+- `artifacts/broker/fee_calibration_summary.json`
 
 每条记录至少包含：
 
@@ -194,3 +195,9 @@
 - 对比静态 fee model 与 broker 实际 charges
 - 识别哪些市场 / 产品 / 价格带偏差最大
 - 后续更新 `config/broker_fee.*.json` 时提供依据
+
+其中 `fee_calibration_summary.json` 适合：
+
+- strategist 盘后快速读取
+- dashboard / strategy 页面直接展示
+- 主 agent 判断当前净收益模型是否仍可信

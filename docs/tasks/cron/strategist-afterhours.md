@@ -19,19 +19,21 @@
 4. 读取 ./artifacts/newswire/latest.json（优先）
 5. 读取 ./logs/latest/market_context.json — 当前市场上下文
 6. 读取 ./logs/latest/engine_cycle.json（优先）
-7. 如有必要，可兼容读取旧快照（如存在）
-8. 分析今日信号质量：总信号数、胜率、PnL、false signal、missed opportunity
-9. 提出明日策略迭代方案（参数/因子调整）
-10. 对每个方案用 exec 调回测 API 验证：
+7. 读取 ./artifacts/broker/fee_calibration_summary.json（如存在），判断近期手续费模型是否可信
+8. 如有必要，可兼容读取旧快照（如存在）
+9. 分析今日信号质量：总信号数、胜率、PnL、false signal、missed opportunity
+10. 提出明日策略迭代方案（参数/因子调整）
+11. 对每个方案用 exec 调回测 API 验证：
 curl -s -X POST http://host.docker.internal:8088/api/backtest/batch -H "Content-Type: application/json" -d '{"symbols":["AAPL","MSFT","NVDA"],"start_date":"2026-01-07","end_date":"2026-04-14","param_sets":[...]}'
-11. 通过的方案可用 exec PUT 到 /api/rules 做规则层变更，拒绝的记录原因单独写入长期产物
-12. 如识别出明确代码级策略假设，可进入 `docs/tasks/STRATEGIST_CODE_CHANGE_TASK.md` 流程，在白名单目录内修改策略代码与测试代码
-13. 代码级提案必须写入：
+12. 若 fee calibration 偏差显著，必须在 `risk_notes` 里注明“静态手续费模型可信度下降”，并降低对净收益改进的信任
+13. 通过的方案可用 exec PUT 到 /api/rules 做规则层变更，拒绝的记录原因单独写入长期产物
+14. 如识别出明确代码级策略假设，可进入 `docs/tasks/STRATEGIST_CODE_CHANGE_TASK.md` 流程，在白名单目录内修改策略代码与测试代码
+15. 代码级提案必须写入：
     - ./artifacts/strategist/code_change_proposals.jsonl
     - ./artifacts/strategist/code_change_results.jsonl
     - ./artifacts/strategist/rollback_notes.jsonl
-14. 写入 ./artifacts/strategist/strategy_plan_latest.json（shift=afterhours, type=analysis）
-15. 记录到 ./artifacts/strategist/iterations/
+16. 写入 ./artifacts/strategist/strategy_plan_latest.json（shift=afterhours, type=analysis）
+17. 记录到 ./artifacts/strategist/iterations/
 
 禁止：
 - 不扩张股票池

@@ -11,7 +11,7 @@ if str(ENGINE_SRC) not in sys.path:
     sys.path.insert(0, str(ENGINE_SRC))
 
 from engine.broker_fee import build_fee_calibration_record, extract_actual_charges_total  # noqa: E402
-from engine.broker_fee_artifacts import record_fee_calibration  # noqa: E402
+from engine.broker_fee_artifacts import record_fee_calibration, summarize_fee_calibration  # noqa: E402
 
 
 _TIGER_US_FEE_SCHEDULE = {
@@ -80,6 +80,7 @@ class BrokerFeeCalibrationTests(unittest.TestCase):
                     }
                 )
                 record = json.loads(path.read_text().splitlines()[0])
+                summary = json.loads((artifacts_dir / "broker" / "fee_calibration_summary.json").read_text())
             finally:
                 if old_env is None:
                     os.environ.pop("ENGINE_ARTIFACTS_DIR", None)
@@ -89,6 +90,35 @@ class BrokerFeeCalibrationTests(unittest.TestCase):
         self.assertEqual(path, artifacts_dir / "broker" / "fee_calibration.jsonl")
         self.assertEqual(record["symbol"], "AAPL")
         self.assertAlmostEqual(record["delta"], -0.04, places=6)
+        self.assertEqual(summary["count"], 1)
+        self.assertAlmostEqual(summary["avg_delta"], -0.04, places=6)
+
+    def test_summarize_fee_calibration_limits_recent_entries(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            artifacts_dir = Path(tmpdir) / "artifacts"
+            old_env = os.environ.get("ENGINE_ARTIFACTS_DIR")
+            os.environ["ENGINE_ARTIFACTS_DIR"] = str(artifacts_dir)
+            try:
+                for idx in range(3):
+                    record_fee_calibration(
+                        {
+                            "broker_platform": "tiger",
+                            "symbol": f"SYM{idx}",
+                            "actual_total": 2.0 + idx,
+                            "estimated_total": 2.1 + idx,
+                            "delta": -0.1,
+                        }
+                    )
+                summary = summarize_fee_calibration(limit=2)
+            finally:
+                if old_env is None:
+                    os.environ.pop("ENGINE_ARTIFACTS_DIR", None)
+                else:
+                    os.environ["ENGINE_ARTIFACTS_DIR"] = old_env
+
+        self.assertEqual(summary["count"], 2)
+        self.assertEqual(summary["recent"][0]["symbol"], "SYM2")
+        self.assertEqual(summary["recent"][1]["symbol"], "SYM1")
 
 
 if __name__ == "__main__":

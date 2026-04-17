@@ -63,6 +63,7 @@
 - `./logs/latest/engine_cycle.json` — 最近周期快照（优先）
 - `./logs/latest/market_context.json` — 当前市场上下文
 - `./artifacts/strategist/memory/latest.json` — strategist 最新记忆摘要
+- `./artifacts/broker/fee_calibration_summary.json` — fee model 近期可信度摘要（如存在）
 
 **Step 2: 复盘昨日信号**
 分析 last_cycle 中的信号数量、方向、风控结果。总结问题。
@@ -99,6 +100,11 @@ curl -s -X POST http://host.docker.internal:8088/api/backtest \
 分析今日信号质量。提出明日迭代方案。回测验证。汇报主 agent。
 盘后同时更新 strategist 的长期产物，沉淀可复用经验、被拒绝提案与下一步假设，写入 `artifacts/strategist/`。
 如识别出明确代码级策略假设，可进入 `L3a` 代码提案流程，在白名单目录内修改策略代码与测试代码，并执行完整验证链。
+盘后应读取 `./artifacts/broker/fee_calibration_summary.json`。
+如果 `max_abs_delta` 或 `avg_delta` 明显偏大，应：
+- 在 `risk_notes` 中标记“手续费模型可信度下降”
+- 降低对静态 backtest 净收益改进的信任度
+- 优先等待更多真实费用校准记录，再决定是否大幅调整参数
 
 ---
 

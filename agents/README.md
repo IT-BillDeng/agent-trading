@@ -25,7 +25,7 @@
 
 | Agent | 职责 | 频率 | 模型 |
 |-------|------|------|------|
-| watcher | 系统健康监控 | 每 15 分钟 | `openai-codex/gpt-5.4-nano` |
+| watcher | 系统健康监控 | 每 15 分钟 | `ollama/gemma4:e4b` |
 | newswire | 新闻/催化扫描 | US 盘前 / 盘中 q30 / 盘后 q2h | `openai-codex/gpt-5.4-mini` |
 | strategist | 交易计划草案 / 参数迭代 | 信号触发或定时 | `openai-codex/gpt-5.4` |
 | executor | 执行检查单/参数校验 | 策略完成后触发 | `openai-codex/gpt-5.4-mini` |

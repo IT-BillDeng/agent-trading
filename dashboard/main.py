@@ -990,7 +990,7 @@ def _build_strategy_overview() -> dict[str, Any]:
         "market_state": cycle.get("market_state"),
     }
 
-    fee_calibration = _read_json_file(BROKER_ARTIFACTS_DIR / "fee_calibration_summary.json", {})
+    fee_calibration = _safe_read_json(BROKER_ARTIFACTS_DIR / "fee_calibration_summary.json") or {}
     if not isinstance(fee_calibration, dict) or not fee_calibration:
         fee_calibration_entries = [
             entry for entry in _read_jsonl_tail_entries(BROKER_ARTIFACTS_DIR / "fee_calibration.jsonl", limit=20)

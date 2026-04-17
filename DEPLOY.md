@@ -9,7 +9,7 @@ cd agent-trading
 
 # 准备本地环境变量
 cp .env.example .env
-# 编辑填入本地 Telegram 目标和必要变量
+# 编辑填入本地 Telegram 目标、主 agent session key 和必要变量
 vim .env
 
 # 准备凭证（从旧环境复制或重新生成）
@@ -82,7 +82,7 @@ cd agent-trading
 # 3. 准备本地环境变量与凭证
 cp .env.example .env
 cp properties/tiger.properties.example properties/tiger.properties
-# 填入变量与凭证
+# 填入变量、主 agent session key 与凭证
 
 # 4. 构建（约 2 分钟，首次之后利用缓存秒建）
 docker compose build
@@ -136,6 +136,11 @@ agent-trading/
 | `app_config.docker.json` | `/app/config/app_config.docker.json` | 已适配容器路径的配置 |
 | `tiger.properties` | `/app/properties/tiger.properties` | API 凭证 |
 | `watchlist.json` | `/app/data/watchlist.json` | 共享标的清单 |
+
+其中：
+
+- `ENGINE_MAIN_AGENT_SESSION_KEY`：主 agent 的真实 session key
+- `ENGINE_TELEGRAM_TARGET`：Telegram 目标 chat_id / user id
 
 ### 7. 注意事项
 

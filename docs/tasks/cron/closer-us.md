@@ -16,7 +16,7 @@
 4. 解析输出的 JSON：
    - 如果 status 是 'skipped' 且 reason 是 '非交易日'，直接回复 HEARTBEAT_OK
    - 否则提取 report 字段
-5. 将报告内容通过 `sessions_send sessionKey=agent:yuuka:main` 汇报给主 agent
+5. 将报告内容通过 `sessions_send sessionKey=${ENGINE_MAIN_AGENT_SESSION_KEY}` 汇报给主 agent
 6. 如果有异常或风险，在报告末尾添加 ⚠️ 标记
 7. 运行结果会同步落到 `./artifacts/closer/summary_latest.json` 和 `./artifacts/closer/summary_history.jsonl`
 

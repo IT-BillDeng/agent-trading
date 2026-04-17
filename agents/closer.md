@@ -52,7 +52,7 @@
 2. 读取当天所有执行周期数据
 3. 汇总信号、订单、盈亏
 4. 生成总结报告
-5. 通过 `sessions_send sessionKey=agent:yuuka:main` 汇报给主 agent
+5. 通过 `sessions_send sessionKey=${ENGINE_MAIN_AGENT_SESSION_KEY}` 汇报给主 agent
 6. 写入历史记录
 
 ## 告警抑制

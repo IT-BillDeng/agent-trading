@@ -215,7 +215,7 @@ class StrategistArtifactTests(unittest.TestCase):
                     "prop_004",
                     {
                         "decider_type": "agent",
-                        "decider_id": "yuuka",
+                        "decider_id": "main-agent",
                         "reason": "insufficient evidence",
                     },
                 )

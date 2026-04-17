@@ -6,7 +6,7 @@
 
 说明 `agent-trading` 当前 Dashboard 数据链路中，`raw client / normalizer / aggregator / API / frontend` 的职责边界，明确哪些逻辑现在放错层，作为后续 Phase 1 与后续结构优化的依据。
 
-相关契约见：[docs/broker-adapter-contract.md](/Users/openclaw/.openclaw/workspace-yuuka/agent-trading/docs/broker-adapter-contract.md)
+相关契约见：[broker-adapter-contract.md](./broker-adapter-contract.md)
 
 ---
 

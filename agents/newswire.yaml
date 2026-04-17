@@ -38,4 +38,4 @@ default_sources:
 # 参见 specs/newswire-output-schema-v1.md
 
 # 汇报目标
-report_to: agent:yuuka:main
+report_to: ${ENGINE_MAIN_AGENT_SESSION_KEY}

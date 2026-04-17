@@ -21,7 +21,7 @@ subagent 默认只做三件事：
 
 - 写业务产物到 `artifacts/`
 - 写运行信息到 `logs/`
-- 在需要时通过 `sessions_send sessionKey=agent:yuuka:main` 汇报主 agent
+- 在需要时通过 `sessions_send sessionKey=${ENGINE_MAIN_AGENT_SESSION_KEY}` 汇报主 agent
 
 不默认具备：
 
@@ -52,7 +52,7 @@ subagent 默认只做三件事：
 
 ### 默认链路
 
-`subagent -> agent:yuuka:main -> Telegram(可选)`
+`subagent -> ${ENGINE_MAIN_AGENT_SESSION_KEY} -> Telegram(可选)`
 
 ### 不推荐链路
 
@@ -95,6 +95,6 @@ subagent 默认只做三件事：
 ## 当前仓库约定
 
 - `cron/*.json` 中不再为 subagent 保留 Telegram 外发配置
-- `agents/*.yaml` 默认只汇报到 `agent:yuuka:main`
+- `agents/*.yaml` 默认只汇报到 `${ENGINE_MAIN_AGENT_SESSION_KEY}`
 - `docs/tasks/cron/*.md` 中凡提到“通知先生”，默认指“先汇报主 agent”
 - 由主 agent 再决定是否发送 Telegram

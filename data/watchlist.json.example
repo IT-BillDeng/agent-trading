@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "owner": "yuuka",
+  "owner": "main-agent",
   "purpose": "Shared watchlist for subagents",
   "updated_at": "2026-03-12",
   "rules": {

@@ -62,7 +62,7 @@ class TigerClient:
             'POST',
             SERVER_URL,
             body=json.dumps(params).encode('utf-8'),
-            headers={'Content-Type': f'application/json;charset={CHARSET}', 'User-Agent': 'yuuka-tiger-engine/0.1'},
+            headers={'Content-Type': f'application/json;charset={CHARSET}', 'User-Agent': 'agent-trading-engine/0.1'},
             timeout=15.0,
         )
         body = json.loads(response.data.decode(CHARSET, errors='replace'))

@@ -81,4 +81,4 @@ backtest_required: true
 backtest_endpoint: "http://host.docker.internal:8088/api/backtest/batch"
 
 # 汇报目标
-report_to: agent:yuuka:main
+report_to: ${ENGINE_MAIN_AGENT_SESSION_KEY}

@@ -34,4 +34,4 @@ exec_commands:
   - "curl -s http://localhost:8088/health"
 
 # 汇报目标
-report_to: agent:yuuka:main
+report_to: ${ENGINE_MAIN_AGENT_SESSION_KEY}

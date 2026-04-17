@@ -31,4 +31,4 @@ output_files:
   - /workspace/agent-trading/artifacts/closer/summary_history.jsonl
 
 # 汇报目标
-report_to: agent:yuuka:main
+report_to: ${ENGINE_MAIN_AGENT_SESSION_KEY}

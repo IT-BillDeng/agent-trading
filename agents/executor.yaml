@@ -37,4 +37,4 @@ exec_commands:
   - "python3 /workspace/agent-trading/system/engine/run_dry_run_cycle.py"
 
 # 汇报目标
-report_to: agent:yuuka:main
+report_to: ${ENGINE_MAIN_AGENT_SESSION_KEY}

@@ -33,7 +33,7 @@
 
 输出格式参见 docs/tasks/STRATEGIST_TASK.md 的输出格式章节。
 
-仅在有策略调整时汇报主 agent（sessions_send sessionKey=agent:yuuka:main）。无调整则不通知。
+仅在有策略调整时汇报主 agent（sessions_send sessionKey=${ENGINE_MAIN_AGENT_SESSION_KEY}）。无调整则不通知。
 
 ## 说明
 

@@ -32,7 +32,7 @@
 | scout | 候选标的/异常波动扫描 | 按需或定时 | `xiaomi/mimo-v2-omni` |
 | closer | 收盘总结/复盘/明日关注 | 每市场收盘后 | `xiaomi/mimo-v2-omni` |
 
-## Main Agent / yuuka 中枢
+## 主 Agent 中枢
 
 主 agent 不是 subagent，但负责统筹整条协作链路：
 
@@ -41,7 +41,7 @@
 - 负责协调 subagent 之间的交接
 - 负责调度、审批、风险把关与对用户汇报
 - 负责通知聚合、去重与是否外发 Telegram 的二次判断
-- 作为默认汇报目标 `agent:yuuka:main`
+- 作为默认汇报目标 `${ENGINE_MAIN_AGENT_SESSION_KEY}`
 
 如果你在看的是“谁来发起任务、谁来收集结果、谁来做总协调”，那就是主 agent 的职责。
 主 agent 的 cron 配置流程见：[docs/main-agent-cron-playbook.md](../docs/main-agent-cron-playbook.md)。
@@ -82,7 +82,7 @@
 
 ## 汇报目标
 
-所有 agent 默认汇报给 `agent:yuuka:main`（yuuka 中枢）。
+所有 agent 默认汇报给 `${ENGINE_MAIN_AGENT_SESSION_KEY}`（主 agent 中枢）。
 
 ## 当前已知漂移
 

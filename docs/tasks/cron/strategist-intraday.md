@@ -22,7 +22,7 @@
 8. 写入 ./artifacts/strategist/strategy_plan_latest.json（shift=intraday, type=monitor），历史追加到 ./artifacts/strategist/strategy_plan_history.jsonl
 
 盘中绝不改规则参数！只能暂停/恢复。不得修改策略代码。
-仅在有操作时汇报主 agent（sessions_send sessionKey=agent:yuuka:main）。
+仅在有操作时汇报主 agent（sessions_send sessionKey=${ENGINE_MAIN_AGENT_SESSION_KEY}）。
 
 ## 说明
 

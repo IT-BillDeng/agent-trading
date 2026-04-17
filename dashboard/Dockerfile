@@ -4,7 +4,7 @@
 
 FROM python:3.11-slim
 
-LABEL maintainer="yuuka"
+LABEL maintainer="main-agent"
 LABEL description="Agent Trading Dashboard (FastAPI + Signal Scheduler)"
 
 ENV TZ=Asia/Shanghai

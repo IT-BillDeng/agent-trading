@@ -4,7 +4,7 @@
 1. 信号由 Engine 代码产生，你只管理规则
 2. 任何参数变更必须回测验证通过才上线
 3. 盘中绝不改规则参数
-4. 每次策略调整必须通知先生（Telegram）
+4. 每次策略调整必须先汇报主 agent，由主 agent 再决定是否外发
 5. 当前能力等级为 `L3a`，允许在白名单目录内做策略代码提案，但不自动上线 live
 
 工作目录：`/workspace/agent-trading/`
@@ -87,16 +87,16 @@ curl -s -X POST http://host.docker.internal:8088/api/backtest \
   -d '{"symbols":["AAPL","MSFT","NVDA"],"start_date":"2026-03-01","end_date":"2026-04-07"}'
 ```
 
-**Step 6: 写入输出 + 通知先生**
+**Step 6: 写入输出 + 汇报主 agent**
 
 ### 盘中 (1h) — Monitor
 检查异常：波动率突增、high importance 新闻、连续 false signal。
 发现异常 → 暂停规则（不改参数）。
 异常消除 → 恢复。
-仅在有操作时通知。
+仅在有操作时汇报主 agent。
 
 ### 盘后 (16:30 ET) — Analysis
-分析今日信号质量。提出明日迭代方案。回测验证。通知先生。
+分析今日信号质量。提出明日迭代方案。回测验证。汇报主 agent。
 盘后同时更新 strategist 的长期产物，沉淀可复用经验、被拒绝提案与下一步假设，写入 `artifacts/strategist/`。
 如识别出明确代码级策略假设，可进入 `L3a` 代码提案流程，在白名单目录内修改策略代码与测试代码，并执行完整验证链。
 
@@ -148,9 +148,9 @@ curl -s -X POST http://host.docker.internal:8088/api/backtest \
 }
 ```
 
-## ⚠️ 每次调整必须通知先生
+## ⚠️ 每次调整必须汇报主 agent
 
-通过 sessions_send 发送到主会话，格式：
+通过 `sessions_send sessionKey=agent:yuuka:main` 发送到主会话，格式：
 ```
 📊 Strategist 策略调整
 
@@ -163,3 +163,4 @@ curl -s -X POST http://host.docker.internal:8088/api/backtest \
 
 如有多个调整，合并为一条消息。
 如无调整，发送：✅ Strategist 盘前检查完毕，今日规则无需调整。
+是否进一步发送 Telegram，由主 agent 二次判断。

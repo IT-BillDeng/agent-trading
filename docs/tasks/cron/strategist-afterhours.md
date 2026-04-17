@@ -40,7 +40,7 @@ curl -s -X POST http://host.docker.internal:8088/api/backtest/batch -H "Content-
 
 输出格式参见 docs/tasks/STRATEGIST_TASK.md 的输出格式章节。
 
-有调整时通知先生（sessions_send sessionKey=agent:yuuka:main），无调整不通知。
+有调整时汇报主 agent（sessions_send sessionKey=agent:yuuka:main），无调整不通知。
 
 ## 说明
 

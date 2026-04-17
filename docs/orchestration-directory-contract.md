@@ -196,12 +196,15 @@
 - `agents/`
 - `docs/tasks/`
 - `docs/roles/`
+- `runtime/outbox/`
+- `artifacts/`
 
 用来决定：
 
 - 哪些任务要创建
 - 哪些 subagent 要启用
 - 哪些 task 文本要下发
+- 哪些通知只记录、哪些需要汇总、哪些值得外发
 
 ### subagent
 
@@ -216,6 +219,7 @@
 - 自己该做什么
 - 允许写什么
 - 结果该落到哪里
+- 哪些结果需要汇报给主 agent
 
 例如：
 
@@ -257,6 +261,14 @@
 2. `artifacts/` 承接真正的 agent 业务产物
 3. `runtime/state/` 保留控制态
 4. `runtime/outbox/` 保留待发送消息
+
+---
+
+## 四、通知路由原则
+
+- subagent 默认只写产物、日志与通知提案，不直接外发 Telegram
+- 主 agent 负责聚合、去重、升级/降级通知，并决定是否发送 Telegram
+- 如需系统级兜底告警，应作为明确例外单独设计，而不是每个 subagent 各自直发
 
 ---
 

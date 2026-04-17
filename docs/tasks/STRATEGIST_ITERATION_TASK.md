@@ -88,8 +88,8 @@ curl -X PUT http://host.docker.internal:8088/api/rules \
 迭代结果自动保存到 `./artifacts/strategist/iterations/iter_YYYYMMDD_HHMMSS.json`
 同时刷新 `./artifacts/strategist/iterations/latest.json`
 
-### Step 8: 通知先生
-每次策略调整通知 Telegram，格式：
+### Step 8: 汇报主 agent
+每次策略调整通过 `sessions_send sessionKey=agent:yuuka:main` 汇报，格式：
 ```
 📊 策略迭代结果
 
@@ -99,6 +99,8 @@ curl -X PUT http://host.docker.internal:8088/api/rules \
 状态: approved/rejected
 变更: {具体参数变更}
 ```
+
+是否进一步发送 Telegram，由主 agent 二次判断。
 
 ## 当前最佳方案（基线）
 

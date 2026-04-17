@@ -16,7 +16,7 @@
 4. 解析输出的 JSON：
    - 如果 status 是 'skipped' 且 reason 是 '非交易日'，直接回复 HEARTBEAT_OK
    - 否则提取 report 字段
-5. 将报告内容通过 message 工具发送到 Telegram（channel: telegram, target: ${ENGINE_TELEGRAM_TARGET}）
+5. 将报告内容通过 `sessions_send sessionKey=agent:yuuka:main` 汇报给主 agent
 6. 如果有异常或风险，在报告末尾添加 ⚠️ 标记
 7. 运行结果会同步落到 `./artifacts/closer/summary_latest.json` 和 `./artifacts/closer/summary_history.jsonl`
 

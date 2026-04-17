@@ -82,5 +82,3 @@ backtest_endpoint: "http://host.docker.internal:8088/api/backtest/batch"
 
 # 汇报目标
 report_to: agent:yuuka:main
-report_channel: telegram
-report_to_id: "telegram:${ENGINE_TELEGRAM_TARGET}"

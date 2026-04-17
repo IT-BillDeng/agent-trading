@@ -40,6 +40,7 @@
 - 决定何时触发 watcher / newswire / strategist / executor / scout / closer
 - 负责协调 subagent 之间的交接
 - 负责调度、审批、风险把关与对用户汇报
+- 负责通知聚合、去重与是否外发 Telegram 的二次判断
 - 作为默认汇报目标 `agent:yuuka:main`
 
 如果你在看的是“谁来发起任务、谁来收集结果、谁来做总协调”，那就是主 agent 的职责。

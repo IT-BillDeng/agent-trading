@@ -11,7 +11,7 @@
             theme: {
                 extend: {
                     colors: {
-                        tiger: { 50: '#fff7ed', 500: '#f97316', 600: '#ea580c', 700: '#c2410c' },
+                        sakura: { 50: '#fff4f7', 400: '#f472b6', 500: '#ec4899', 600: '#db2777', 700: '#be185d' },
                         dark: { 800: '#1e1e2e', 900: '#11111b', 700: '#2a2a3c' }
                     }
                 }
@@ -37,6 +37,24 @@
         .neutral { color: #a1a1aa; }
         @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            border-radius: 9999px;
+            padding: 0.25rem 0.625rem;
+            font-size: 0.75rem;
+            line-height: 1rem;
+            border: 1px solid rgba(107, 114, 128, 0.45);
+            background: rgba(17, 17, 27, 0.6);
+            color: #d1d5db;
+        }
+        .summary-kpi {
+            border-radius: 0.75rem;
+            border: 1px solid rgba(107, 114, 128, 0.35);
+            background: rgba(17, 17, 27, 0.45);
+            padding: 0.875rem 1rem;
+        }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 2px; }
@@ -155,6 +173,76 @@
             </div>
         </div>
 
+        <!-- Summary Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 items-stretch">
+            <section class="card lg:col-span-2 flex flex-col gap-4">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <div class="card-title mb-0">🧭 当前状态</div>
+                        <div class="text-xs text-gray-500 mt-1">首页只保留当前态；深入分析下沉到策略页和高级面板。</div>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span id="summary-trading-day-chip" class="status-chip">交易日: --</span>
+                        <span id="summary-market-chip" class="status-chip">时段: --</span>
+                        <span id="summary-mode-chip" class="status-chip">模式: --</span>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="summary-kpi">
+                        <div class="text-xs text-gray-500 mb-1">执行周期</div>
+                        <div id="summary-cycle" class="text-sm font-medium text-gray-100">--</div>
+                    </div>
+                    <div class="summary-kpi">
+                        <div class="text-xs text-gray-500 mb-1">系统锁定</div>
+                        <div id="summary-lock" class="text-sm font-medium text-gray-100">--</div>
+                    </div>
+                    <div class="summary-kpi">
+                        <div class="text-xs text-gray-500 mb-1">刷新状态</div>
+                        <div id="summary-refresh" class="text-sm font-medium text-gray-100">--</div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="summary-kpi">
+                        <div class="text-xs text-gray-500 mb-1">持仓 / 自选</div>
+                        <div id="summary-coverage" class="text-sm font-medium text-gray-100">--</div>
+                    </div>
+                    <div class="summary-kpi">
+                        <div class="text-xs text-gray-500 mb-1">最新信号</div>
+                        <div id="summary-signals" class="text-sm font-medium text-gray-100">--</div>
+                    </div>
+                    <div class="summary-kpi">
+                        <div class="text-xs text-gray-500 mb-1">风控摘要</div>
+                        <div id="summary-risk" class="text-sm font-medium text-gray-100">--</div>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-2 pt-1">
+                    <a href="/strategy" class="px-3 py-1.5 rounded bg-sakura-600/20 hover:bg-sakura-600/30 text-sakura-300 border border-sakura-600/30 text-xs transition">前往策略工作台</a>
+                    <a href="/logs" class="px-3 py-1.5 rounded bg-gray-700/40 hover:bg-gray-700/60 text-gray-300 border border-gray-600/40 text-xs transition">查看系统日志</a>
+                    <button id="advanced-toggle" onclick="toggleAdvancedPanels()" class="px-3 py-1.5 rounded bg-gray-700/40 hover:bg-gray-700/60 text-gray-300 border border-gray-600/40 text-xs transition">显示高级面板</button>
+                </div>
+            </section>
+
+            <section class="card flex flex-col">
+                <div class="card-title mb-2">⚠️ 异常与阻塞</div>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div class="summary-kpi">
+                        <div class="text-xs text-gray-500 mb-1">执行阻塞</div>
+                        <div id="summary-blockers-count" class="text-xl font-bold text-gray-100">--</div>
+                    </div>
+                    <div class="summary-kpi">
+                        <div class="text-xs text-gray-500 mb-1">待关注通知</div>
+                        <div id="summary-notifications-count" class="text-xl font-bold text-gray-100">--</div>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-500 mb-2">主要原因</div>
+                <div id="summary-alert-list" class="space-y-2 text-sm flex-1 min-h-0">
+                    <div class="text-gray-500">加载中...</div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Advanced Panels -->
+        <div class="advanced-home-section hidden">
         <!-- Second Row -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 items-stretch">
             <!-- P&L -->
@@ -180,6 +268,7 @@
 
             <!-- Agents -->
 
+        </div>
         </div>
 
         <!-- News Panel -->
@@ -209,7 +298,7 @@
         </section>
 
         <!-- Watchlist Management -->
-        <section class="mt-6 card">
+        <section class="mt-6 card advanced-home-section hidden">
             <div class="card-title">📝 自选管理</div>
             
             <!-- Filter Bar -->
@@ -264,7 +353,7 @@
         </section>
 
         <!-- Engine Results -->
-        <section class="mt-6 card">
+        <section class="mt-6 card advanced-home-section hidden">
             <div class="card-title">🔧 Engine 运行结果</div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
@@ -287,7 +376,7 @@
         </section>
 
         <!-- Backtest -->
-        <section class="mt-6 card">
+        <section class="mt-6 card advanced-home-section hidden">
             <div class="card-title">📈 回测报告</div>
             
             <!-- Backtest Form -->
@@ -361,7 +450,7 @@
         </section>
 
         <!-- Risk -->
-        <section class="mt-6 card">
+        <section class="mt-6 card advanced-home-section hidden">
             <div class="card-title">🛡️ 风控</div>
             <div class="flex items-center gap-6">
                 <div>
@@ -379,7 +468,7 @@
         </section>
 
         <!-- Notifications -->
-        <section class="mt-6 card">
+        <section class="mt-6 card advanced-home-section hidden">
             <div class="card-title">🔔 通知预览</div>
             <div id="notifications-list" class="text-sm">
                 <div class="text-gray-500 py-2">加载中...</div>
@@ -388,7 +477,7 @@
         </section>
 
         <!-- API Config -->
-        <section class="mt-6 card">
+        <section class="mt-6 card advanced-home-section hidden">
             <div class="card-title">🔑 API 配置</div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- Current Config -->
@@ -430,7 +519,7 @@
         </section>
 
         <!-- Control Panel -->
-        <section class="mt-6 card">
+        <section class="mt-6 card advanced-home-section hidden">
             <div class="card-title">🎛️ 控制面板</div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
@@ -481,7 +570,7 @@
         </section>
 
         <!-- System Status -->
-        <section class="mt-6 card">
+        <section class="mt-6 card advanced-home-section hidden">
             <div class="flex items-center justify-between">
                 <div class="card-title mb-0">⚙️ 系统状态</div>
                 <div id="system-info" class="text-xs text-gray-500"></div>
@@ -503,6 +592,14 @@
         let quoteSortKey = 'watchlist';
         let quoteSortDir = 'asc';
         let quotesData = {};
+        let advancedPanelsVisible = false;
+        let latestTradingDay = null;
+        let latestMarketInfo = null;
+        let latestSystemData = null;
+        let latestRiskData = null;
+        let latestNotificationsData = null;
+        let latestEngineData = null;
+        let latestTradingModeData = null;
         const REFRESH_MS = 15000; // 15 seconds
         const STOCK_ANALYSIS_RANGE_OPTIONS = [
             ['all', '全部'],
@@ -980,15 +1077,168 @@
         }
 
         function renderSystem(data) {
+            latestSystemData = data;
             document.getElementById('system-info').textContent =
                 `账户: ${data.account_id || '--'} | 刷新: ${data.refresh_count || 0}次 | 间隔: ${data.refresh_interval || '--'}s`;
             const updateTime = data.last_updated ? ago(data.last_updated) : '--';
             document.getElementById('last-update').textContent = '上次更新: ' + updateTime;
+            renderHomeSummary();
+        }
+
+        function setStatusChip(id, text, tone) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const tones = {
+                gray: 'text-gray-300 border-gray-600/40 bg-dark-900/60',
+                green: 'text-green-300 border-green-500/30 bg-green-500/10',
+                yellow: 'text-yellow-300 border-yellow-500/30 bg-yellow-500/10',
+                red: 'text-red-300 border-red-500/30 bg-red-500/10',
+                blue: 'text-blue-300 border-blue-500/30 bg-blue-500/10',
+                pink: 'text-sakura-300 border-sakura-500/30 bg-sakura-500/10'
+            };
+            el.className = 'status-chip ' + (tones[tone] || tones.gray);
+            el.textContent = text;
+        }
+
+        function toggleAdvancedPanels() {
+            advancedPanelsVisible = !advancedPanelsVisible;
+            document.querySelectorAll('.advanced-home-section').forEach((el) => {
+                el.classList.toggle('hidden', !advancedPanelsVisible);
+            });
+            const btn = document.getElementById('advanced-toggle');
+            if (btn) {
+                btn.textContent = advancedPanelsVisible ? '收起高级面板' : '显示高级面板';
+            }
+        }
+
+        function collectRiskReasons(risk) {
+            const reasons = [];
+            (risk?.preview_blockers || []).forEach((b) => {
+                const reason = b.reason || b.warning_text;
+                if (reason) reasons.push(reason);
+            });
+            (risk?.decisions || []).forEach((d) => {
+                const raw = Array.isArray(d.reasons) ? d.reasons : (d.reason ? [d.reason] : []);
+                raw.forEach((reason) => {
+                    if (reason) reasons.push(reason);
+                });
+            });
+            const counts = new Map();
+            reasons.forEach((reason) => counts.set(reason, (counts.get(reason) || 0) + 1));
+            return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+        }
+
+        function renderAlertSummary() {
+            const risk = latestRiskData || {};
+            const notifications = latestNotificationsData?.notifications || latestNotificationsData || {};
+            const blockers = risk.preview_blockers || [];
+            const notificationCount = Number(notifications.count || (notifications.items || []).length || 0);
+            const blockerEl = document.getElementById('summary-blockers-count');
+            const notifEl = document.getElementById('summary-notifications-count');
+            const listEl = document.getElementById('summary-alert-list');
+
+            if (blockerEl) {
+                blockerEl.textContent = blockers.length || 0;
+                blockerEl.className = 'text-xl font-bold ' + (blockers.length > 0 ? 'text-red-400' : 'text-green-400');
+            }
+            if (notifEl) {
+                notifEl.textContent = notificationCount;
+                notifEl.className = 'text-xl font-bold ' + (notificationCount > 0 ? 'text-yellow-400' : 'text-gray-200');
+            }
+            if (!listEl) return;
+
+            if (latestRiskData === null && latestNotificationsData === null) {
+                listEl.innerHTML = '<div class="text-gray-500">加载中...</div>';
+                return;
+            }
+
+            const topReasons = collectRiskReasons(risk);
+            if (topReasons.length === 0 && notificationCount === 0) {
+                listEl.innerHTML = '<div class="text-green-400">当前无明显阻塞或待处理通知</div>';
+                return;
+            }
+
+            const entries = topReasons.map(([reason, count]) =>
+                `<div class="flex items-center justify-between rounded border border-gray-700/50 bg-dark-900/50 px-3 py-2">
+                    <span class="text-gray-200">${escapeHtml(reason)}</span>
+                    <span class="text-xs text-gray-500">×${count}</span>
+                </div>`
+            );
+            if (notificationCount > 0) {
+                entries.push(`<div class="rounded border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-yellow-200">通知队列中有 ${notificationCount} 条待关注项目</div>`);
+            }
+            listEl.innerHTML = entries.join('');
+        }
+
+        function renderHomeSummary() {
+            const market = latestMarketInfo || {};
+            const tradingDay = latestTradingDay || {};
+            const system = latestSystemData || {};
+            const risk = latestRiskData || {};
+            const engine = latestEngineData || {};
+            const mode = latestTradingModeData || {};
+            const legacyUs = market.US || {};
+
+            const isTradingDay = tradingDay.is_trading_day;
+            setStatusChip(
+                'summary-trading-day-chip',
+                `交易日: ${isTradingDay == null ? '--' : (isTradingDay ? '是' : '否')}`,
+                isTradingDay == null ? 'gray' : (isTradingDay ? 'green' : 'yellow')
+            );
+
+            let session = market.session || '';
+            let sessionLabel = market.session_label || '';
+            if (!session && legacyUs) {
+                if (legacyUs.open) {
+                    session = 'regular';
+                    sessionLabel = '盘中';
+                } else if (legacyUs.pre_market) {
+                    session = 'premarket';
+                    sessionLabel = '盘前';
+                } else if (legacyUs.post_market) {
+                    session = 'afterhours';
+                    sessionLabel = '盘后';
+                } else {
+                    session = 'closed';
+                    sessionLabel = '休市';
+                }
+            }
+            session = session || '--';
+            sessionLabel = sessionLabel || session;
+            const sessionTone = session === 'regular' ? 'green' : session === 'premarket' ? 'yellow' : session === 'afterhours' ? 'blue' : 'gray';
+            setStatusChip('summary-market-chip', `时段: ${sessionLabel || '--'}`, sessionTone);
+
+            const modeValue = mode.mode || '--';
+            const modeTone = modeValue === 'trade' ? 'green' : modeValue === 'signals' ? 'blue' : modeValue === 'off' ? 'gray' : 'pink';
+            setStatusChip('summary-mode-chip', `模式: ${modeValue}`, modeTone);
+
+            const cycle = engine.last_cycle || {};
+            const control = engine.control_state || {};
+            const signals = cycle.strategy?.signals || [];
+            const buys = signals.filter(s => s.action === 'BUY').length;
+            const exits = signals.filter(s => s.action === 'EXIT').length;
+            const decisions = risk.decisions || [];
+            const allowed = Number(risk.allowed_count || 0);
+            const total = decisions.length;
+            const positionsCount = Array.isArray(positionsData) ? positionsData.length : 0;
+            const watchlistCount = Object.keys(watchlistMap || {}).length;
+
+            document.getElementById('summary-cycle').textContent = cycle.cycle_id || '暂无最新 cycle';
+            document.getElementById('summary-lock').innerHTML = control.locked
+                ? '<span class="text-red-400">已锁定</span><span class="text-xs text-gray-500 ml-2">' + escapeHtml(control.reason || '') + '</span>'
+                : '<span class="text-green-400">未锁定</span>';
+            document.getElementById('summary-refresh').textContent = system.last_updated ? ago(system.last_updated) : '暂无刷新记录';
+            document.getElementById('summary-coverage').textContent = `${positionsCount} 持仓 / ${watchlistCount} 自选`;
+            document.getElementById('summary-signals').innerHTML = `${signals.length} 条 <span class="text-green-400 ml-1">${buys} BUY</span> <span class="text-red-400 ml-2">${exits} EXIT</span>`;
+            document.getElementById('summary-risk').innerHTML = total > 0
+                ? `${allowed}/${total} 可继续执行 <span class="text-xs text-gray-500 ml-2">${(risk.preview_blockers || []).length} 阻塞</span>`
+                : '暂无风控审查结果';
         }
 
         // --- New Sections: Signals / Risk / Preview / Notifications ---
 
         function renderRisk(data) {
+            latestRiskData = data;
             const decisions = data.decisions || [];
             const blockers = data.preview_blockers || [];
             // Rate
@@ -1013,7 +1263,8 @@
             } else {
                 decEl.innerHTML = decisions.map(d => {
                     const cls = d.allowed ? 'text-green-400' : 'text-red-400';
-                    return `<div class="flex justify-between py-0.5"><span>${d.symbol || '--'} <span class='text-xs text-gray-500'>${(watchlistMap[d.symbol] && watchlistMap[d.symbol].name) || ''}</span></span><span class="${cls}">${d.allowed ? '✅' : '⛔'} ${d.reason || ''}</span></div>`;
+                    const reason = Array.isArray(d.reasons) && d.reasons.length > 0 ? d.reasons.join(', ') : (d.reason || '');
+                    return `<div class="flex justify-between py-0.5"><span>${d.symbol || '--'} <span class='text-xs text-gray-500'>${(watchlistMap[d.symbol] && watchlistMap[d.symbol].name) || ''}</span></span><span class="${cls}">${d.allowed ? '✅' : '⛔'} ${escapeHtml(reason)}</span></div>`;
                 }).join('');
             }
             // Blockers detail
@@ -1028,9 +1279,12 @@
             }
             const meta = document.getElementById('risk-meta');
             meta.textContent = data.cycle_id ? `cycle: ${data.cycle_id}` : '';
+            renderAlertSummary();
+            renderHomeSummary();
         }
 
         function renderNotifications(data) {
+            latestNotificationsData = data;
             const el = document.getElementById('notifications-list');
             const notif = data.notifications;
             if (!notif || !notif.items || notif.items.length === 0) {
@@ -1049,6 +1303,7 @@
             }
             const meta = document.getElementById('notifications-meta');
             meta.textContent = notif ? `count: ${notif.count || 0}` : '';
+            renderAlertSummary();
         }
 
         // --- Watchlist Management ---
@@ -1281,6 +1536,7 @@
 
         // --- Market Status ---
         function renderMarketStatus(data) {
+            latestMarketInfo = data;
             const usEl = document.getElementById('market-status-us');
             let usColor = 'bg-gray-500';
             let usText = '美股: --';
@@ -1303,6 +1559,7 @@
                 else { usColor = 'bg-gray-500'; usText = '美股: 已收盘'; }
             }
             usEl.innerHTML = `<span class="w-2 h-2 rounded-full ${usColor}"></span><span class="text-gray-400">${usText}</span>`;
+            renderHomeSummary();
 
 
         }
@@ -1310,7 +1567,7 @@
         // --- Fetch & Render ---
         async function fetchAll() {
             try {
-                const [account, positions, quotes, orders, pnl, system, wlData, marketInfo, configData] = await Promise.all([
+                const [account, positions, quotes, orders, pnl, system, wlData, marketInfo, tradingDay, configData] = await Promise.all([
                     fetch(API_BASE + '/api/account').then(r => r.json()),
                     fetch(API_BASE + '/api/positions').then(r => r.json()),
                     fetch(API_BASE + '/api/quotes').then(r => r.json()),
@@ -1319,8 +1576,10 @@
                     fetch(API_BASE + '/api/system').then(r => r.json()),
                     fetch(API_BASE + '/api/watchlist').then(r => r.json()).catch(() => ({})),
                     fetch(API_BASE + '/api/market-status').then(r => r.json()).catch(() => ({})),
+                    fetch(API_BASE + '/api/trading-day?market=US').then(r => r.json()).catch(() => ({})),
                     fetch(API_BASE + '/api/config').then(r => r.json()).catch(() => ({})),
                 ]);
+                latestTradingDay = tradingDay;
                 if (configData && configData.risk) {
                     riskConfig = configData.risk;
                     document.getElementById('risk-input-max-order').value = riskConfig.max_order_notional_usd || '';
@@ -1342,6 +1601,7 @@
                 renderMarketSession(marketInfo);
                 fetchNewSections();
                 fetchHeaderStatus();
+                renderHomeSummary();
             } catch (e) {
                 console.error('Fetch error:', e);
                 document.getElementById('refresh-status').innerHTML =
@@ -1388,11 +1648,13 @@
                     trade: { label: '⚡ 交易', cls: 'bg-green-600/20 text-green-400' },
                 };
                 const m = modeMap[mode.mode] || modeMap.off;
+                latestTradingModeData = mode;
                 badge.textContent = m.label + ' ▾';
                 badge.className = 'text-xs px-2 py-0.5 rounded font-medium ' + m.cls;
 
                 // Update mode buttons
                 if (typeof updateModeButtons === 'function') updateModeButtons(mode.mode);
+                renderHomeSummary();
             } catch (e) { /* ignore */ }
         }
 
@@ -1413,6 +1675,7 @@
         async function fetchEngine() {
             try {
                 const data = await fetch(API_BASE + '/api/engine').then(r => r.json());
+                latestEngineData = data;
                 // Signals
                 const cycle = data.last_cycle;
                 if (cycle && cycle.strategy && cycle.strategy.signals) {
@@ -1456,6 +1719,7 @@
 
                 // Raw data
                 document.getElementById('engine-raw').textContent = JSON.stringify(cycle || {}, null, 2);
+                renderHomeSummary();
             } catch (e) {
                 document.getElementById('engine-signals').textContent = '加载失败';
             }

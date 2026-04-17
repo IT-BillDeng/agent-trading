@@ -280,6 +280,7 @@
                     <span id="news-generated" class="text-xs text-gray-500">--</span>
                 </div>
             </div>
+            <div id="news-summary" class="text-xs text-gray-500 mb-3">加载中...</div>
             <!-- News Filters -->
             <div class="flex gap-1 mb-3">
                 <button onclick="setNewsFilter('all')" class="news-filter-btn active px-2 py-1 rounded text-xs border border-gray-600" data-value="all">全部</button>
@@ -2146,8 +2147,9 @@
                 // Update header
                 document.getElementById('news-shift').textContent = data.shift || '--';
                 if (data.generated_at) {
-                    const d = new Date(data.generated_at);
-                    document.getElementById('news-generated').textContent = d.toLocaleString('zh-CN', {hour:'2-digit', minute:'2-digit'});
+                    document.getElementById('news-generated').textContent = fmtNewsDateTime(data.generated_at).full;
+                } else {
+                    document.getElementById('news-generated').textContent = '--';
                 }
             } catch (e) {
                 console.error('fetchNews error:', e);
@@ -2200,20 +2202,37 @@
 
         function renderNews() {
             const container = document.getElementById('news-list');
+            const summaryEl = document.getElementById('news-summary');
             let items = newsData.items || [];
+            const totalItems = items.length;
+            const highImportanceCount = items.filter(i => i.importance === 'high').length;
+            const latestPublished = items
+                .map(i => i.published_at)
+                .filter(Boolean)
+                .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
             // Apply filter
             if (newsFilter === 'high') items = items.filter(i => i.importance === 'high');
             else if (newsFilter === 'medium') items = items.filter(i => i.importance === 'medium');
             else if (newsFilter === 'stock') items = items.filter(i => i.category === 'stock');
             else if (newsFilter === 'macro') items = items.filter(i => i.category === 'macro');
 
+            if (summaryEl) {
+                const latestInfo = latestPublished ? fmtNewsDateTime(latestPublished).full : '--';
+                summaryEl.textContent = `共 ${totalItems} 条 | 高优 ${highImportanceCount} 条 | 最新发布时间 ${latestInfo}`;
+            }
+
             if (items.length === 0) {
                 container.innerHTML = '<div class="text-gray-500 text-sm">暂无新闻</div>';
                 return;
             }
-            // Sort: high > medium > low
+            // Sort: latest first, then importance
             const impOrder = { high: 0, medium: 1, low: 2 };
-            items.sort((a, b) => (impOrder[a.importance] || 9) - (impOrder[b.importance] || 9));
+            items.sort((a, b) => {
+                const at = a.published_at ? new Date(a.published_at).getTime() : 0;
+                const bt = b.published_at ? new Date(b.published_at).getTime() : 0;
+                if (at !== bt) return bt - at;
+                return (impOrder[a.importance] || 9) - (impOrder[b.importance] || 9);
+            });
 
             container.innerHTML = items.map(item => {
                 const impColors = { high: 'bg-red-500', medium: 'bg-yellow-500', low: 'bg-gray-500' };
@@ -2224,7 +2243,7 @@
                 const symBadge = item.symbol ? `<span class="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium">${item.symbol}</span>` : '<span class="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">宏观</span>';
                 const tags = (item.tags || []).map(t => `<span class="text-xs px-1 py-0.5 rounded bg-gray-700 text-gray-400">${t}</span>`).join(' ');
                 const urlLink = item.url ? `<a href="${item.url}" target="_blank" class="text-xs text-sakura-500 hover:underline ml-2">来源 ↗</a>` : '';
-                const timeStr = item.published_at ? new Date(item.published_at).toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'}) : '';
+                const published = fmtNewsDateTime(item.published_at);
                 return `
                     <div class="flex items-start gap-3 p-2 rounded hover:bg-gray-700/30 transition">
                         <span class="w-2 h-2 rounded-full ${dotColor} mt-1.5 flex-shrink-0"></span>
@@ -2234,11 +2253,15 @@
                                 <span class="text-xs ${sentColors[item.sentiment] || 'text-gray-400'}">${sentIcon}</span>
                                 <span class="text-xs text-gray-500">${item.source || ''}</span>
                                 ${urlLink}
-                                ${timeStr ? `<span class="text-xs text-gray-600 ml-auto">${timeStr}</span>` : ''}
+                                ${published.full !== '--' ? `<span class="text-xs text-gray-600 ml-auto">${escapeHtml(published.full)}</span>` : ''}
                             </div>
                             <div class="text-sm text-gray-100 font-medium">${item.headline}</div>
                             ${item.summary ? `<div class="text-xs text-gray-400 mt-0.5 line-clamp-2">${item.summary}</div>` : ''}
-                            ${tags ? `<div class="flex gap-1 mt-1">${tags}</div>` : ''}
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                ${published.date !== '--' ? `<span class="text-xs px-1 py-0.5 rounded bg-dark-900 text-gray-400">${escapeHtml(published.date)}</span>` : ''}
+                                ${published.zone ? `<span class="text-xs px-1 py-0.5 rounded bg-dark-900 text-gray-400">${escapeHtml(published.zone)}</span>` : ''}
+                                ${tags}
+                            </div>
                         </div>
                     </div>
                 `;
@@ -2269,6 +2292,35 @@
         function escapeHtml(str) {
             if (!str) return '';
             return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function fmtNewsDateTime(value) {
+            if (!value) return { full: '--', date: '--', time: '', zone: '' };
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) {
+                return { full: String(value), date: String(value), time: '', zone: '' };
+            }
+            const parts = new Intl.DateTimeFormat('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZoneName: 'short'
+            }).formatToParts(d);
+            const lookup = {};
+            parts.forEach((part) => {
+                if (part.type !== 'literal') lookup[part.type] = part.value;
+            });
+            const date = `${lookup.year || '--'}-${lookup.month || '--'}-${lookup.day || '--'}`;
+            const time = `${lookup.hour || '--'}:${lookup.minute || '--'}`;
+            const zone = lookup.timeZoneName || '';
+            return {
+                full: [date, time, zone].filter(Boolean).join(' '),
+                date,
+                time,
+                zone
+            };
         }
 
         // Init news

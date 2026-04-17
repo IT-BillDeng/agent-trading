@@ -924,6 +924,8 @@ def _build_strategy_overview() -> dict[str, Any]:
         "notes": latest_plan.get("notes", []),
         "strategy_recommendations": latest_plan.get("strategy_recommendations", []),
         "risk_management": latest_plan.get("risk_management"),
+        "risk_notes": latest_plan.get("risk_notes", []),
+        "fee_model_confidence": latest_plan.get("fee_model_confidence"),
         "action_items": latest_plan.get("action_items", []),
     } if isinstance(latest_plan, dict) else {}
 

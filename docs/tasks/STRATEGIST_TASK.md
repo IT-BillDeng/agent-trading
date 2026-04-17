@@ -151,10 +151,19 @@ curl -s -X POST http://host.docker.internal:8088/api/backtest \
       "action": "watch | prepare_buy | avoid"
     }
   ],
+  "fee_model_confidence": {
+    "level": "high | observe | low",
+    "label": "可信 | 观察 | 不可信",
+    "reason": "对静态手续费模型可信度的判断"
+  },
   "risk_notes": ["风险提示"],
   "rules_snapshot_hash": "rules.json的md5前12位"
 }
 ```
+
+当存在 `./artifacts/broker/fee_calibration_summary.json` 时：
+- 必须基于其中的 `trust` 生成 `fee_model_confidence`
+- 若可信度为 `observe` 或 `low`，应在 `risk_notes` 中明确提醒“净收益回测可信度下降”
 
 ## ⚠️ 每次调整必须汇报主 agent
 

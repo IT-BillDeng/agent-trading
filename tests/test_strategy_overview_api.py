@@ -94,6 +94,12 @@ class StrategyOverviewApiTests(unittest.TestCase):
                 "generator": "tiger-strategist",
                 "data_quality": "ok",
                 "summary": "继续跟踪 MSFT / AAPL",
+                "fee_model_confidence": {
+                    "level": "observe",
+                    "label": "观察",
+                    "reason": "真实费用记录不足",
+                },
+                "risk_notes": ["净收益回测可信度下降"],
                 "strategy_recommendations": [{"priority": 1, "action": "WAIT", "detail": "market closed"}],
                 "action_items": [{"owner": "operator", "task": "recheck on open"}],
             }, ensure_ascii=False))
@@ -156,6 +162,8 @@ class StrategyOverviewApiTests(unittest.TestCase):
             self.assertEqual(len(overview["signal_records"]), 3)
             self.assertEqual(overview["signal_records"][0]["action"], "BUY")
             self.assertEqual(overview["latest_plan"]["plan_id"], "plan-1")
+            self.assertEqual(overview["latest_plan"]["fee_model_confidence"]["label"], "观察")
+            self.assertEqual(overview["latest_plan"]["risk_notes"][0], "净收益回测可信度下降")
             self.assertEqual(len(overview["plan_history"]), 1)
             self.assertEqual(len(overview["iterations"]), 1)
             self.assertEqual(overview["fee_calibration"]["count"], 1)

@@ -173,6 +173,33 @@
             </div>
         </div>
 
+        <!-- Second Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 items-stretch">
+            <!-- P&L -->
+            <div class="card lg:col-span-2 flex flex-col h-[32rem] min-h-0">
+                <div class="flex items-start justify-between gap-3 mb-3">
+                    <div>
+                        <div class="card-title mb-0">💰 个股分析</div>
+                    </div>
+                    <div id="stock-analysis-ranges" class="flex flex-wrap justify-end gap-1"></div>
+                </div>
+                <div id="pnl-details" class="flex-1 min-h-0 overflow-hidden">
+                    <div class="text-gray-500 text-sm">加载中...</div>
+                </div>
+            </div>
+
+            <!-- Orders -->
+            <div class="card flex flex-col h-[32rem] min-h-0">
+                <div class="card-title">📋 最近订单</div>
+                <div id="orders-list" class="space-y-1 flex-1 min-h-0 overflow-y-auto">
+                    <div class="text-gray-500 text-sm">加载中...</div>
+                </div>
+            </div>
+
+            <!-- Agents -->
+
+        </div>
+
         <!-- Summary Row -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 items-stretch">
             <section class="card lg:col-span-2 flex flex-col gap-4">
@@ -239,33 +266,6 @@
                     <div class="text-gray-500">加载中...</div>
                 </div>
             </section>
-        </div>
-
-        <!-- Second Row -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 items-stretch">
-            <!-- P&L -->
-            <div class="card lg:col-span-2 flex flex-col h-[32rem] min-h-0">
-                <div class="flex items-start justify-between gap-3 mb-3">
-                    <div>
-                        <div class="card-title mb-0">💰 个股分析</div>
-                    </div>
-                    <div id="stock-analysis-ranges" class="flex flex-wrap justify-end gap-1"></div>
-                </div>
-                <div id="pnl-details" class="flex-1 min-h-0 overflow-hidden">
-                    <div class="text-gray-500 text-sm">加载中...</div>
-                </div>
-            </div>
-
-            <!-- Orders -->
-            <div class="card flex flex-col h-[32rem] min-h-0">
-                <div class="card-title">📋 最近订单</div>
-                <div id="orders-list" class="space-y-1 flex-1 min-h-0 overflow-y-auto">
-                    <div class="text-gray-500 text-sm">加载中...</div>
-                </div>
-            </div>
-
-            <!-- Agents -->
-
         </div>
 
         <!-- News Panel -->

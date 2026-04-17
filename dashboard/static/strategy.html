@@ -363,7 +363,11 @@
                 })),
                 ...iterations.map(item => {
                     const best = item.best || {};
-                    const bestLabel = best ? `${best.label || '--'} · ${best.return_pct != null ? Number(best.return_pct).toFixed(2) + '%' : '--'}` : '--';
+                    const bestLabel = best ? [
+                        best.label || '--',
+                        best.return_pct != null ? `${Number(best.return_pct).toFixed(2)}%` : '--',
+                        best.fee_drag_pct != null ? `fee ${Number(best.fee_drag_pct).toFixed(2)}%` : null,
+                    ].filter(Boolean).join(' · ') : '--';
                     return {
                         kind: 'iter',
                         title: item.iteration_id || '参数迭代',

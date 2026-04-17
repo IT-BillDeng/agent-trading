@@ -443,6 +443,24 @@
                         <div id="bt-avg-loss" class="text-lg text-red-400">--</div>
                     </div>
                 </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">手续费合计</div>
+                        <div id="bt-commission-total" class="text-lg text-amber-300">--</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">滑点合计</div>
+                        <div id="bt-slippage-total" class="text-lg text-amber-300">--</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">交易成本合计</div>
+                        <div id="bt-cost-total" class="text-lg text-amber-300">--</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">费率拖累</div>
+                        <div id="bt-fee-drag" class="text-lg text-amber-300">--</div>
+                    </div>
+                </div>
                 <details class="text-xs text-gray-500">
                     <summary class="cursor-pointer hover:text-gray-300">查看交易记录</summary>
                     <div id="bt-trades-list" class="mt-2 bg-dark-900 rounded p-3 overflow-auto max-h-64 text-gray-400">--</div>
@@ -2093,6 +2111,10 @@
                 document.getElementById('bt-profit-factor').textContent = result.profit_factor === Infinity ? '∞' : fmt(result.profit_factor, 2);
                 document.getElementById('bt-avg-win').textContent = '$' + fmt(result.avg_win);
                 document.getElementById('bt-avg-loss').textContent = '$' + fmt(result.avg_loss);
+                document.getElementById('bt-commission-total').textContent = '$' + fmt(result.commission_total);
+                document.getElementById('bt-slippage-total').textContent = '$' + fmt(result.slippage_total);
+                document.getElementById('bt-cost-total').textContent = '$' + fmt(result.transaction_cost_total);
+                document.getElementById('bt-fee-drag').textContent = fmt(result.fee_drag_pct) + '%';
                 
                 // Show trades
                 const tradesList = document.getElementById('bt-trades-list');
@@ -2101,7 +2123,7 @@
                         const sideCls = t.side === 'BUY' ? 'text-green-400' : 'text-red-400';
                         return `<div class="flex justify-between py-1 border-b border-gray-700/30">
                             <span><span class="${sideCls}">${t.side}</span> ${t.symbol}</span>
-                            <span>${t.quantity}股 @ $${fmt(t.price)}</span>
+                            <span>${t.quantity}股 @ $${fmt(t.price)} · fee $${fmt(t.commission || 0)} · slip $${fmt(t.slippage || 0)}</span>
                         </div>`;
                     }).join('');
                 } else {

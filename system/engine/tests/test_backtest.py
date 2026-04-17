@@ -50,11 +50,37 @@ def create_test_data():
 
 def test_order_simulator():
     """测试订单撮合模拟器"""
-    simulator = OrderSimulator(commission_rate=0.001, slippage_rate=0.001)
+    simulator = OrderSimulator(
+        commission_rate=0.001,
+        slippage_rate=0.001,
+        broker_platform='tiger',
+        market='US',
+        fee_model='broker_default',
+        fee_schedule={
+            'markets': {
+                'US': {
+                    'stocks_etf': {
+                        'commission_per_share': 0.0049,
+                        'commission_min': 0.99,
+                        'platform_per_share': 0.005,
+                        'platform_min': 1.0,
+                        'platform_max_pct_trade_value': 0.005,
+                        'settlement_per_share': 0.003,
+                        'settlement_max_pct_trade_value': 0.07,
+                        'sec_sell_rate': 0.0000206,
+                        'sec_sell_min': 0.01,
+                        'taf_sell_per_share': 0.000195,
+                        'taf_sell_min': 0.01,
+                        'taf_sell_max': 9.79,
+                    }
+                }
+            }
+        },
+    )
     
     # 测试手续费计算
-    commission = simulator.calculate_commission(100.0, 10)
-    assert commission == 1.0, f"Commission should be 1.0, got {commission}"
+    commission = simulator.calculate_commission(100.0, 10, 'BUY')
+    assert commission == 2.02, f"Commission should be 2.02, got {commission}"
     print(f"✓ Commission: {commission}")
     
     # 测试滑点计算
@@ -65,7 +91,7 @@ def test_order_simulator():
     
     # 测试订单模拟
     trade = simulator.simulate_order('AAPL', 'BUY', 10, 100.0, datetime.now())
-    assert trade.commission == 1.0
+    assert trade.commission == 2.02
     print(f"✓ Trade: {trade.side} {trade.quantity} @ {trade.price}")
     print(f"  Commission: {trade.commission}")
     print(f"  Total cost: {trade.total_cost}")

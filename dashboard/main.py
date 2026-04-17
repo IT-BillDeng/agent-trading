@@ -1514,7 +1514,9 @@ async def api_backtest(body: dict):
     timeframe = body.get("timeframe", "30min")
     initial_capital = body.get("initial_capital", 100000.0)
 
-    data_source = body.get("data_source") or _current_broker_platform()
+    broker_platform = body.get("broker_platform") or _current_broker_platform()
+    data_source = body.get("data_source") or broker_platform
+    market = body.get("market", "US")
 
     config = BacktestConfig(
         symbols=symbols,
@@ -1522,7 +1524,9 @@ async def api_backtest(body: dict):
         end_date=end_date,
         timeframe=timeframe,
         initial_capital=initial_capital,
-        data_source=data_source
+        data_source=data_source,
+        broker_platform=broker_platform,
+        market=market,
     )
 
     rules_file = RULES_FILE
@@ -1567,7 +1571,9 @@ async def api_backtest_batch(body: dict):
     start_date = body.get("start_date", "2026-01-07")
     end_date = body.get("end_date", "2026-04-07")
     timeframe = body.get("timeframe", "30min")
-    data_source = body.get("data_source") or _current_broker_platform()
+    broker_platform = body.get("broker_platform") or _current_broker_platform()
+    data_source = body.get("data_source") or broker_platform
+    market = body.get("market", "US")
     param_sets = body.get("param_sets", [])
 
     if not param_sets:
@@ -1596,6 +1602,8 @@ async def api_backtest_batch(body: dict):
                 timeframe=timeframe,
                 initial_capital=100000.0,
                 data_source=data_source,
+                broker_platform=broker_platform,
+                market=market,
             )
             bt_result = run_backtest(config, tmp_rules)
             bt_dict = _clean_nan_values(bt_result.to_dict())
@@ -1610,6 +1618,10 @@ async def api_backtest_batch(body: dict):
                 "max_drawdown_pct": bt_dict.get("max_drawdown_pct"),
                 "winning_trades": bt_dict.get("winning_trades", 0),
                 "losing_trades": bt_dict.get("losing_trades", 0),
+                "commission_total": bt_dict.get("commission_total", 0),
+                "slippage_total": bt_dict.get("slippage_total", 0),
+                "transaction_cost_total": bt_dict.get("transaction_cost_total", 0),
+                "fee_drag_pct": bt_dict.get("fee_drag_pct", 0),
             })
 
             # Cleanup temp file

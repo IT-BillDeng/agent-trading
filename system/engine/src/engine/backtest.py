@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, asdict, field
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -44,6 +45,7 @@ class Trade:
     timestamp: datetime
     commission: float = 0.0
     slippage: float = 0.0
+    fee_breakdown: dict[str, float] = field(default_factory=dict)
     
     @property
     def total_cost(self) -> float:
@@ -100,6 +102,9 @@ class BacktestConfig:
     initial_capital: float = 100000.0
     commission_rate: float = 0.001  # 0.1%
     slippage_rate: float = 0.001  # 0.1%
+    broker_platform: str = 'tiger'
+    market: str = 'US'
+    fee_model: str = 'broker_default'
     max_position_pct: float = 0.2  # 单标的最大仓位比例
     data_source: str = 'tiger'  # 默认使用当前券商的历史数据提供器（兼容历史 provider 名）
     
@@ -127,6 +132,10 @@ class BacktestResult:
     max_drawdown: float
     max_drawdown_pct: float
     sharpe_ratio: float
+    commission_total: float
+    slippage_total: float
+    transaction_cost_total: float
+    fee_drag_pct: float
     trades: list[Trade]
     equity_curve: list[dict[str, Any]]
     
@@ -334,13 +343,77 @@ class DataFetcher:
 class OrderSimulator:
     """订单撮合模拟器"""
     
-    def __init__(self, commission_rate: float = 0.001, slippage_rate: float = 0.001):
+    def __init__(
+        self,
+        commission_rate: float = 0.001,
+        slippage_rate: float = 0.001,
+        *,
+        broker_platform: str = 'tiger',
+        market: str = 'US',
+        fee_model: str = 'broker_default',
+        fee_schedule: dict[str, Any] | None = None,
+    ):
         self.commission_rate = commission_rate
         self.slippage_rate = slippage_rate
+        self.broker_platform = broker_platform
+        self.market = market
+        self.fee_model = fee_model
+        self.fee_schedule = fee_schedule or {}
     
-    def calculate_commission(self, price: float, quantity: int) -> float:
-        """计算手续费"""
+    def calculate_commission(self, price: float, quantity: int, side: str) -> float:
+        """计算手续费总额。默认优先使用 broker-specific fee model。"""
+        if self.fee_model == 'broker_default':
+            breakdown = self.calculate_fee_breakdown(price, quantity, side)
+            if breakdown:
+                return round(sum(breakdown.values()), 6)
         return price * quantity * self.commission_rate
+
+    def calculate_fee_breakdown(self, price: float, quantity: int, side: str) -> dict[str, float]:
+        if self.fee_model != 'broker_default':
+            return {}
+        if self.broker_platform == 'tiger' and self.market == 'US':
+            return self._calculate_tiger_us_stock_fee_breakdown(price, quantity, side)
+        return {}
+
+    def _calculate_tiger_us_stock_fee_breakdown(self, price: float, quantity: int, side: str) -> dict[str, float]:
+        product = (
+            self.fee_schedule.get('markets', {})
+            .get('US', {})
+            .get('stocks_etf', {})
+        )
+        if not product:
+            return {}
+
+        trade_value = price * quantity
+        breakdown: dict[str, float] = {}
+
+        commission = max(quantity * float(product.get('commission_per_share', 0.0)), float(product.get('commission_min', 0.0)))
+        breakdown['commission'] = round(commission, 6)
+
+        platform_fee = max(quantity * float(product.get('platform_per_share', 0.0)), float(product.get('platform_min', 0.0)))
+        platform_cap = trade_value * float(product.get('platform_max_pct_trade_value', 0.0))
+        if platform_cap > 0:
+            platform_fee = min(platform_fee, platform_cap)
+        breakdown['platform_fee'] = round(platform_fee, 6)
+
+        settlement_fee = quantity * float(product.get('settlement_per_share', 0.0))
+        settlement_cap = trade_value * float(product.get('settlement_max_pct_trade_value', 0.0))
+        if settlement_cap > 0:
+            settlement_fee = min(settlement_fee, settlement_cap)
+        breakdown['settlement_fee'] = round(settlement_fee, 6)
+
+        if side == 'SELL':
+            sec_fee = max(trade_value * float(product.get('sec_sell_rate', 0.0)), float(product.get('sec_sell_min', 0.0)))
+            breakdown['sec_fee'] = round(sec_fee, 6)
+
+            taf_fee = quantity * float(product.get('taf_sell_per_share', 0.0))
+            taf_fee = max(taf_fee, float(product.get('taf_sell_min', 0.0)))
+            taf_cap = float(product.get('taf_sell_max', 0.0))
+            if taf_cap > 0:
+                taf_fee = min(taf_fee, taf_cap)
+            breakdown['taf_fee'] = round(taf_fee, 6)
+
+        return breakdown
     
     def calculate_slippage(self, price: float, quantity: int, side: str) -> float:
         """计算滑点"""
@@ -354,7 +427,8 @@ class OrderSimulator:
     def simulate_order(self, symbol: str, side: str, quantity: int, 
                        price: float, timestamp: datetime) -> Trade:
         """模拟订单执行"""
-        commission = self.calculate_commission(price, quantity)
+        fee_breakdown = self.calculate_fee_breakdown(price, quantity, side)
+        commission = self.calculate_commission(price, quantity, side)
         slippage = self.calculate_slippage(price, quantity, side)
         
         return Trade(
@@ -364,7 +438,8 @@ class OrderSimulator:
             price=price,
             timestamp=timestamp,
             commission=commission,
-            slippage=abs(slippage)
+            slippage=abs(slippage),
+            fee_breakdown=fee_breakdown,
         )
 
 
@@ -376,7 +451,11 @@ class BacktestEngine:
         self.rules_path = Path(rules_path)
         self.order_simulator = OrderSimulator(
             commission_rate=config.commission_rate,
-            slippage_rate=config.slippage_rate
+            slippage_rate=config.slippage_rate,
+            broker_platform=config.broker_platform,
+            market=config.market,
+            fee_model=config.fee_model,
+            fee_schedule=self._load_fee_schedule(config.broker_platform),
         )
         
         # 状态
@@ -391,6 +470,24 @@ class BacktestEngine:
         # 历史数据
         self.bars_by_symbol: dict[str, list[Bar]] = {}
         self.current_index: dict[str, int] = {}
+
+    @staticmethod
+    def _load_fee_schedule(broker_platform: str) -> dict[str, Any]:
+        config_dir = Path(
+            os.environ.get(
+                'ENGINE_CONFIG_DIR',
+                str(Path(__file__).resolve().parents[4] / 'config'),
+            )
+        )
+        schedule_file = config_dir / f'broker_fee.{broker_platform}.json'
+        if not schedule_file.exists():
+            return {}
+        try:
+            payload = json.loads(schedule_file.read_text())
+            return payload if isinstance(payload, dict) else {}
+        except Exception as exc:
+            print(f"[Backtest] Failed to load fee schedule {schedule_file}: {exc}")
+            return {}
     
     def load_data(self):
         """加载历史数据"""
@@ -590,7 +687,13 @@ class BacktestEngine:
             matching_buys = [b for b in buy_trades if b.symbol == sell.symbol and b.timestamp < sell.timestamp]
             if matching_buys:
                 buy = matching_buys[-1]  # 最近的买入
-                pnl = (sell.price - buy.price) * sell.quantity - sell.commission - buy.commission
+                pnl = (
+                    (sell.price - buy.price) * sell.quantity
+                    - sell.commission
+                    - buy.commission
+                    - sell.slippage
+                    - buy.slippage
+                )
                 if pnl > 0:
                     winning_trades += 1
                     total_win += pnl
@@ -633,6 +736,11 @@ class BacktestEngine:
             sharpe_ratio = (avg_return / std_return) * (252 ** 0.5) if std_return > 0 else 0.0
         else:
             sharpe_ratio = 0.0
+
+        commission_total = round(sum(trade.commission for trade in self.trades), 6)
+        slippage_total = round(sum(trade.slippage for trade in self.trades), 6)
+        transaction_cost_total = round(commission_total + slippage_total, 6)
+        fee_drag_pct = (transaction_cost_total / self.config.initial_capital) * 100 if self.config.initial_capital > 0 else 0.0
         
         return BacktestResult(
             config=self.config,
@@ -652,6 +760,10 @@ class BacktestEngine:
             max_drawdown=max_drawdown,
             max_drawdown_pct=max_drawdown_pct,
             sharpe_ratio=sharpe_ratio,
+            commission_total=commission_total,
+            slippage_total=slippage_total,
+            transaction_cost_total=transaction_cost_total,
+            fee_drag_pct=fee_drag_pct,
             trades=self.trades,
             equity_curve=self.equity_curve
         )

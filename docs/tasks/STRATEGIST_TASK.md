@@ -77,7 +77,7 @@
 对每个 adjust 方案：
 1. 用 exec 调回测 API 跑基线（当前参数）
 2. 用 exec 调回测 API 跑新方案（新参数）
-3. 对比 return / sharpe / max_drawdown / win_rate
+3. 对比净收益口径：net return / sharpe / max_drawdown / win_rate / fee drag
 4. 全部不恶化才 approved = true
 
 ```bash
@@ -130,6 +130,8 @@ curl -s -X POST http://host.docker.internal:8088/api/backtest \
         "ran": true,
         "baseline_return_pct": 0,
         "new_return_pct": 0,
+        "baseline_fee_drag_pct": 0,
+        "new_fee_drag_pct": 0,
         "improvement_pct": 0,
         "approved": true
       }

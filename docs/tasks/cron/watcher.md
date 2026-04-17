@@ -15,7 +15,7 @@
 3. 根据级别处理：
    - info: 仅记录，不通知
    - warning: 记录并观察
-   - critical: 通过 `sessions_send sessionKey=${ENGINE_MAIN_AGENT_SESSION_KEY}` 汇报主 agent（包含检查详情）
+   - critical: 通过 `sessions_send` 汇报主 agent（包含检查详情）
    - emergency: 汇报主 agent + 自动调用 /api/control/lock 锁定引擎
 
 注意：API 地址 http://host.docker.internal:8088，通过 sandbox 内的 curl 可达

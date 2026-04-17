@@ -89,7 +89,7 @@ curl -X PUT http://host.docker.internal:8088/api/rules \
 同时刷新 `./artifacts/strategist/iterations/latest.json`
 
 ### Step 8: 汇报主 agent
-每次策略调整通过 `sessions_send sessionKey=${ENGINE_MAIN_AGENT_SESSION_KEY}` 汇报，格式：
+每次策略调整通过 `sessions_send` 汇报给主 agent，格式：
 ```
 📊 策略迭代结果
 

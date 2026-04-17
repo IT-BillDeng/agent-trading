@@ -33,7 +33,7 @@
 
 输出格式参见 docs/tasks/STRATEGIST_TASK.md 的输出格式章节。
 
-仅在有策略调整时汇报主 agent（sessions_send sessionKey=${ENGINE_MAIN_AGENT_SESSION_KEY}）。无调整则不通知。
+仅在有策略调整时通过 `sessions_send` 汇报主 agent。无调整则不通知。
 
 ## 说明
 

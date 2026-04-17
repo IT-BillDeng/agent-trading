@@ -150,7 +150,7 @@ curl -s -X POST http://host.docker.internal:8088/api/backtest \
 
 ## ⚠️ 每次调整必须汇报主 agent
 
-通过 `sessions_send sessionKey=${ENGINE_MAIN_AGENT_SESSION_KEY}` 发送到主会话，格式：
+通过 `sessions_send` 发送到主 agent 会话，格式：
 ```
 📊 Strategist 策略调整
 

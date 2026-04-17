@@ -25,6 +25,7 @@
 - `cold` 更新默认需要 restart / reload
 - apply 结果必须写入 `deployment_records.jsonl`
 - 如失败，必须写 rollback 说明
+- 仓库内最小实现可参考 `system/engine/src/engine/applier.py`
 
 边界：
 - 不生成策略提案

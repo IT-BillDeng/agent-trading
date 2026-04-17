@@ -17,6 +17,7 @@ class StrategyOverviewApiTests(unittest.TestCase):
             logs_root = root / "logs"
             latest_dir = logs_root / "latest"
             strategist_logs_dir = logs_root / "agents" / "strategist" / "iterations"
+            broker_artifacts_dir = root / "artifacts" / "broker"
 
             (config_dir).mkdir(parents=True)
             (runtime_dir / "state").mkdir(parents=True)
@@ -24,6 +25,7 @@ class StrategyOverviewApiTests(unittest.TestCase):
             (rules_dir).mkdir(parents=True)
             latest_dir.mkdir(parents=True)
             strategist_logs_dir.mkdir(parents=True)
+            broker_artifacts_dir.mkdir(parents=True)
 
             (config_dir / "app_config.docker.json").write_text(json.dumps({
                 "mode": "paper",
@@ -117,12 +119,27 @@ class StrategyOverviewApiTests(unittest.TestCase):
                 "reason": "manual",
             }, ensure_ascii=False))
 
+            (broker_artifacts_dir / "fee_calibration.jsonl").write_text(
+                json.dumps({
+                    "broker_platform": "tiger",
+                    "market": "US",
+                    "symbol": "AAPL",
+                    "side": "SELL",
+                    "price": 100.0,
+                    "quantity": 10.0,
+                    "estimated_total": 2.05,
+                    "actual_total": 2.01,
+                    "delta": -0.04,
+                }, ensure_ascii=False) + "\n"
+            )
+
             with mock.patch.object(dashboard_main, "CONFIG_DIR_PATH", config_dir), \
                 mock.patch.object(dashboard_main, "RULES_DIR", rules_dir), \
                 mock.patch.object(dashboard_main, "RULES_FILE", rules_dir / "rules.json"), \
                 mock.patch.object(dashboard_main, "RUNTIME_DIR", runtime_dir), \
                 mock.patch.object(dashboard_main, "LOGS_ROOT", logs_root), \
                 mock.patch.object(dashboard_main, "LATEST_LOG_DIR", latest_dir), \
+                mock.patch.object(dashboard_main, "BROKER_ARTIFACTS_DIR", broker_artifacts_dir), \
                 mock.patch.object(dashboard_main, "STRATEGIST_ITERATIONS_LOG_DIR", strategist_logs_dir):
                 overview = dashboard_main._build_strategy_overview()
 
@@ -137,6 +154,8 @@ class StrategyOverviewApiTests(unittest.TestCase):
             self.assertEqual(overview["latest_plan"]["plan_id"], "plan-1")
             self.assertEqual(len(overview["plan_history"]), 1)
             self.assertEqual(len(overview["iterations"]), 1)
+            self.assertEqual(overview["fee_calibration"]["count"], 1)
+            self.assertAlmostEqual(overview["fee_calibration"]["avg_delta"], -0.04, places=6)
             self.assertTrue((latest_dir / "strategy_overview.json").exists())
 
 

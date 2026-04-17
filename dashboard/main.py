@@ -483,6 +483,7 @@ BROKER_PROPERTIES_DIR = Path(
 )
 LOGS_ROOT = Path(os.environ.get("ENGINE_LOGS_DIR", str(Path(__file__).parent.parent / "logs")))
 ARTIFACTS_ROOT = Path(os.environ.get("ENGINE_ARTIFACTS_DIR", str(Path(__file__).parent.parent / "artifacts")))
+BROKER_ARTIFACTS_DIR = ARTIFACTS_ROOT / "broker"
 WATCHER_ARTIFACTS_DIR = ARTIFACTS_ROOT / "watcher"
 NEWSWIRE_ARTIFACTS_DIR = ARTIFACTS_ROOT / "newswire"
 EXECUTOR_ARTIFACTS_DIR = ARTIFACTS_ROOT / "executor"
@@ -507,6 +508,7 @@ def _ensure_logs_layout():
 def _ensure_artifacts_layout():
     for path in (
         ARTIFACTS_ROOT,
+        BROKER_ARTIFACTS_DIR,
         WATCHER_ARTIFACTS_DIR,
         NEWSWIRE_ARTIFACTS_DIR,
         STRATEGIST_ARTIFACTS_DIR,
@@ -986,6 +988,25 @@ def _build_strategy_overview() -> dict[str, Any]:
         "market_state": cycle.get("market_state"),
     }
 
+    fee_calibration_entries = [
+        entry for entry in _read_jsonl_tail_entries(BROKER_ARTIFACTS_DIR / "fee_calibration.jsonl", limit=20)
+        if "_raw" not in entry
+    ]
+    avg_fee_delta = (
+        sum(float(entry.get("delta", 0) or 0) for entry in fee_calibration_entries) / len(fee_calibration_entries)
+        if fee_calibration_entries else 0.0
+    )
+    max_abs_fee_delta = max(
+        (abs(float(entry.get("delta", 0) or 0)) for entry in fee_calibration_entries),
+        default=0.0,
+    )
+    fee_calibration = {
+        "count": len(fee_calibration_entries),
+        "avg_delta": round(avg_fee_delta, 6),
+        "max_abs_delta": round(max_abs_fee_delta, 6),
+        "recent": fee_calibration_entries[:8],
+    }
+
     overview = {
         "generated_at": datetime.now().isoformat(),
         "config": {
@@ -1007,6 +1028,7 @@ def _build_strategy_overview() -> dict[str, Any]:
         "latest_plan": latest_plan_summary,
         "plan_history": plan_history,
         "iterations": iterations,
+        "fee_calibration": fee_calibration,
     }
 
     _ensure_logs_layout()

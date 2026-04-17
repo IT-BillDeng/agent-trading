@@ -212,6 +212,47 @@
             </div>
         </section>
 
+        <section class="card">
+            <div class="flex items-center justify-between gap-3 mb-3">
+                <div>
+                    <div class="card-title mb-0">🧾 费用校准</div>
+                    <div class="text-xs text-gray-500 mt-1">静态 fee model vs broker 实际 charges</div>
+                </div>
+                <div id="fee-calibration-meta" class="text-xs text-gray-500">--</div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">最近记录数</div>
+                    <div id="fee-calibration-count" class="text-xl font-bold">--</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">平均偏差</div>
+                    <div id="fee-calibration-avg-delta" class="text-xl font-bold">--</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">最大绝对偏差</div>
+                    <div id="fee-calibration-max-delta" class="text-xl font-bold">--</div>
+                </div>
+            </div>
+            <div class="overflow-auto">
+                <table class="w-full min-w-max text-sm">
+                    <thead class="sticky top-0 z-10" style="background:#2a2a3c">
+                        <tr class="text-gray-500 border-b border-gray-700/50">
+                            <th class="px-3 py-2 text-left">标的</th>
+                            <th class="px-3 py-2 text-center">方向</th>
+                            <th class="px-3 py-2 text-right">估算</th>
+                            <th class="px-3 py-2 text-right">实际</th>
+                            <th class="px-3 py-2 text-right">偏差</th>
+                            <th class="px-3 py-2 text-right">成交价/数量</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fee-calibration-body">
+                        <tr><td colspan="6" class="py-4 text-center text-gray-500">加载中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
         <section class="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <div class="card flex flex-col h-[34rem] min-h-0">
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
@@ -554,6 +595,40 @@
             `;
         }
 
+        function renderFeeCalibration(data) {
+            const calibration = data?.fee_calibration || {};
+            const entries = Array.isArray(calibration.recent) ? calibration.recent : [];
+            document.getElementById('fee-calibration-meta').textContent = data?.generated_at ? `更新于 ${fmtDateTime(data.generated_at)}` : '--';
+            document.getElementById('fee-calibration-count').textContent = fmtNumber(calibration.count || 0);
+            document.getElementById('fee-calibration-avg-delta').textContent = '$' + fmt(calibration.avg_delta || 0);
+            document.getElementById('fee-calibration-avg-delta').className = 'text-xl font-bold ' + pnlClass(-(calibration.avg_delta || 0));
+            document.getElementById('fee-calibration-max-delta').textContent = '$' + fmt(calibration.max_abs_delta || 0);
+            document.getElementById('fee-calibration-max-delta').className = 'text-xl font-bold text-amber-300';
+
+            const tbody = document.getElementById('fee-calibration-body');
+            if (!entries.length) {
+                tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-gray-500">暂无费用校准记录</td></tr>';
+                return;
+            }
+            tbody.innerHTML = entries.map(item => {
+                const delta = Number(item.delta || 0);
+                const deltaCls = delta > 0 ? 'text-red-400' : delta < 0 ? 'text-green-400' : 'text-gray-300';
+                return `
+                    <tr class="border-b border-gray-700/30 hover:bg-dark-800/40">
+                        <td class="px-3 py-2">
+                            <div class="font-medium text-gray-100">${escapeHtml(item.symbol || '--')}</div>
+                            <div class="text-xs text-gray-500 mt-1">${escapeHtml(item.market || '--')} / ${escapeHtml(item.broker_platform || '--')}</div>
+                        </td>
+                        <td class="px-3 py-2 text-center">${actionBadge(item.side || '--')}</td>
+                        <td class="px-3 py-2 text-right text-gray-200">$${fmt(item.estimated_total)}</td>
+                        <td class="px-3 py-2 text-right text-gray-200">$${fmt(item.actual_total)}</td>
+                        <td class="px-3 py-2 text-right ${deltaCls}">$${fmt(delta)}</td>
+                        <td class="px-3 py-2 text-right text-gray-200 whitespace-nowrap">$${fmt(item.price)} / ${fmt(item.quantity, 0)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
         async function runBacktest() {
             const statusEl = document.getElementById('bt-status');
             const resultsEl = document.getElementById('bt-results');
@@ -642,6 +717,7 @@
                 renderRules(data);
                 renderSignals(data);
                 renderStrategist(data);
+                renderFeeCalibration(data);
                 document.getElementById('page-status').textContent = '已刷新 ' + new Date().toLocaleTimeString('zh-CN');
             } catch (e) {
                 console.error(e);

@@ -92,6 +92,7 @@ class BrokerFeeCalibrationTests(unittest.TestCase):
         self.assertAlmostEqual(record["delta"], -0.04, places=6)
         self.assertEqual(summary["count"], 1)
         self.assertAlmostEqual(summary["avg_delta"], -0.04, places=6)
+        self.assertEqual(summary["trust"]["label"], "观察")
 
     def test_summarize_fee_calibration_limits_recent_entries(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -119,6 +120,33 @@ class BrokerFeeCalibrationTests(unittest.TestCase):
         self.assertEqual(summary["count"], 2)
         self.assertEqual(summary["recent"][0]["symbol"], "SYM2")
         self.assertEqual(summary["recent"][1]["symbol"], "SYM1")
+        self.assertEqual(summary["trust"]["level"], "observe")
+
+    def test_summarize_fee_calibration_marks_low_trust_when_delta_is_large(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            artifacts_dir = Path(tmpdir) / "artifacts"
+            old_env = os.environ.get("ENGINE_ARTIFACTS_DIR")
+            os.environ["ENGINE_ARTIFACTS_DIR"] = str(artifacts_dir)
+            try:
+                for idx in range(3):
+                    record_fee_calibration(
+                        {
+                            "broker_platform": "tiger",
+                            "symbol": f"SYM{idx}",
+                            "actual_total": 1.0 + idx,
+                            "estimated_total": 2.2 + idx,
+                            "delta": 1.2,
+                        }
+                    )
+                summary = summarize_fee_calibration(limit=5)
+            finally:
+                if old_env is None:
+                    os.environ.pop("ENGINE_ARTIFACTS_DIR", None)
+                else:
+                    os.environ["ENGINE_ARTIFACTS_DIR"] = old_env
+
+        self.assertEqual(summary["trust"]["level"], "low")
+        self.assertEqual(summary["trust"]["label"], "不可信")
 
 
 if __name__ == "__main__":

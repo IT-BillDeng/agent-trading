@@ -119,8 +119,12 @@ class StrategyOverviewApiTests(unittest.TestCase):
                 "reason": "manual",
             }, ensure_ascii=False))
 
-            (broker_artifacts_dir / "fee_calibration.jsonl").write_text(
-                json.dumps({
+            (broker_artifacts_dir / "fee_calibration_summary.json").write_text(json.dumps({
+                "count": 1,
+                "avg_delta": -0.04,
+                "max_abs_delta": 0.04,
+                "trust": {"level": "observe", "label": "观察", "reason": "真实费用记录不足"},
+                "recent": [{
                     "broker_platform": "tiger",
                     "market": "US",
                     "symbol": "AAPL",
@@ -130,8 +134,8 @@ class StrategyOverviewApiTests(unittest.TestCase):
                     "estimated_total": 2.05,
                     "actual_total": 2.01,
                     "delta": -0.04,
-                }, ensure_ascii=False) + "\n"
-            )
+                }],
+            }, ensure_ascii=False))
 
             with mock.patch.object(dashboard_main, "CONFIG_DIR_PATH", config_dir), \
                 mock.patch.object(dashboard_main, "RULES_DIR", rules_dir), \
@@ -156,6 +160,7 @@ class StrategyOverviewApiTests(unittest.TestCase):
             self.assertEqual(len(overview["iterations"]), 1)
             self.assertEqual(overview["fee_calibration"]["count"], 1)
             self.assertAlmostEqual(overview["fee_calibration"]["avg_delta"], -0.04, places=6)
+            self.assertEqual(overview["fee_calibration"]["trust"]["label"], "观察")
             self.assertTrue((latest_dir / "strategy_overview.json").exists())
 
 

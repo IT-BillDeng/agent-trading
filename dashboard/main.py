@@ -988,24 +988,26 @@ def _build_strategy_overview() -> dict[str, Any]:
         "market_state": cycle.get("market_state"),
     }
 
-    fee_calibration_entries = [
-        entry for entry in _read_jsonl_tail_entries(BROKER_ARTIFACTS_DIR / "fee_calibration.jsonl", limit=20)
-        if "_raw" not in entry
-    ]
-    avg_fee_delta = (
-        sum(float(entry.get("delta", 0) or 0) for entry in fee_calibration_entries) / len(fee_calibration_entries)
-        if fee_calibration_entries else 0.0
-    )
-    max_abs_fee_delta = max(
-        (abs(float(entry.get("delta", 0) or 0)) for entry in fee_calibration_entries),
-        default=0.0,
-    )
-    fee_calibration = {
-        "count": len(fee_calibration_entries),
-        "avg_delta": round(avg_fee_delta, 6),
-        "max_abs_delta": round(max_abs_fee_delta, 6),
-        "recent": fee_calibration_entries[:8],
-    }
+    fee_calibration = _read_json_file(BROKER_ARTIFACTS_DIR / "fee_calibration_summary.json", {})
+    if not isinstance(fee_calibration, dict) or not fee_calibration:
+        fee_calibration_entries = [
+            entry for entry in _read_jsonl_tail_entries(BROKER_ARTIFACTS_DIR / "fee_calibration.jsonl", limit=20)
+            if "_raw" not in entry
+        ]
+        avg_fee_delta = (
+            sum(float(entry.get("delta", 0) or 0) for entry in fee_calibration_entries) / len(fee_calibration_entries)
+            if fee_calibration_entries else 0.0
+        )
+        max_abs_fee_delta = max(
+            (abs(float(entry.get("delta", 0) or 0)) for entry in fee_calibration_entries),
+            default=0.0,
+        )
+        fee_calibration = {
+            "count": len(fee_calibration_entries),
+            "avg_delta": round(avg_fee_delta, 6),
+            "max_abs_delta": round(max_abs_fee_delta, 6),
+            "recent": fee_calibration_entries[:8],
+        }
 
     overview = {
         "generated_at": datetime.now().isoformat(),

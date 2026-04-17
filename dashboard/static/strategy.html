@@ -218,7 +218,10 @@
                     <div class="card-title mb-0">🧾 费用校准</div>
                     <div class="text-xs text-gray-500 mt-1">静态 fee model vs broker 实际 charges</div>
                 </div>
-                <div id="fee-calibration-meta" class="text-xs text-gray-500">--</div>
+                <div class="text-right">
+                    <div id="fee-calibration-trust" class="badge bg-gray-700/40 text-gray-300 border-gray-600/50 mb-1">--</div>
+                    <div id="fee-calibration-meta" class="text-xs text-gray-500">--</div>
+                </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
@@ -598,7 +601,19 @@
         function renderFeeCalibration(data) {
             const calibration = data?.fee_calibration || {};
             const entries = Array.isArray(calibration.recent) ? calibration.recent : [];
+            const trust = calibration.trust || {};
             document.getElementById('fee-calibration-meta').textContent = data?.generated_at ? `更新于 ${fmtDateTime(data.generated_at)}` : '--';
+            const trustEl = document.getElementById('fee-calibration-trust');
+            const trustLevel = trust.level || 'observe';
+            trustEl.textContent = trust.label || '观察';
+            trustEl.className = 'badge mb-1 ' + (
+                trustLevel === 'high'
+                    ? 'bg-green-500/15 text-green-300 border-green-500/30'
+                    : trustLevel === 'low'
+                        ? 'bg-red-500/15 text-red-300 border-red-500/30'
+                        : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+            );
+            trustEl.title = trust.reason || '';
             document.getElementById('fee-calibration-count').textContent = fmtNumber(calibration.count || 0);
             document.getElementById('fee-calibration-avg-delta').textContent = '$' + fmt(calibration.avg_delta || 0);
             document.getElementById('fee-calibration-avg-delta').className = 'text-xl font-bold ' + pnlClass(-(calibration.avg_delta || 0));

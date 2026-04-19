@@ -178,9 +178,9 @@ class TigerCloser:
             signals={"buy": buy_count, "exit": exit_count, "hold": hold_count},
             orders={"filled": len(filled_orders), "pending": len(pending_orders)},
             account={
-                "net_liquidation": account.get("net_liquidation"),
+                "net_liquidation": account.get("net_liquidation", account.get("total_assets")),
                 "unrealized_pnl": account.get("unrealized_pnl"),
-                "cash": account.get("cash")
+                "cash": account.get("cash", account.get("cash_balance"))
             },
             positions=positions,
             risk_blockers=blockers,
@@ -190,17 +190,17 @@ class TigerCloser:
     def format_report(self, summary: CloserSummary) -> str:
         """格式化报告"""
         account = summary.account
-        net_liq = account.get("net_liquidation", 0)
-        unrealized_pnl = account.get("unrealized_pnl", 0)
-        cash = account.get("cash", 0)
+        net_liq = account.get("net_liquidation") or 0
+        unrealized_pnl = account.get("unrealized_pnl") or 0
+        cash = account.get("cash") or 0
         
         # 计算盈亏百分比
         pnl_pct = ""
-        if net_liq and unrealized_pnl:
+        if net_liq and unrealized_pnl is not None:
             try:
                 pct = (unrealized_pnl / net_liq) * 100
                 pnl_pct = f" ({pct:+.2f}%)"
-            except:
+            except Exception:
                 pass
         
         # 持仓信息
@@ -208,7 +208,7 @@ class TigerCloser:
         for p in summary.positions[:5]:  # 最多显示5个
             symbol = p.get("symbol", "?")
             qty = p.get("quantity", 0)
-            pnl = p.get("unrealized_pnl", 0)
+            pnl = p.get("unrealized_pnl", 0) or 0
             position_lines.append(f"  • {symbol}: {qty}股, 浮盈亏 ${pnl:+,.2f}")
         
         position_str = "\n".join(position_lines) if position_lines else "  • 无持仓"

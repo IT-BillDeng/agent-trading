@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import math
+import sys
+import unittest
+from pathlib import Path
 
-import pytest
+sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
 from engine.indicators import (
     atr,
     bollinger,
     ema,
+    ema_slope,
     macd,
     rsi,
     volume_ratio,
@@ -45,6 +49,23 @@ class TestEMA:
         result = ema(prices, 3)
         assert result is not None
         assert math.isclose(result, 20.0)
+
+
+class TestEMASlope:
+    def test_positive_slope_on_uptrend(self):
+        prices = _arithmetic_series(100.0, 1.0, 20)
+        result = ema_slope(prices, 5, 3)
+        assert result is not None
+        assert result > 0
+
+    def test_negative_slope_on_downtrend(self):
+        prices = _arithmetic_series(120.0, -1.0, 20)
+        result = ema_slope(prices, 5, 3)
+        assert result is not None
+        assert result < 0
+
+    def test_insufficient_data(self):
+        assert ema_slope([1, 2, 3, 4], 5, 2) is None
 
 
 # ── rsi ──────────────────────────────────────────────────────────────────────
@@ -166,3 +187,21 @@ class TestVolumeRatio:
 
     def test_period_zero(self):
         assert volume_ratio([1, 2, 3], 0) is None
+
+
+class IndicatorUnittestBridge(unittest.TestCase):
+    def test_ema_slope_positive_on_uptrend(self):
+        prices = _arithmetic_series(100.0, 1.0, 20)
+        result = ema_slope(prices, 5, 3)
+        self.assertIsNotNone(result)
+        self.assertGreater(result, 0)
+
+    def test_rsi_bounds(self):
+        result = rsi(list(range(1, 20)), 5)
+        self.assertIsNotNone(result)
+        self.assertGreaterEqual(result, 0)
+        self.assertLessEqual(result, 100)
+
+
+if __name__ == '__main__':
+    unittest.main()

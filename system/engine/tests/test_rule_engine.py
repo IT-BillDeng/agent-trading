@@ -2,6 +2,7 @@
 
 import json
 import tempfile
+import unittest
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -53,6 +54,12 @@ def test_indicator_calculator():
     ema = calc.calculate('ema', {'period': 12}, bars)
     assert ema is not None, "EMA should return a value"
     print(f"✓ EMA(12) = {ema:.2f}")
+
+    # Test EMA slope
+    ema_slope = calc.calculate('ema_slope', {'period': 8, 'lookback': 3}, bars)
+    assert ema_slope is not None, "EMA slope should return a value"
+    assert ema_slope > 0, "EMA slope should be positive for uptrend"
+    print(f"✓ EMA Slope(8,3) = {ema_slope:.4f}")
     
     # Test RSI
     rsi = calc.calculate('rsi', {'period': 14}, bars)
@@ -201,6 +208,90 @@ def test_rule_engine():
         
     finally:
         Path(rules_path).unlink()
+
+
+def test_rule_engine_supports_ema_slope_momentum_strategy():
+    rules_config = {
+        "version": "1.0",
+        "rules": [
+            {
+                "rule_id": "ema_slope_momentum",
+                "name": "EMA Slope Momentum",
+                "enabled": True,
+                "priority": 1,
+                "timeframe": "30min",
+                "symbols": ["*"],
+                "markets": ["US"],
+                "entry": {
+                    "conditions": {
+                        "operator": "AND",
+                        "items": [
+                            {
+                                "type": "indicator",
+                                "indicator": "ema_slope",
+                                "params": {"period": 8, "lookback": 3},
+                                "compare": {"operator": "above", "value": 0.002},
+                            },
+                            {
+                                "type": "indicator",
+                                "indicator": "momentum",
+                                "params": {"period": 3},
+                                "compare": {"operator": "above", "value": 0.01},
+                            },
+                            {
+                                "type": "indicator",
+                                "indicator": "bar_range_pct",
+                                "compare": {"operator": "below", "value": 0.02},
+                            },
+                        ],
+                    },
+                    "action": "BUY",
+                    "order_type": "LMT",
+                    "stop_loss_pct": 0.025,
+                    "take_profit_pct": 0.05,
+                },
+                "exit": {
+                    "conditions": {
+                        "operator": "OR",
+                        "items": [
+                            {
+                                "type": "indicator",
+                                "indicator": "ema_slope",
+                                "params": {"period": 8, "lookback": 3},
+                                "compare": {"operator": "below", "value": 0.0},
+                            }
+                        ],
+                    },
+                    "action": "EXIT",
+                    "order_type": "MKT",
+                },
+            }
+        ],
+    }
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        json.dump(rules_config, f)
+        rules_path = f.name
+
+    try:
+        engine = RuleEngine(rules_path)
+        bars = create_test_bars(30, 'up')
+        signals = engine.evaluate_symbol('AAPL', 'US', bars, None)
+        assert len(signals) == 1
+        signal = signals[0]
+        assert signal.rule_id == 'ema_slope_momentum'
+        assert signal.action == 'BUY'
+        assert signal.reason == 'entry_condition_met'
+    finally:
+        Path(rules_path).unlink()
+
+
+class RuleEngineUnittestBridge(unittest.TestCase):
+    def test_indicator_calculator_bridge(self):
+        test_indicator_calculator()
+
+    def test_ema_slope_strategy_bridge(self):
+        test_rule_engine_supports_ema_slope_momentum_strategy()
 
 
 if __name__ == '__main__':

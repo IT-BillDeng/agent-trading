@@ -43,6 +43,28 @@ def ema(values: Iterable[float], period: int) -> float | None:
     return ema_val
 
 
+def ema_slope(
+    values: Iterable[float],
+    period: int,
+    lookback: int = 3,
+) -> float | None:
+    """Normalized EMA slope over *lookback* bars.
+
+    Returns (latest_ema / prior_ema) - 1.0, or None if insufficient data.
+    """
+    seq = list(values)
+    if period <= 0 or lookback <= 0:
+        return None
+    if len(seq) < period + lookback:
+        return None
+
+    latest_ema = ema(seq, period)
+    prior_ema = ema(seq[:-lookback], period)
+    if latest_ema is None or prior_ema in (None, 0):
+        return None
+    return (latest_ema / prior_ema) - 1.0
+
+
 def rsi(values: Iterable[float], period: int = 14) -> float | None:
     """Relative Strength Index (Wilder smoothing).
 

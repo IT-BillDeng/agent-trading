@@ -7,7 +7,18 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any, Callable
 
-from .indicators import sma, ema, rsi, bollinger, macd, atr, pct_change, bar_range_pct, volume_ratio as calc_volume_ratio
+from .indicators import (
+    sma,
+    ema,
+    ema_slope,
+    rsi,
+    bollinger,
+    macd,
+    atr,
+    pct_change,
+    bar_range_pct,
+    volume_ratio as calc_volume_ratio,
+)
 
 
 @dataclass
@@ -38,6 +49,7 @@ class IndicatorCalculator:
         self._indicators: dict[str, Callable] = {
             'sma': self._calc_sma,
             'ema': self._calc_ema,
+            'ema_slope': self._calc_ema_slope,
             'rsi': self._calc_rsi,
             'bollinger': self._calc_bollinger,
             'macd': self._calc_macd,
@@ -64,6 +76,12 @@ class IndicatorCalculator:
         period = params.get('period', 20)
         closes = [float(bar['close']) for bar in bars]
         return ema(closes, period)
+
+    def _calc_ema_slope(self, params: dict[str, Any], bars: list[dict[str, Any]]) -> float | None:
+        period = params.get('period', 20)
+        lookback = params.get('lookback', 3)
+        closes = [float(bar['close']) for bar in bars]
+        return ema_slope(closes, period, lookback)
     
     def _calc_rsi(self, params: dict[str, Any], bars: list[dict[str, Any]]) -> float | None:
         period = params.get('period', 14)
@@ -538,7 +556,8 @@ class RuleEngine:
             if 'indicator' in conditions:
                 params = conditions.get('params', {})
                 period = params.get('period', 20)
-                max_period = max(max_period, period)
+                lookback = params.get('lookback', 0)
+                max_period = max(max_period, period + lookback)
             
             if 'items' in conditions:
                 for item in conditions['items']:

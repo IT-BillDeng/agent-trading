@@ -28,6 +28,13 @@
 6. proposal 进入 `awaiting_approval`
 7. 不直接 apply，不直接上线
 
+主 agent 在测试过程中：
+
+- 只负责派工、读取结果、汇报与审批
+- 不应把测试过程写回 `docs/`、`cron/`、`agents/`
+- 不应在项目根目录生成自由格式 markdown / json 测试笔记
+- 如需持久记录，应仅使用 `artifacts/strategist/approval_queue/`、`approval_decisions.jsonl`、`deployment_records.jsonl`
+
 ---
 
 ## 推荐测试策略
@@ -142,6 +149,11 @@
 如果 strategist 试图绕过白名单或直接上线，请中止并汇报原因。
 ```
 
+补充约束：
+
+- 主 agent 不得把本次测试结果回写到任务正文或 runbook 本身
+- 主 agent 不得恢复或新建根目录 `memory/` 作为测试日志落点
+
 ---
 
 ## 审查重点
@@ -196,4 +208,3 @@
 - `docs/tasks/STRATEGIST_CODE_CHANGE_TASK.md`
 - `docs/strategist-capability-contract.md`
 - `docs/strategist-l3b-approval-contract.md`
-

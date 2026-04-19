@@ -171,6 +171,8 @@
 注意：
 
 - strategist 自己不应同时扮演“提案者”和“最终批准者”
+- 审批者或上层 agent 也不应把审批记录写回 `docs/`、`cron/`、`agents/` 或项目根自由格式笔记
+- 持久审批记录只允许进入 `artifacts/strategist/approval_queue/`、`approval_decisions.jsonl`、`deployment_records.jsonl`
 
 ---
 

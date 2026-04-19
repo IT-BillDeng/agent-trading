@@ -206,6 +206,12 @@
 - 哪些 task 文本要下发
 - 哪些通知只记录、哪些需要汇总、哪些值得外发
 
+边界：
+
+- 不应把运行期审查结果写回 `docs/`、`cron/`、`agents/`
+- 不应在项目根目录创建自由格式 markdown / json 作为运行记录
+- 如需持久化运行决策，应优先使用 `artifacts/`、`runtime/state/`、`runtime/outbox/` 或 live 环境自身审计系统
+
 ### subagent
 
 优先读：

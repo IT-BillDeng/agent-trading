@@ -40,6 +40,12 @@ subagent 默认只做三件事：
   - 汇总后回复到主会话
   - 外发 Telegram
 
+主 agent 处理通知时也应遵守产物边界：
+
+- 不把通知审查结果写回 `docs/`、`cron/`、`agents/`
+- 不在项目根目录生成自由格式 markdown / json 通知笔记
+- 如需结构化持久记录，应使用明确的 `artifacts/` 或 `runtime/outbox/` 落点
+
 ### 3. 通知提案与通知发送分离
 
 推荐分层：

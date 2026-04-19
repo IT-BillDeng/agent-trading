@@ -1,13 +1,17 @@
 """Test Backtest Framework"""
 
 import json
+import types
 import tempfile
+import unittest
 from datetime import datetime
 from pathlib import Path
 
 # Add parent directory to path for imports
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+
+sys.modules.setdefault('yfinance', types.SimpleNamespace(Ticker=None, download=None))
 
 from engine.backtest import BacktestConfig, BacktestEngine, DataFetcher, OrderSimulator
 
@@ -177,6 +181,14 @@ def test_backtest_engine():
         
     finally:
         Path(rules_path).unlink()
+
+
+class BacktestUnittestBridge(unittest.TestCase):
+    def test_order_simulator_bridge(self):
+        test_order_simulator()
+
+    def test_backtest_engine_bridge(self):
+        test_backtest_engine()
 
 
 if __name__ == '__main__':

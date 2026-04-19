@@ -18,7 +18,26 @@
    - 否则提取 report 字段
 5. 将报告内容通过 `sessions_send` 汇报给主 agent
 6. 如果有异常或风险，在报告末尾添加 ⚠️ 标记
-7. 运行结果会同步落到 `./artifacts/closer/summary_latest.json` 和 `./artifacts/closer/summary_history.jsonl`
+7. 运行结果会同步落到：
+   - `./runtime/outbox/closer_outbox.json`
+   - `./artifacts/closer/summary_latest.json`
+   - `./artifacts/closer/summary_history.jsonl`
+
+## 产物边界
+
+canonical 输出仅限：
+
+- `./runtime/outbox/closer_outbox.json`
+- `./artifacts/closer/summary_latest.json`
+- `./artifacts/closer/summary_history.jsonl`
+
+禁止事项：
+
+- 不得修改本任务文件自身
+- 不得把运行结果写入 `./memory/`
+- 不得在项目根目录新建自由格式 markdown / json 临时记录
+- 不得把总结写入 `docs/`、`cron/`、`agents/` 目录
+- 不得绕开既有 `closer.py` pipeline 自由落盘
 
 注意：API 地址 http://host.docker.internal:8088
 

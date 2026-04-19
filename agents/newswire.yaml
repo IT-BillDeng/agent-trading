@@ -28,6 +28,15 @@ output_files:
   - /workspace/agent-trading/artifacts/newswire/history.jsonl
   - /workspace/agent-trading/runtime/state/newswire_dedupe.json
 
+write_scopes:
+  - /workspace/agent-trading/artifacts/newswire/
+  - /workspace/agent-trading/runtime/state/newswire_dedupe.json
+
+protected_paths:
+  - /workspace/agent-trading/docs/
+  - /workspace/agent-trading/cron/
+  - /workspace/agent-trading/agents/
+
 # 数据源开关（从 sources.json 读取，也可在此覆盖）
 default_sources:
   - web_search

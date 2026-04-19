@@ -24,6 +24,20 @@
 盘中绝不改规则参数！只能暂停/恢复。不得修改策略代码。
 仅在有操作时通过 `sessions_send` 汇报主 agent。
 
+## 产物边界
+
+本轮仅允许写入：
+
+- `./artifacts/strategist/strategy_plan_latest.json`
+- `./artifacts/strategist/strategy_plan_history.jsonl`
+
+禁止事项：
+
+- 不得修改本任务文件自身
+- 不得把运行记录写入 `./memory/`
+- 不得在项目根目录新建自由格式 markdown / json 临时记录
+- 不得把运行结果写入 `docs/tasks/`、`docs/tasks/cron/`、`cron/`、`agents/`
+
 ## 说明
 
 cron 只应引用这个文件；任务正文改动时，无需再修改 cron JSON。

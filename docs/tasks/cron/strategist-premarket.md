@@ -31,6 +31,21 @@
 - 盘前不直接做新的代码级策略改动
 - 如存在上一轮 afterhours 已验证的代码提案，只能读取其结果，不得在盘前临时扩张变更范围
 
+## 产物边界
+
+本轮仅允许写入：
+
+- `./artifacts/strategist/strategy_plan_latest.json`
+- `./artifacts/strategist/strategy_plan_history.jsonl`
+- 如有规则层变更，可写 `./rules/rules.json`
+
+禁止事项：
+
+- 不得修改本任务文件自身
+- 不得把运行记录写入 `./memory/`
+- 不得在项目根目录新建自由格式 markdown / json 临时记录
+- 不得把运行结果写入 `docs/tasks/`、`docs/tasks/cron/`、`cron/`、`agents/`
+
 输出格式参见 docs/tasks/STRATEGIST_TASK.md 的输出格式章节。
 
 仅在有策略调整时通过 `sessions_send` 汇报主 agent。无调整则不通知。

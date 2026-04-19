@@ -11,8 +11,6 @@ frequency: "策略完成后触发"
 tools:
   - read
   - write
-  - exec
-  - sessions_send
 
 # 输入文件
 input_files:
@@ -32,9 +30,8 @@ output_files:
   - /workspace/agent-trading/artifacts/executor/checklist_latest.json
   - /workspace/agent-trading/artifacts/executor/checklist_history.jsonl
 
-# 执行命令（校验）
-exec_commands:
-  - "python3 /workspace/agent-trading/system/engine/run_dry_run_cycle.py"
+write_scopes:
+  - /workspace/agent-trading/artifacts/executor/
 
 # 汇报目标
 report_to: ${ENGINE_MAIN_AGENT_SESSION_KEY}

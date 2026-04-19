@@ -136,6 +136,22 @@ for sym in ['SPY','QQQ','DIA']:
 
 **注意：`newswire_dedupe.json` 的 `updated_at` 字段是 Step 2 去重跳过判断的依据，必须更新。**
 
+## 产物边界
+
+只允许写入以下 canonical 路径：
+
+- `./artifacts/newswire/latest.json`
+- `./artifacts/newswire/history.jsonl`
+- `./runtime/state/newswire_dedupe.json`
+
+禁止事项：
+
+- 不得修改任务正文文件自身
+- 不得把运行结果写入 `./memory/`
+- 不得在项目根目录新建自由格式 markdown / json 临时记录
+- 不得把运行结论写到 `docs/`、`cron/`、`agents/` 目录
+- `write` 工具只能用于上述 canonical 输出文件
+
 输出格式参见 `specs/newswire-output-schema-v1.md`
 
 ### Step 8: 汇报

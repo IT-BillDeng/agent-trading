@@ -41,6 +41,26 @@
 - `./specs/`
 - `./artifacts/strategist/`
 
+## 产物边界
+
+只允许写入以下 canonical / 白名单路径：
+
+- `./rules/`
+- `./system/engine/src/engine/strategy.py`
+- `./system/engine/src/engine/rule_engine.py`
+- `./system/engine/src/engine/indicators.py`
+- `./system/engine/tests/`
+- `./tests/`
+- `./specs/`
+- `./artifacts/strategist/`
+
+禁止事项：
+
+- 不得修改任务正文文件自身
+- 不得把运行记录写入 `./memory/`
+- 不得在项目根目录新建自由格式 markdown / json 临时记录
+- 不得把运行结果写入 `docs/tasks/`、`docs/tasks/cron/`、`cron/`、`agents/`
+
 ## L3a 必须通过的验证
 
 1. `python3 -m py_compile system/engine/src/engine/strategy.py system/engine/src/engine/rule_engine.py system/engine/src/engine/indicators.py`

@@ -40,6 +40,31 @@ curl -s -X POST http://host.docker.internal:8088/api/backtest/batch -H "Content-
 - 不直接下单
 - 不自动部署或自动上线 live
 
+## 产物边界
+
+允许写入的 canonical / 白名单路径：
+
+- `./artifacts/strategist/strategy_plan_latest.json`
+- `./artifacts/strategist/strategy_plan_history.jsonl`
+- `./artifacts/strategist/iterations/`
+- `./artifacts/strategist/code_change_proposals.jsonl`
+- `./artifacts/strategist/code_change_results.jsonl`
+- `./artifacts/strategist/rollback_notes.jsonl`
+- `./rules/`
+- `./system/engine/src/engine/strategy.py`
+- `./system/engine/src/engine/rule_engine.py`
+- `./system/engine/src/engine/indicators.py`
+- `./system/engine/tests/`
+- `./tests/`
+- `./specs/`
+
+禁止事项：
+
+- 不得修改本任务文件自身
+- 不得把运行记录写入 `./memory/`
+- 不得在项目根目录新建自由格式 markdown / json 临时记录
+- 不得把运行结果写入 `docs/tasks/`、`docs/tasks/cron/`、`cron/`、`agents/`
+
 输出格式参见 docs/tasks/STRATEGIST_TASK.md 的输出格式章节。
 
 有调整时通过 `sessions_send` 汇报主 agent，无调整不通知。

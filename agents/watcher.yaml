@@ -10,7 +10,6 @@ frequency: "每 15 分钟"
 # Tool 权限配置
 tools:
   - read
-  - write
   - exec
   - sessions_send
 

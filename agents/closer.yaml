@@ -10,7 +10,7 @@ frequency: "每市场收盘后"
 # Tool 权限配置
 tools:
   - read
-  - write
+  - exec
   - sessions_send
 
 # 输入文件

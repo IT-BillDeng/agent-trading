@@ -51,6 +51,22 @@ web_fetch(url="https://news.google.com/rss/search?q=AI+semiconductor+tech+sector
 
 硬约束：单轮搜索 ≤ 2次。不写文件时用 write 工具，不运行 Python。
 
+## 产物边界
+
+仅允许写入以下 canonical 路径：
+
+- `./artifacts/newswire/latest.json`
+- `./artifacts/newswire/history.jsonl`
+- `./runtime/state/newswire_dedupe.json`
+
+禁止事项：
+
+- 不得修改本任务文件自身
+- 不得把运行结果写入 `./memory/`
+- 不得在项目根目录新建自由格式 markdown / json 临时记录
+- 不得把运行结论写到 `docs/`、`cron/`、`agents/` 目录
+- `write` 工具只能用于上述 3 个 canonical 输出文件
+
 ## 说明
 
 cron 只应引用这个文件；任务正文改动时，无需再修改 cron JSON。

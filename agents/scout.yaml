@@ -29,5 +29,13 @@ output_files:
   - /workspace/agent-trading/artifacts/scout/candidates_latest.json
   - /workspace/agent-trading/artifacts/scout/candidates_history.jsonl
 
+write_scopes:
+  - /workspace/agent-trading/artifacts/scout/
+
+protected_paths:
+  - /workspace/agent-trading/docs/
+  - /workspace/agent-trading/cron/
+  - /workspace/agent-trading/agents/
+
 # 汇报目标
 report_to: ${ENGINE_MAIN_AGENT_SESSION_KEY}

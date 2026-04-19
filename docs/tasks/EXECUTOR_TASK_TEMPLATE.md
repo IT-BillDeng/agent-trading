@@ -43,6 +43,14 @@
 - 检查完成后，如需输出检查单，写入 `./artifacts/executor/checklist_latest.json`
 - 历史追加到 `./artifacts/executor/checklist_history.jsonl`
 
+产物边界：
+- 只允许写入 `./artifacts/executor/checklist_latest.json`
+- 只允许追加 `./artifacts/executor/checklist_history.jsonl`
+- 不得修改本任务文件自身
+- 不得把运行记录写入 `./memory/`
+- 不得在项目根目录新建自由格式 markdown / json 临时记录
+- 不得把运行结果写入 `docs/`、`cron/`、`agents/`
+
 输出格式：
 1. 一句话结论
 2. 3 个已就绪项

@@ -41,6 +41,11 @@
 - notifier
 - deploy / infra
 - dashboard 主逻辑
+- `docs/tasks/`
+- `docs/tasks/cron/`
+- `cron/`
+- `agents/`
+- `./memory/`
 
 ---
 
@@ -62,6 +67,12 @@
 7. 生成 patch 或 commit proposal
 8. 将 proposal 状态写为 `awaiting_approval`
 9. 等待人工或上层 agent 批准
+
+额外边界：
+
+- 不得修改本任务文件自身
+- 不得在项目根目录新建自由格式 markdown / json 临时记录
+- 不得把代码实验笔记写到 `docs/`、`cron/`、`agents/`
 
 ---
 

@@ -27,13 +27,23 @@
 
 边界：
 - 不直接下单
-- 不运行 Python
+- 不自由编写或修改 Python；如具体 cron 任务要求调用既有 `closer.py`，仅允许按既有 pipeline 执行
 - 不对外发送消息（若由 cron announce，则仅输出总结本体）
 - 不修改股票池或配置
 
 结构化落盘要求：
+- 写入 `./runtime/outbox/closer_outbox.json`
 - 写入 `./artifacts/closer/summary_latest.json`
 - 追加 `./artifacts/closer/summary_history.jsonl`
+
+产物边界：
+- 只允许写入 `./runtime/outbox/closer_outbox.json`
+- 只允许写入 `./artifacts/closer/summary_latest.json`
+- 只允许追加 `./artifacts/closer/summary_history.jsonl`
+- 不得修改本任务文件自身
+- 不得把运行记录写入 `./memory/`
+- 不得在项目根目录新建自由格式 markdown / json 临时记录
+- 不得把运行结果写入 `docs/`、`cron/`、`agents/`
 
 输出格式：
 1. 一句话结论

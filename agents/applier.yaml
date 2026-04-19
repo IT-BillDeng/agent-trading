@@ -30,6 +30,21 @@ output_files:
   - /workspace/agent-trading/artifacts/strategist/deployment_records.jsonl
   - /workspace/agent-trading/artifacts/strategist/rollback_notes.jsonl
 
+write_scopes:
+  - /workspace/agent-trading/rules/
+  - /workspace/agent-trading/system/engine/src/engine/strategy.py
+  - /workspace/agent-trading/system/engine/src/engine/rule_engine.py
+  - /workspace/agent-trading/system/engine/src/engine/indicators.py
+  - /workspace/agent-trading/artifacts/strategist/
+
+protected_paths:
+  - /workspace/agent-trading/system/engine/src/engine/live_execution.py
+  - /workspace/agent-trading/system/engine/src/engine/broker_client.py
+  - /workspace/agent-trading/system/engine/src/engine/tiger_client.py
+  - /workspace/agent-trading/system/engine/src/engine/notifier.py
+  - /workspace/agent-trading/dashboard/
+  - /workspace/agent-trading/docker-compose.yml
+
 # 执行命令（受控 apply）
 exec_commands:
   - "python3 /workspace/agent-trading/system/engine/run_dry_run_cycle.py"

@@ -13,6 +13,7 @@
 - 运行时的 `payload.taskFile` 优先写成绝对项目路径：`/workspace/agent-trading/docs/tasks/cron/*.md`
 - 对美股盘前、盘中、盘后、收盘总结类任务，默认先查询 `http://host.docker.internal:8088/api/trading-day?market=US`
 - 若返回 `is_trading_day=false`，对应任务应直接跳过，不再自行用 weekday 近似判断
+- 每份任务正文都应明确 canonical 输出路径，并显式禁止写入 `./memory/`、项目根临时笔记、`docs/`、`cron/`、`agents/`
 
 ## 目录映射
 

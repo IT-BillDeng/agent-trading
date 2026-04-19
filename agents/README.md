@@ -73,12 +73,17 @@
 
 | Agent | Tool 权限 |
 |-------|-----------|
-| watcher | `read`, `write`, `exec`, `sessions_send` |
+| watcher | `read`, `exec`, `sessions_send` |
 | newswire | `read`, `write`, `web_search`, `browser`, `exec` |
 | strategist | `read`, `write`, `exec`, `web_search` |
-| executor | `read`, `write`, `exec`, `sessions_send` |
+| executor | `read`, `write` |
 | scout | `read`, `write`, `browser`, `web_search`, `web_fetch`, `sessions_send` |
-| closer | `read`, `write`, `sessions_send` |
+| closer | `read`, `exec`, `sessions_send` |
+
+补充约束：
+
+- 具备 `write` 的 agent，必须只写自身的 canonical artifact 路径或明确白名单目录
+- 不允许任何 agent 把运行结果写入根目录 `memory/`、`docs/`、`cron/`、`agents/`
 
 ## 汇报目标
 

@@ -56,6 +56,7 @@ agent-trading/
 说明：
 
 - `docs/`：岗位说明、任务模板、协作说明
+- `docs/git-version-management.md`：仓库提交、忽略策略、tag 与分支约定
 - `data/`：本地用户状态、种子配置与少量实验产物
 - `config/`：项目默认配置、Docker 覆盖与本地用户设置示例
 - `.env`：本地运行变量，不进 git

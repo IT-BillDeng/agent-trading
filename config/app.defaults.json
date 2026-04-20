@@ -10,6 +10,11 @@
   "strategy": {
     "timeframe": "30min",
     "use_rule_engine": true,
+    "data_provider": {
+      "primary": "yfinance",
+      "fallback": "tiger",
+      "fail_on_empty_bars": false
+    },
     "signal": {
       "lookback_bars": 30,
       "fast_sma": 5,

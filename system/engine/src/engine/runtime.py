@@ -18,6 +18,7 @@ from .strategy import StrategyEngine
 from .rule_engine import RuleEngine
 from .broker_client import BrokerClient
 from .state import TradeLimitStore
+from .data_provider import create_data_provider, fetch_bars_with_fallback
 
 
 SUPPORTED_PROVIDER_TIMEFRAMES: dict[str, set[str]] = {
@@ -193,19 +194,26 @@ def _build_data_health_report(
     rule_engine: RuleEngine | None,
     bars_by_symbol: dict[str, list[dict[str, Any]]],
 ) -> dict[str, dict[str, Any]]:
-    provider = str(raw.get("_provider") or app.signal.get("provider") or app.broker_platform or "unknown")
-    supported_timeframes = SUPPORTED_PROVIDER_TIMEFRAMES.get(provider, set())
+    default_provider = str(raw.get("_provider") or app.signal.get("provider") or app.broker_platform or "unknown")
     report: dict[str, dict[str, Any]] = {}
 
     for item in app.symbols:
         symbol = item["symbol"]
         market = item["market"]
+        bars_meta = raw.get("_bars_meta", {}).get(market, {}).get("symbols", {}).get(symbol, {})
+        provider = str(bars_meta.get("provider") or default_provider)
+        provider_path = str(bars_meta.get("provider_path") or provider)
+        provider_status = str(bars_meta.get("status") or "unknown")
+        fallback_used = bool(bars_meta.get("fallback_used"))
+        supported_timeframes = SUPPORTED_PROVIDER_TIMEFRAMES.get(provider, set())
         bars_status = summary.get("quote_access", {}).get(market, {}).get("bars", {})
         brief_status = summary.get("quote_access", {}).get(market, {}).get("brief", {})
         delay_status = summary.get("quote_access", {}).get(market, {}).get("quote_delay", {})
 
         quote_status = "unknown"
-        if bars_status.get("ok") is False or brief_status.get("ok") is False:
+        if fallback_used:
+            quote_status = "fallback"
+        elif bars_status.get("ok") is False or brief_status.get("ok") is False:
             quote_status = "failed"
         elif provider == "yfinance" or delay_status.get("ok"):
             quote_status = "delayed"
@@ -224,7 +232,7 @@ def _build_data_health_report(
         bars_resp = raw.get("bars", {}).get(market)
         bars_entry = _find_symbol_entry(bars_resp, symbol)
         raw_items = bars_entry.get("items") if isinstance(bars_entry, dict) else None
-        raw_bars_count = len(raw_items) if isinstance(raw_items, list) else 0
+        raw_bars_count = int(bars_meta.get("bars_count") or (len(raw_items) if isinstance(raw_items, list) else 0))
         normalized_bars = list(bars_by_symbol.get(symbol, []))
         normalized_bars_count = len(normalized_bars)
         latest_bar_time = _latest_bar_time(normalized_bars)
@@ -241,6 +249,8 @@ def _build_data_health_report(
             reason = "unsupported_timeframe"
         elif _symbol_disabled_reason(app, market, symbol):
             reason = "symbol_disabled"
+        elif bars_meta.get("reason") in {"provider_error", "bars_normalization_failed"}:
+            reason = str(bars_meta.get("reason"))
         elif bars_entry is not None and raw_items is not None and not isinstance(raw_items, list):
             reason = "bars_normalization_failed"
         elif bars_status.get("ok") is False or brief_status.get("ok") is False:
@@ -251,6 +261,8 @@ def _build_data_health_report(
             reason = "provider_error"
         elif normalized_bars_count == 0 and _market_closed(summary.get("market_state", {}).get(market)):
             reason = "market_closed"
+        elif bars_meta.get("reason") == "bars_empty":
+            reason = "bars_empty"
         elif normalized_bars_count == 0:
             reason = "bars_empty"
         elif normalized_bars_count < required_bars:
@@ -259,6 +271,9 @@ def _build_data_health_report(
         report[symbol] = {
             "market": market,
             "provider": provider,
+            "provider_path": provider_path,
+            "provider_status": provider_status,
+            "fallback_used": fallback_used,
             "quote_status": quote_status,
             "contract_status": contract_status,
             "raw_bars_count": raw_bars_count,
@@ -644,12 +659,40 @@ def fetch_cycle_raw_with_provider(client: BrokerClient | None, data: Any, app: A
     result['briefs'] = {}
     result['bars'] = {}
     result['contracts'] = {}
+    result['_bars_meta'] = {}
+
+    provider_cfg = app.strategy.get("data_provider", {})
+    configured_primary = str(provider_cfg.get("primary") or getattr(data, "name", result.get("_provider")))
+    configured_fallback = provider_cfg.get("fallback")
+    fail_on_empty_bars = bool(provider_cfg.get("fail_on_empty_bars", False))
 
     for market, symbols in symbols_by_market.items():
         result['market_state'][market] = data.get_market_state(market)
         result['delay_quotes'][market] = data.get_delay_quotes(symbols, market=market)
         result['briefs'][market] = data.get_briefs(symbols, market=market)
-        result['bars'][market] = data.get_bars(symbols, period=app.timeframe, limit=int(app.signal.get('lookback_bars', 30)))
+        fallback_provider = None
+        fallback_name = str(configured_fallback) if configured_fallback else None
+        if fallback_name and fallback_name != configured_primary:
+            if client is not None and fallback_name == app.broker_platform:
+                fallback_provider = client
+            elif fallback_name != getattr(data, "name", None):
+                try:
+                    fallback_provider = create_data_provider(fallback_name)
+                except Exception:
+                    fallback_provider = None
+
+        bars_resp, bars_meta = fetch_bars_with_fallback(
+            data,
+            symbols,
+            period=app.timeframe,
+            limit=int(app.signal.get('lookback_bars', 30)),
+            fallback_provider=fallback_provider,
+            primary_name=configured_primary,
+            fallback_name=fallback_name,
+            fail_on_empty_bars=fail_on_empty_bars,
+        )
+        result['bars'][market] = bars_resp
+        result['_bars_meta'][market] = bars_meta
         result['contracts'][market] = {symbol: data.get_contract(symbol, market) for symbol in symbols}
 
     return result

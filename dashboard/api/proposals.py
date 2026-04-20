@@ -100,3 +100,9 @@ async def api_strategy_proposal_reject(proposal_id: str, body: dict | None = Non
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+
+def register_proposal_routes(app) -> None:
+    app.get("/api/strategy/proposals")(api_strategy_proposals)
+    app.get("/api/strategy/proposals/{proposal_id}")(api_strategy_proposal_detail)
+    app.post("/api/strategy/proposals/{proposal_id}/approve")(api_strategy_proposal_approve)
+    app.post("/api/strategy/proposals/{proposal_id}/reject")(api_strategy_proposal_reject)

@@ -159,6 +159,54 @@ class RiskTradeLimitTests(unittest.TestCase):
             self.assertTrue(decisions[0].allowed)
             self.assertEqual(store.snapshot("2026-04-21")["total_trades"], 0)
 
+    def test_timestamp_crossing_utc_midnight_keeps_same_us_trading_day(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = TradeLimitStore(tmpdir)
+            store.record_trade(
+                "2026-04-20",
+                symbol="AAPL",
+                side="BUY",
+                ts="2026-04-21T00:55:00+00:00",
+            )
+
+            manager = self._manager(tmpdir)
+            decisions = manager.evaluate(
+                signals=[_buy_signal("AAPL")],
+                asset_snapshot={
+                    "netLiquidation": 100000.0,
+                    "timestamp": "2026-04-21T01:10:00+00:00",
+                },
+                market_state=_market_state_open(),
+                contracts=_contracts(),
+                positions_map={},
+                active_orders_map={},
+            )
+
+            self.assertFalse(decisions[0].allowed)
+            self.assertIn("symbol_cooldown_active:AAPL", decisions[0].reasons)
+
+    def test_record_trade_is_idempotent_by_intent_key(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = TradeLimitStore(tmpdir)
+            store.record_trade(
+                "2026-04-20",
+                symbol="AAPL",
+                side="BUY",
+                ts="2026-04-20T10:00:00+00:00",
+                idempotency_key="idem-1",
+            )
+            store.record_trade(
+                "2026-04-20",
+                symbol="AAPL",
+                side="BUY",
+                ts="2026-04-20T10:05:00+00:00",
+                idempotency_key="idem-1",
+            )
+
+            snapshot = store.snapshot("2026-04-20")
+            self.assertEqual(snapshot["total_trades"], 1)
+            self.assertEqual(snapshot["symbols"]["AAPL"]["trade_count"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

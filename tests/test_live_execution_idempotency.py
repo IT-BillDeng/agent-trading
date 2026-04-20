@@ -90,6 +90,41 @@ class FakeBrokerClient:
 
 class LiveExecutionIdempotencyTests(unittest.TestCase):
     def _make_adapter(self, fake_client: FakeBrokerClient, state_dir: Path) -> LiveExecutionAdapter:
+        state_dir.mkdir(parents=True, exist_ok=True)
+        (state_dir / "control_state.json").write_text(
+            json.dumps(
+                {
+                    "locked": False,
+                    "global": {"enabled": True, "mode": "live_trade"},
+                    "markets": {"US": True},
+                    "symbols": {},
+                    "risk": {
+                        "reduce_only": False,
+                        "reduce_only_reason": None,
+                        "emergency_flatten": False,
+                        "daily_loss_locked": False,
+                    },
+                    "live_readiness": {
+                        "checklist_id": "live-readiness-v1",
+                        "status": "ready",
+                        "confirm_live": True,
+                        "items": {
+                            "p0_safety_tests_passed": True,
+                            "p1_risk_tests_passed": True,
+                            "paper_shadow_20d_stable": True,
+                            "fee_model_confidence_ok": True,
+                            "recent_data_health_ok": True,
+                            "broker_no_unknown_open_orders": True,
+                            "execution_state_reconciled": True,
+                            "operator_confirmed": True,
+                        },
+                        "failed_items": [],
+                    },
+                    "history": [],
+                },
+                ensure_ascii=False,
+            )
+        )
         app_config = {
             "mode": "live",
             "execution": {

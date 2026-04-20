@@ -49,7 +49,25 @@ def _write_control_state(
     locked: bool = False,
     symbol_payload: dict | None = None,
     risk_payload: dict | None = None,
+    live_readiness: dict | None = None,
 ):
+    if mode == "live_trade" and live_readiness is None:
+        live_readiness = {
+            "checklist_id": "live-readiness-v1",
+            "status": "ready",
+            "confirm_live": True,
+            "items": {
+                "p0_safety_tests_passed": True,
+                "p1_risk_tests_passed": True,
+                "paper_shadow_20d_stable": True,
+                "fee_model_confidence_ok": True,
+                "recent_data_health_ok": True,
+                "broker_no_unknown_open_orders": True,
+                "execution_state_reconciled": True,
+                "operator_confirmed": True,
+            },
+            "failed_items": [],
+        }
     payload = {
         "locked": locked,
         "global": {"enabled": enabled, "mode": mode},
@@ -60,6 +78,7 @@ def _write_control_state(
             "emergency_flatten": False,
             "daily_loss_locked": False,
         },
+        "live_readiness": live_readiness,
         "history": [],
     }
     if risk_payload:
@@ -201,6 +220,72 @@ class LiveExecutionGateTests(unittest.TestCase):
 
             self.assertFalse(result.submitted)
             self.assertEqual(result.reason, "risk_reduce_only")
+            self.assertEqual(client.place_order_called, 0)
+
+    def test_live_trade_without_ready_readiness_never_submits(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_dir = Path(tmpdir)
+            _write_control_state(
+                state_dir,
+                mode="live_trade",
+                live_readiness={
+                    "checklist_id": "live-readiness-v1",
+                    "status": "missing",
+                    "confirm_live": False,
+                    "items": {},
+                    "failed_items": ["operator_confirmed"],
+                },
+            )
+            client = FakeBrokerClient()
+            adapter = LiveExecutionAdapter(
+                {
+                    "mode": "live",
+                    "execution": {
+                        "submit_mode": "live",
+                        "live_submit": True,
+                        "preview_check": True,
+                    },
+                    "system": {
+                        "state_dir": tmpdir,
+                    },
+                },
+                client,
+            )
+
+            result = adapter.submit_intent(_sample_intent(), _sample_contracts())
+
+            self.assertFalse(result.submitted)
+            self.assertEqual(result.reason, "live_readiness:missing")
+            self.assertEqual(client.place_order_called, 0)
+
+    def test_daily_loss_locked_blocks_buy_live_submit(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_dir = Path(tmpdir)
+            _write_control_state(
+                state_dir,
+                mode="live_trade",
+                risk_payload={"daily_loss_locked": True},
+            )
+            client = FakeBrokerClient()
+            adapter = LiveExecutionAdapter(
+                {
+                    "mode": "live",
+                    "execution": {
+                        "submit_mode": "live",
+                        "live_submit": True,
+                        "preview_check": True,
+                    },
+                    "system": {
+                        "state_dir": tmpdir,
+                    },
+                },
+                client,
+            )
+
+            result = adapter.submit_intent(_sample_intent(), _sample_contracts())
+
+            self.assertFalse(result.submitted)
+            self.assertEqual(result.reason, "risk_daily_loss_locked")
             self.assertEqual(client.place_order_called, 0)
 
     def test_locked_control_blocks_submit_before_preview_or_place(self):

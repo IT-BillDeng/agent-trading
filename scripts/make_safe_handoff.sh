@@ -28,8 +28,12 @@ keep_specs = [
     "config/app.defaults.json",
     "config/app_config.docker.json",
     "config/*.example.json",
+    "config/broker_fee.tiger.json",
     "agents",
     "cron",
+    "scripts/make_safe_handoff.sh",
+    "specs/strategist-output-schema-v1.md",
+    "system/engine/requirements.txt",
     "system/engine/src",
     "system/engine/tests",
     "dashboard",
@@ -101,6 +105,11 @@ PY
 
 cat <<EOF
 Safe handoff zip: ${ZIP_PATH}
+Critical review files retained:
+- scripts/make_safe_handoff.sh
+- system/engine/requirements.txt
+- config/broker_fee.tiger.json
+- specs/strategist-output-schema-v1.md
 Exclude rules:
 - .env
 - .env.*

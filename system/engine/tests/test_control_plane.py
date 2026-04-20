@@ -10,6 +10,27 @@ from engine.control import ControlPlane
 from engine.control import canonical_mode_to_legacy_ui_mode, legacy_ui_mode_to_canonical_mode
 
 
+def _ready_live_readiness():
+    return {
+        "checklist_id": "live-readiness-v1",
+        "status": "ready",
+        "confirm_live": True,
+        "items": {
+            "p0_safety_tests_passed": True,
+            "p1_risk_tests_passed": True,
+            "paper_shadow_20d_stable": True,
+            "fee_model_confidence_ok": True,
+            "recent_data_health_ok": True,
+            "broker_no_unknown_open_orders": True,
+            "execution_state_reconciled": True,
+            "operator_confirmed": True,
+        },
+        "failed_items": [],
+        "updated_at": "2026-04-20T00:00:00+00:00",
+        "updated_by": "test",
+    }
+
+
 class ControlPlaneSafetyTests(unittest.TestCase):
     def _write_state(self, tmpdir: str, payload: dict) -> ControlPlane:
         state_path = Path(tmpdir) / "control_state.json"
@@ -145,6 +166,7 @@ class ControlPlaneSafetyTests(unittest.TestCase):
                     "symbols": {
                         "SMCI": {"enabled": True, "suspended": True, "reason": "manual_suspend"},
                     },
+                    "live_readiness": _ready_live_readiness(),
                 },
             )
 
@@ -220,6 +242,7 @@ class ControlPlaneSafetyTests(unittest.TestCase):
                     "symbols": {
                         "SMCI": {"enabled": True, "suspended": False},
                     },
+                    "live_readiness": _ready_live_readiness(),
                 },
             )
 
@@ -227,6 +250,87 @@ class ControlPlaneSafetyTests(unittest.TestCase):
 
             self.assertTrue(ok)
             self.assertIsNone(reason)
+
+    def test_live_submit_requires_readiness_status_ready(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            control = self._write_state(
+                tmpdir,
+                {
+                    "locked": False,
+                    "global": {"enabled": True, "mode": "live_trade"},
+                    "markets": {"US": True},
+                    "symbols": {"SMCI": {"enabled": True, "suspended": False}},
+                    "live_readiness": {
+                        "checklist_id": "live-readiness-v1",
+                        "status": "blocked",
+                        "confirm_live": True,
+                        "items": {"operator_confirmed": True},
+                        "failed_items": ["paper_shadow_20d_stable"],
+                    },
+                },
+            )
+
+            ok, reason = control.can_live_submit("US", "SMCI")
+
+            self.assertFalse(ok)
+            self.assertEqual(reason, "live_readiness:blocked")
+
+    def test_manual_unlock_does_not_clear_daily_loss_lock(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            control = self._write_state(
+                tmpdir,
+                {
+                    "locked": True,
+                    "reason": "daily loss",
+                    "global": {"enabled": True, "mode": "paper_trade"},
+                    "markets": {"US": True},
+                    "symbols": {},
+                    "risk": {
+                        "reduce_only": True,
+                        "reduce_only_reason": "daily_loss_limit_exceeded",
+                        "emergency_flatten": False,
+                        "daily_loss_locked": True,
+                        "trading_day": "2026-04-20",
+                        "day_start_equity_usd": 100000.0,
+                        "last_equity_usd": 95000.0,
+                        "daily_loss_pct": 5.0,
+                    },
+                },
+            )
+
+            state = control.unlock("manual_unlock", updated_by="operator")
+
+            self.assertFalse(state["locked"])
+            self.assertTrue(state["risk"]["daily_loss_locked"])
+            self.assertTrue(state["risk"]["reduce_only"])
+
+    def test_explicit_daily_loss_override_clears_lock(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            control = self._write_state(
+                tmpdir,
+                {
+                    "locked": False,
+                    "global": {"enabled": True, "mode": "paper_trade"},
+                    "markets": {"US": True},
+                    "symbols": {},
+                    "risk": {
+                        "reduce_only": True,
+                        "reduce_only_reason": "daily_loss_limit_exceeded",
+                        "emergency_flatten": False,
+                        "daily_loss_locked": True,
+                        "trading_day": "2026-04-20",
+                        "day_start_equity_usd": 100000.0,
+                        "last_equity_usd": 95000.0,
+                        "daily_loss_pct": 5.0,
+                    },
+                },
+            )
+
+            state = control.clear_daily_loss_lock("audited_override", updated_by="operator")
+
+            self.assertFalse(state["risk"]["daily_loss_locked"])
+            self.assertFalse(state["risk"]["reduce_only"])
+            self.assertIsNone(state["risk"]["reduce_only_reason"])
 
     def test_legacy_ui_mode_mapping_never_auto_upgrades_to_live_trade(self):
         self.assertEqual(legacy_ui_mode_to_canonical_mode("off"), "off")

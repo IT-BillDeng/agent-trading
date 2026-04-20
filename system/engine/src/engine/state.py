@@ -89,9 +89,24 @@ class TradeLimitStore:
         side: str,
         ts: str | None = None,
         pnl: float | None = None,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         ts = ts or self._ts()
         state = self.snapshot(trading_day)
+        recorded_intents = state.setdefault('recorded_intents', {})
+        if idempotency_key and idempotency_key in recorded_intents:
+            state.setdefault('history', []).append(
+                {
+                    'ts': ts,
+                    'kind': 'trade_record_duplicate_ignored',
+                    'symbol': symbol,
+                    'side': side,
+                    'trading_day': trading_day,
+                    'idempotency_key': idempotency_key,
+                }
+            )
+            self._write(state)
+            return state
         state['total_trades'] = int(state.get('total_trades', 0)) + 1
         symbol_state = state.setdefault('symbols', {}).setdefault(
             symbol,
@@ -111,6 +126,12 @@ class TradeLimitStore:
                     symbol_state['last_loss_at'] = ts
             except Exception:
                 pass
+        if idempotency_key:
+            recorded_intents[idempotency_key] = {
+                'ts': ts,
+                'symbol': symbol,
+                'side': side,
+            }
         state.setdefault('history', []).append(
             {
                 'ts': ts,
@@ -119,6 +140,7 @@ class TradeLimitStore:
                 'side': side,
                 'trading_day': trading_day,
                 'pnl': pnl,
+                'idempotency_key': idempotency_key,
             }
         )
         self._write(state)
@@ -129,6 +151,7 @@ class TradeLimitStore:
             'trading_day': None,
             'total_trades': 0,
             'symbols': {},
+            'recorded_intents': {},
             'history': [],
         }
 
@@ -137,6 +160,7 @@ class TradeLimitStore:
             'trading_day': trading_day,
             'total_trades': 0,
             'symbols': {},
+            'recorded_intents': {},
             'history': [],
         }
 

@@ -257,6 +257,8 @@ class LiveExecutionAdapter:
 
         if str(intent.get('side', '')).upper() == 'BUY':
             risk_cfg = self.control.status().get('risk', {})
+            if risk_cfg.get('daily_loss_locked', False):
+                return False, 'risk_daily_loss_locked'
             if risk_cfg.get('reduce_only', False):
                 return False, 'risk_reduce_only'
             if risk_cfg.get('emergency_flatten', False):

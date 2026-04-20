@@ -145,6 +145,50 @@ class HotApplyTests(unittest.TestCase):
         self.assertEqual(target_record["before_checksum"], _checksum(before_bytes))
         self.assertNotEqual(target_record["before_checksum"], target_record["after_checksum"])
 
+    def test_hot_apply_missing_payload_records_failure_with_fee_confidence_snapshot(self) -> None:
+        broker_dir = self.artifacts_dir / "broker"
+        broker_dir.mkdir(parents=True, exist_ok=True)
+        (broker_dir / "fee_calibration_summary.json").write_text(
+            json.dumps(
+                {
+                    "count": 3,
+                    "avg_delta": 0.1,
+                    "max_abs_delta": 0.2,
+                    "trust": {
+                        "level": "high",
+                        "label": "可信",
+                        "reason": "calibrated",
+                    },
+                },
+                ensure_ascii=False,
+            )
+        )
+        queue_approval_request(
+            "hot_missing_payload",
+            {
+                "proposal_id": "hot_missing_payload",
+                "status": "approved",
+                "target_files": ["rules/rules.json"],
+                "recommended_update_mode": "hot",
+            },
+        )
+
+        with self.assertRaisesRegex(ValueError, "target_contents or single-file content"):
+            apply_approved_proposal(
+                "hot_missing_payload",
+                operator_type="agent",
+                operator_id="applier",
+            )
+
+        deployment_record = self._read_deployment_records()[0]
+        self.assertFalse(deployment_record["success"])
+        self.assertEqual(deployment_record["targets"], [])
+        self.assertEqual(
+            deployment_record["fee_confidence_snapshot"]["confidence"],
+            "high",
+        )
+        self.assertIn("target_contents or single-file content", deployment_record["error"])
+
 
 if __name__ == "__main__":
     unittest.main()

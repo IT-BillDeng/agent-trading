@@ -12,6 +12,8 @@ ENGINE_SRC = Path(__file__).resolve().parents[1] / "src"
 if str(ENGINE_SRC) not in sys.path:
     sys.path.insert(0, str(ENGINE_SRC))
 
+RULES_FILE = Path(__file__).resolve().parents[3] / "rules" / "rules.json"
+
 from engine.applier import apply_approved_proposal, build_apply_plan  # noqa: E402
 from engine.strategist_artifacts import queue_approval_request  # noqa: E402
 
@@ -134,6 +136,9 @@ class FeeConfidenceGateTests(unittest.TestCase):
                         "recommended_update_mode": "hot",
                         "change_intent": "enable_new_buy_rule",
                         "turnover_profile": "high",
+                        "target_contents": {
+                            "rules/rules.json": json.loads(RULES_FILE.read_text())
+                        },
                     },
                 )
                 apply_approved_proposal(

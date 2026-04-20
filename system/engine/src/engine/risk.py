@@ -4,9 +4,12 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from .control import ControlPlane
 from .state import TradeLimitStore
+
+ET_ZONE = ZoneInfo("America/New_York")
 
 
 @dataclass
@@ -377,10 +380,27 @@ class RiskManager:
             value = asset_snapshot.get(key)
             if value:
                 return str(value)[:10]
-        return datetime.now(timezone.utc).date().isoformat()
+        timestamp = self._resolve_timestamp(asset_snapshot)
+        parsed = self._parse_timestamp(timestamp)
+        if parsed is not None:
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed.astimezone(ET_ZONE).date().isoformat()
+        return datetime.now(ET_ZONE).date().isoformat()
 
     def _resolve_timestamp(self, asset_snapshot: dict[str, Any]) -> str:
-        for key in ('timestamp', 'ts', 'updated_at', 'as_of'):
+        for key in (
+            'trading_timestamp',
+            'tradingTimestamp',
+            'account_timestamp',
+            'accountTimestamp',
+            'broker_timestamp',
+            'brokerTimestamp',
+            'timestamp',
+            'ts',
+            'updated_at',
+            'as_of',
+        ):
             value = asset_snapshot.get(key)
             if value:
                 return str(value)

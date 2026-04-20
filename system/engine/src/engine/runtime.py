@@ -5,6 +5,7 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from .audit import AuditLogger
 from .config import AppConfig
@@ -19,6 +20,8 @@ from .rule_engine import RuleEngine
 from .broker_client import BrokerClient
 from .state import TradeLimitStore
 from .data_provider import create_data_provider, fetch_bars_with_fallback
+
+ET_ZONE = ZoneInfo("America/New_York")
 
 
 SUPPORTED_PROVIDER_TIMEFRAMES: dict[str, set[str]] = {
@@ -305,16 +308,45 @@ def _resolve_trading_day(asset_snapshot: dict[str, Any] | None) -> str:
         value = snapshot.get(key)
         if value:
             return str(value)[:10]
-    return datetime.now(timezone.utc).date().isoformat()
+    timestamp = _resolve_timestamp(snapshot)
+    parsed = _parse_timestamp(timestamp)
+    if parsed is not None:
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(ET_ZONE).date().isoformat()
+    return datetime.now(ET_ZONE).date().isoformat()
 
 
 def _resolve_timestamp(asset_snapshot: dict[str, Any] | None) -> str:
     snapshot = asset_snapshot or {}
-    for key in ('timestamp', 'ts', 'updated_at', 'as_of'):
+    for key in (
+        'trading_timestamp',
+        'tradingTimestamp',
+        'account_timestamp',
+        'accountTimestamp',
+        'broker_timestamp',
+        'brokerTimestamp',
+        'timestamp',
+        'ts',
+        'updated_at',
+        'as_of',
+    ):
         value = snapshot.get(key)
         if value:
             return str(value)
     return datetime.now(timezone.utc).isoformat()
+
+
+def _parse_timestamp(value: Any) -> datetime | None:
+    if not value:
+        return None
+    text = str(value)
+    if text.endswith('Z'):
+        text = text[:-1] + '+00:00'
+    try:
+        return datetime.fromisoformat(text)
+    except Exception:
+        return None
 
 
 def _log_dir(app: AppConfig) -> Path:
@@ -531,14 +563,15 @@ def build_execution_summary(raw: dict[str, Any], app: AppConfig) -> dict[str, An
     trade_limit_store = TradeLimitStore(_state_dir(app))
     trading_day = _resolve_trading_day(summary.get('asset_snapshot'))
     recorded_at = _resolve_timestamp(summary.get('asset_snapshot'))
-    for preview in previews:
+    intents = [item.to_dict() for item in intent_builder.build(previews, cycle_id=cycle_id)]
+    for intent in intents:
         trade_limit_store.record_trade(
             trading_day,
-            symbol=preview['symbol'],
-            side=preview['side'],
+            symbol=intent['symbol'],
+            side=intent['side'],
             ts=recorded_at,
+            idempotency_key=intent.get('idempotency_key'),
         )
-    intents = [item.to_dict() for item in intent_builder.build(previews, cycle_id=cycle_id)]
 
     summary['cycle_id'] = cycle_id
     summary['control'] = control.status()

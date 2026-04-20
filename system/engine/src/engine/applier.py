@@ -37,9 +37,11 @@ def _checksum_bytes(content: bytes) -> str:
 def _normalize_target_content(record: dict[str, Any], target_files: list[str]) -> dict[str, Any]:
     target_contents = record.get("target_contents")
     if isinstance(target_contents, dict):
+        if not target_contents:
+            raise ValueError("hot apply requires non-empty target_contents payload")
         return {str(path): payload for path, payload in target_contents.items()}
 
-    if len(target_files) == 1 and "content" in record:
+    if len(target_files) == 1 and record.get("content") not in (None, ""):
         return {target_files[0]: record.get("content")}
 
     raise ValueError("hot apply requires target_contents or single-file content payload")
@@ -97,17 +99,18 @@ def _apply_hot_rules_update(
 ) -> dict[str, Any]:
     repo_root = _repo_root(base_dir)
     target_files = [str(path) for path in plan["target_files"]]
-    content_map = _normalize_target_content(record, target_files)
 
     backups: list[tuple[Path, Path, bytes, bool]] = []
     deployment_targets: list[dict[str, Any]] = []
 
     try:
+        content_map = _normalize_target_content(record, target_files)
         for target in target_files:
             if target not in content_map:
                 raise ValueError(f"missing target content for {target}")
 
             target_path = _resolve_rules_target(repo_root, target)
+            target_path.parent.mkdir(parents=True, exist_ok=True)
             original_bytes = target_path.read_bytes() if target_path.exists() else b""
             backup_path = _backup_path(target_path)
             backup_path.write_bytes(original_bytes)

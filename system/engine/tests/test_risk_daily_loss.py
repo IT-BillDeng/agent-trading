@@ -184,7 +184,7 @@ class RiskDailyLossTests(unittest.TestCase):
             self.assertFalse(risk_state["daily_loss_locked"])
             self.assertFalse(risk_state["reduce_only"])
 
-    def test_manual_unlock_clears_daily_loss_lock(self):
+    def test_manual_unlock_does_not_clear_daily_loss_lock(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = self._manager(tmpdir)
             control = self._control(tmpdir)
@@ -199,10 +199,11 @@ class RiskDailyLossTests(unittest.TestCase):
                 trading_day="2026-04-20",
             )
 
-            self.assertTrue(decisions[0].allowed)
+            self.assertFalse(decisions[0].allowed)
+            self.assertIn("daily_loss_limit_exceeded", decisions[0].reasons)
             risk_state = control.status()["risk"]
-            self.assertFalse(risk_state["daily_loss_locked"])
-            self.assertFalse(risk_state["reduce_only"])
+            self.assertTrue(risk_state["daily_loss_locked"])
+            self.assertTrue(risk_state["reduce_only"])
 
 
 if __name__ == "__main__":

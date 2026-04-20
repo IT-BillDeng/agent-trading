@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Broker API client wrapper for dashboard."""
 
 from pathlib import Path

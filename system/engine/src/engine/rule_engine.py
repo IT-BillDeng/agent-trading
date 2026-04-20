@@ -382,7 +382,7 @@ class ConditionEvaluator:
             return False, {'reason': 'no_position'}
         
         threshold_pct = condition.get('threshold_pct', 0.03)
-        entry_price = position.get('avg_cost', 0)
+        entry_price = self._position_avg_cost(position)
         current_price = float(bars[-1]['close']) if bars else 0
         
         if entry_price == 0:
@@ -406,7 +406,7 @@ class ConditionEvaluator:
             return False, {'reason': 'no_position'}
         
         threshold_pct = condition.get('threshold_pct', 0.06)
-        entry_price = position.get('avg_cost', 0)
+        entry_price = self._position_avg_cost(position)
         current_price = float(bars[-1]['close']) if bars else 0
         
         if entry_price == 0:
@@ -422,6 +422,16 @@ class ConditionEvaluator:
             'threshold_pct': threshold_pct,
             'result': result
         }
+
+    def _position_avg_cost(self, position: dict[str, Any]) -> float:
+        for key in ('avg_cost', 'averageCost', 'avgCost', 'average_cost', 'costPrice'):
+            value = position.get(key)
+            if value not in (None, ''):
+                try:
+                    return float(value)
+                except Exception:
+                    continue
+        return 0.0
     
     def _eval_time(self, condition: dict[str, Any], bars: list[dict[str, Any]]) -> tuple[bool, dict[str, Any]]:
         """评估时间条件"""

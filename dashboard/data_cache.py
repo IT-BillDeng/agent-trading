@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Polling cache layer for broker data - reduces API call frequency."""
 
 import os

@@ -79,18 +79,36 @@ class ControlPlane:
         state['reason'] = reason
         state['updated_at'] = self._ts()
         state['updated_by'] = updated_by
-        risk_cfg = state.setdefault("risk", {})
-        if risk_cfg.get("daily_loss_locked"):
-            risk_cfg["daily_loss_locked"] = False
-            if risk_cfg.get("reduce_only_reason") == "daily_loss_limit_exceeded":
-                risk_cfg["reduce_only"] = False
-                risk_cfg["reduce_only_reason"] = None
         state.setdefault('history', []).append({
             'ts': state['updated_at'],
             'action': 'unlock',
             'reason': reason,
             'updated_by': updated_by,
         })
+        self._write(state)
+        return state
+
+    def clear_daily_loss_lock(
+        self,
+        reason: str = "daily_loss_override",
+        updated_by: str = "operator",
+    ) -> dict[str, Any]:
+        state = self._read()
+        risk_cfg = state.setdefault("risk", {})
+        risk_cfg["daily_loss_locked"] = False
+        if risk_cfg.get("reduce_only_reason") == "daily_loss_limit_exceeded":
+            risk_cfg["reduce_only"] = False
+            risk_cfg["reduce_only_reason"] = None
+        state["updated_at"] = self._ts()
+        state["updated_by"] = updated_by
+        state.setdefault("history", []).append(
+            {
+                "ts": state["updated_at"],
+                "action": "clear_daily_loss_lock",
+                "reason": reason,
+                "updated_by": updated_by,
+            }
+        )
         self._write(state)
         return state
 
@@ -169,7 +187,15 @@ class ControlPlane:
         return self._evaluate_gate({"paper_trade", "live_trade"}, market=market, symbol=symbol)
 
     def can_live_submit(self, market: str | None = None, symbol: str | None = None) -> tuple[bool, str | None]:
-        return self._evaluate_gate({"live_trade"}, market=market, symbol=symbol)
+        ok, reason = self._evaluate_gate({"live_trade"}, market=market, symbol=symbol)
+        if not ok:
+            return ok, reason
+        readiness = self._read().get("live_readiness", self._default_live_readiness())
+        if readiness.get("status") != "ready":
+            return False, f"live_readiness:{readiness.get('status') or 'missing'}"
+        if readiness.get("failed_items"):
+            return False, "live_readiness:failed_items"
+        return True, None
 
     def can_trade(self, market: str | None = None, symbol: str | None = None) -> tuple[bool, str | None]:
         return self.can_build_order_intents(market=market, symbol=symbol)

@@ -473,6 +473,29 @@ class ConditionEvaluatorCrossTests(unittest.TestCase):
         self.assertFalse(result)
         self.assertEqual(diag["reason"], "insufficient_data_for_cross")
 
+    def test_stop_loss_and_take_profit_support_broker_avg_cost_aliases(self):
+        evaluator = ConditionEvaluator(IndicatorCalculator())
+        stop_loss_condition = {"type": "stop_loss", "threshold_pct": 0.03}
+        take_profit_condition = {"type": "take_profit", "threshold_pct": 0.06}
+        alias_positions = [
+            {"averageCost": 100.0, "quantity": 10},
+            {"avgCost": 100.0, "quantity": 10},
+            {"average_cost": 100.0, "quantity": 10},
+            {"costPrice": 100.0, "quantity": 10},
+        ]
+
+        stop_bars = [{"close": 95.0}]
+        profit_bars = [{"close": 107.0}]
+
+        for position in alias_positions:
+            stop_result, stop_diag = evaluator.evaluate(stop_loss_condition, stop_bars, position)
+            profit_result, profit_diag = evaluator.evaluate(take_profit_condition, profit_bars, position)
+
+            self.assertTrue(stop_result)
+            self.assertEqual(stop_diag["entry_price"], 100.0)
+            self.assertTrue(profit_result)
+            self.assertEqual(profit_diag["entry_price"], 100.0)
+
 
 if __name__ == '__main__':
     print("Running Rule Engine Tests...\n")

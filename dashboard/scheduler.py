@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Background scheduler — periodically runs engine signal generation."""
 
 import json

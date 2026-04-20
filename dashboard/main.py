@@ -24,6 +24,11 @@ from system.engine.src.engine.config import (
     load_app_config_raw,
     merge_user_settings,
 )
+from system.engine.src.engine.control import (
+    ControlPlane,
+    canonical_mode_to_legacy_ui_mode,
+    legacy_ui_mode_to_canonical_mode,
+)
 
 # --- App lifecycle ---
 
@@ -1215,41 +1220,26 @@ async def api_config_update(update: dict):
 
 def _read_control_state() -> dict:
     """Read control state from runtime."""
-    import json
-    state_file = RUNTIME_DIR / "state" / "control_state.json"
-    if state_file.exists():
-        try:
-            return json.loads(state_file.read_text())
-        except Exception:
-            pass
-    return {"locked": False, "trading_mode": "off"}
+    control = ControlPlane(RUNTIME_DIR / "state")
+    return control.status()
 
 
 def _write_control_state(state: dict):
     """Write control state to runtime."""
-    import json
-    state_dir = RUNTIME_DIR / "state"
-    state_dir.mkdir(parents=True, exist_ok=True)
-    state_file = state_dir / "control_state.json"
-    state_file.write_text(json.dumps(state, indent=2, ensure_ascii=False))
+    control = ControlPlane(RUNTIME_DIR / "state")
+    control.replace_state(state)
 
 
 @app.post("/api/control/{action}")
 async def api_control(action: str):
     """Lock or unlock the engine control plane."""
-    state = _read_control_state()
+    control = ControlPlane(RUNTIME_DIR / "state")
 
     if action == "lock":
-        state["locked"] = True
-        state["reason"] = "manual_lock"
-        state["updated_by"] = "dashboard"
-        _write_control_state(state)
+        control.lock("manual_lock", updated_by="dashboard")
         return {"status": "ok", "action": "locked"}
     elif action == "unlock":
-        state["locked"] = False
-        state["reason"] = "manual_unlock"
-        state["updated_by"] = "dashboard"
-        _write_control_state(state)
+        control.unlock("manual_unlock", updated_by="dashboard")
         return {"status": "ok", "action": "unlocked"}
     else:
         return JSONResponse({"error": f"unknown action: {action}"}, status_code=400)
@@ -1329,9 +1319,11 @@ VALID_TRADING_MODES = {"off", "signals", "trade"}
 async def api_trading_mode_get():
     """Get current trading mode."""
     state = _read_control_state()
-    mode = state.get("trading_mode", "off")
+    canonical_mode = state.get("global", {}).get("mode", "off")
+    mode = canonical_mode_to_legacy_ui_mode(canonical_mode)
     return {
         "mode": mode,
+        "canonical_mode": canonical_mode,
         "locked": state.get("locked", False),
         "signal_generation": mode != "off",
         "order_submission": mode == "trade",
@@ -1347,13 +1339,13 @@ async def api_trading_mode_set(body: dict):
             {"error": f"mode must be one of: {', '.join(VALID_TRADING_MODES)}"},
             status_code=400,
         )
-    state = _read_control_state()
-    state["trading_mode"] = mode
-    state["updated_by"] = "dashboard"
-    _write_control_state(state)
+    canonical_mode = legacy_ui_mode_to_canonical_mode(mode)
+    control = ControlPlane(RUNTIME_DIR / "state")
+    state = control.set_mode(canonical_mode, updated_by="dashboard")
     return {
         "status": "ok",
         "mode": mode,
+        "canonical_mode": state.get("global", {}).get("mode", canonical_mode),
         "signal_generation": mode != "off",
         "order_submission": mode == "trade",
     }

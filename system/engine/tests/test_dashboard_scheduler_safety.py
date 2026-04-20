@@ -16,6 +16,41 @@ from dashboard.scheduler import SignalScheduler
 
 
 class SchedulerSafetyTests(unittest.TestCase):
+    def test_scheduler_reads_canonical_signal_only_mode(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            runtime_dir = root / "runtime"
+            state_dir = runtime_dir / "state"
+            runtime_dir.mkdir(parents=True)
+            state_dir.mkdir(parents=True)
+            (state_dir / "control_state.json").write_text(
+                json.dumps(
+                    {
+                        "locked": False,
+                        "global": {"enabled": True, "mode": "signal_only"},
+                        "markets": {"US": True},
+                        "symbols": {},
+                        "risk": {
+                            "reduce_only": False,
+                            "emergency_flatten": False,
+                            "daily_loss_locked": False,
+                        },
+                        "history": [],
+                    },
+                    ensure_ascii=False,
+                )
+            )
+
+            scheduler = SignalScheduler(
+                app_config_path=str(root / "app_config.json"),
+                runtime_dir=str(runtime_dir),
+                provider_name="yfinance",
+                interval_seconds=60,
+            )
+
+            self.assertTrue(scheduler._check_trading_mode())
+            self.assertEqual(scheduler._get_trading_mode(), "signal_only")
+
     def test_trade_mode_must_not_escalate_guarded_execution_config(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -26,7 +61,21 @@ class SchedulerSafetyTests(unittest.TestCase):
             state_dir.mkdir(parents=True)
             config_file.write_text(json.dumps({"system": {}}, ensure_ascii=False))
             (state_dir / "control_state.json").write_text(
-                json.dumps({"trading_mode": "trade", "locked": False}, ensure_ascii=False)
+                json.dumps(
+                    {
+                        "locked": False,
+                        "global": {"enabled": True, "mode": "paper_trade"},
+                        "markets": {"US": True},
+                        "symbols": {},
+                        "risk": {
+                            "reduce_only": False,
+                            "emergency_flatten": False,
+                            "daily_loss_locked": False,
+                        },
+                        "history": [],
+                    },
+                    ensure_ascii=False,
+                )
             )
 
             scheduler = SignalScheduler(

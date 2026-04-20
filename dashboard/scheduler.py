@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .service_logs import append_service_log
+from system.engine.src.engine.control import ControlPlane, canonical_mode_to_legacy_ui_mode
 
 logger = logging.getLogger(__name__)
 
@@ -141,30 +142,21 @@ class SignalScheduler:
 
     def _check_trading_mode(self) -> bool:
         """Check if signal generation is enabled."""
-        state_file = self._runtime_dir / "state" / "control_state.json"
-        if state_file.exists():
-            try:
-                state = json.loads(state_file.read_text())
-                mode = state.get("trading_mode", "off")
-                if mode == "off":
-                    return False
-                if state.get("locked", False):
-                    return False
-                return True
-            except Exception:
-                pass
+        try:
+            control = ControlPlane(self._runtime_dir / "state")
+            return control.can_generate_signals()[0]
+        except Exception:
+            pass
         # Default: allow signals if no control state exists
         return True
 
     def _get_trading_mode(self) -> str:
         """Get current trading mode."""
-        state_file = self._runtime_dir / "state" / "control_state.json"
-        if state_file.exists():
-            try:
-                state = json.loads(state_file.read_text())
-                return state.get("trading_mode", "off")
-            except Exception:
-                pass
+        try:
+            control = ControlPlane(self._runtime_dir / "state")
+            return control.mode()
+        except Exception:
+            pass
         return "off"
 
     def _run_cycle(self):
@@ -234,14 +226,11 @@ class SignalScheduler:
         raw = fetch_cycle_raw_with_provider(client=broker_client, data=provider, app=app)
 
         # Build summary based on mode
-        if mode == "signals":
+        if mode == "signal_only":
             # Signals only — skip risk/execution
             summary = build_strategy_summary(raw, app)
-        elif mode == "trade":
+        elif mode in {"paper_trade", "live_trade"}:
             # Full pipeline: signals + risk + order build + submit
-            app.raw.setdefault("execution", {})
-            app.raw["execution"]["live_submit"] = True
-            app.raw["execution"]["submit_mode"] = "live"
             summary = build_execution_summary(raw, app)
             self._submit_orders(summary, app)
         else:
@@ -250,7 +239,8 @@ class SignalScheduler:
         # Add cycle metadata
         summary["cycle_id"] = datetime.now().strftime("%Y%m%d_%H%M%S")
         summary["scheduler_provider"] = self._provider_name
-        summary["trading_mode"] = mode
+        summary["trading_mode"] = canonical_mode_to_legacy_ui_mode(mode)
+        summary["control_mode"] = mode
 
         self._persist_cycle_outputs(summary, app)
 

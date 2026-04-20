@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -41,6 +42,24 @@ def _sample_contracts():
 class LiveExecutionGateTests(unittest.TestCase):
     def test_guarded_defaults_never_call_place_order(self):
         with tempfile.TemporaryDirectory() as tmpdir:
+            state_dir = Path(tmpdir)
+            (state_dir / "control_state.json").write_text(
+                json.dumps(
+                    {
+                        "locked": False,
+                        "global": {"enabled": True, "mode": "paper_trade"},
+                        "markets": {"US": True},
+                        "symbols": {},
+                        "risk": {
+                            "reduce_only": False,
+                            "emergency_flatten": False,
+                            "daily_loss_locked": False,
+                        },
+                        "history": [],
+                    },
+                    ensure_ascii=False,
+                )
+            )
             client = FakeBrokerClient()
             adapter = LiveExecutionAdapter(
                 {

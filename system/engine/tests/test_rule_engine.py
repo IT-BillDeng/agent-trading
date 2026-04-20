@@ -294,6 +294,130 @@ class RuleEngineUnittestBridge(unittest.TestCase):
         test_rule_engine_supports_ema_slope_momentum_strategy()
 
 
+class _FakeCrossIndicatorCalculator:
+    def __init__(self, mapping):
+        self.mapping = mapping
+
+    def calculate(self, indicator, params, bars):
+        return self.mapping.get((indicator, len(bars)))
+
+
+class ConditionEvaluatorCrossTests(unittest.TestCase):
+    def _bars(self, closes):
+        return [
+            {"open": close, "high": close + 1, "low": close - 1, "close": close, "volume": 1000}
+            for close in closes
+        ]
+
+    def test_cross_above_threshold_uses_previous_and_current_value(self):
+        evaluator = ConditionEvaluator(
+            _FakeCrossIndicatorCalculator({
+                ("rsi", 2): 31.0,
+                ("rsi", 1): 29.0,
+            })
+        )
+        condition = {
+            "type": "indicator",
+            "indicator": "rsi",
+            "params": {"period": 14},
+            "compare": {"operator": "cross_above", "value": 30},
+        }
+
+        result, diag = evaluator.evaluate(condition, self._bars([100, 101]))
+
+        self.assertTrue(result)
+        self.assertEqual(diag["prev_value"], 29.0)
+        self.assertEqual(diag["compare_value"], 30)
+        self.assertEqual(diag["prev_compare_value"], 30)
+
+    def test_cross_above_threshold_requires_actual_cross(self):
+        evaluator = ConditionEvaluator(
+            _FakeCrossIndicatorCalculator({
+                ("rsi", 2): 32.0,
+                ("rsi", 1): 31.0,
+            })
+        )
+        condition = {
+            "type": "indicator",
+            "indicator": "rsi",
+            "params": {"period": 14},
+            "compare": {"operator": "cross_above", "value": 30},
+        }
+
+        result, diag = evaluator.evaluate(condition, self._bars([100, 101]))
+
+        self.assertFalse(result)
+        self.assertEqual(diag["prev_value"], 31.0)
+        self.assertEqual(diag["value"], 32.0)
+
+    def test_cross_below_threshold_uses_previous_and_current_value(self):
+        evaluator = ConditionEvaluator(
+            _FakeCrossIndicatorCalculator({
+                ("rsi", 2): 29.0,
+                ("rsi", 1): 31.0,
+            })
+        )
+        condition = {
+            "type": "indicator",
+            "indicator": "rsi",
+            "params": {"period": 14},
+            "compare": {"operator": "cross_below", "value": 30},
+        }
+
+        result, diag = evaluator.evaluate(condition, self._bars([100, 99]))
+
+        self.assertTrue(result)
+        self.assertEqual(diag["prev_value"], 31.0)
+        self.assertEqual(diag["value"], 29.0)
+
+    def test_cross_with_compare_indicator_uses_previous_values(self):
+        evaluator = ConditionEvaluator(
+            _FakeCrossIndicatorCalculator({
+                ("ema_fast", 2): 101.0,
+                ("ema_fast", 1): 99.0,
+                ("ema_slow", 2): 100.0,
+                ("ema_slow", 1): 100.0,
+            })
+        )
+        condition = {
+            "type": "indicator",
+            "indicator": "ema_fast",
+            "params": {"period": 5},
+            "compare": {
+                "operator": "cross_above",
+                "indicator": "ema_slow",
+                "params": {"period": 10},
+            },
+        }
+
+        result, diag = evaluator.evaluate(condition, self._bars([100, 101]))
+
+        self.assertTrue(result)
+        self.assertEqual(diag["prev_value"], 99.0)
+        self.assertEqual(diag["prev_compare_value"], 100.0)
+        self.assertEqual(diag["value"], 101.0)
+        self.assertEqual(diag["compare_value"], 100.0)
+
+    def test_cross_returns_false_with_insufficient_previous_indicator_data(self):
+        evaluator = ConditionEvaluator(
+            _FakeCrossIndicatorCalculator({
+                ("rsi", 2): 31.0,
+                ("rsi", 1): None,
+            })
+        )
+        condition = {
+            "type": "indicator",
+            "indicator": "rsi",
+            "params": {"period": 14},
+            "compare": {"operator": "cross_above", "value": 30},
+        }
+
+        result, diag = evaluator.evaluate(condition, self._bars([100, 101]))
+
+        self.assertFalse(result)
+        self.assertEqual(diag["reason"], "insufficient_data_for_cross")
+
+
 if __name__ == '__main__':
     print("Running Rule Engine Tests...\n")
     print("=" * 50)

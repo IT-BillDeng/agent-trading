@@ -202,23 +202,79 @@ class ConditionEvaluator:
         if compare_value is None:
             return False, {'indicator': indicator, 'value': value, 'compare_value': None, 'reason': 'no_compare_value'}
         
-        # 执行比较
         operator = compare.get('operator', 'above')
-        result = self._compare(value, compare_value, operator, bars, indicator)
-        
+        prev_value = None
+        prev_compare_value = None
+
+        if operator in {'cross_above', 'cross_below'}:
+            prev_bars = bars[:-1]
+            if not prev_bars:
+                return False, {
+                    'indicator': indicator,
+                    'value': value,
+                    'compare_value': compare_value,
+                    'reason': 'insufficient_data_for_cross',
+                }
+
+            prev_value = self.indicator_calc.calculate(indicator, params, prev_bars)
+            if prev_value is None:
+                return False, {
+                    'indicator': indicator,
+                    'value': value,
+                    'compare_value': compare_value,
+                    'reason': 'insufficient_data_for_cross',
+                }
+
+            if compare_field == 'close':
+                prev_compare_value = float(prev_bars[-1]['close']) if prev_bars else None
+            elif compare_indicator:
+                compare_params = compare.get('params', {})
+                prev_compare_value = self.indicator_calc.calculate(compare_indicator, compare_params, prev_bars)
+            elif compare_value_const is not None:
+                prev_compare_value = compare_value_const
+
+            if prev_compare_value is None:
+                return False, {
+                    'indicator': indicator,
+                    'value': value,
+                    'compare_value': compare_value,
+                    'reason': 'insufficient_data_for_cross',
+                }
+
+        # 执行比较
+        result = self._compare(
+            value,
+            compare_value,
+            operator,
+            bars,
+            indicator,
+            prev_value=prev_value,
+            prev_compare_value=prev_compare_value,
+        )
+
         diagnostics = {
             'indicator': indicator,
             'params': params,
             'value': value,
             'operator': operator,
             'compare_value': compare_value,
+            'prev_value': prev_value,
+            'prev_compare_value': prev_compare_value,
             'result': result
         }
         
         return result, diagnostics
     
-    def _compare(self, value: Any, compare_value: Any, operator: str, 
-                 bars: list[dict[str, Any]], indicator: str) -> bool:
+    def _compare(
+        self,
+        value: Any,
+        compare_value: Any,
+        operator: str,
+        bars: list[dict[str, Any]],
+        indicator: str,
+        prev_value: Any = None,
+        prev_compare_value: Any = None,
+    ) -> bool:
         """执行比较操作"""
         if operator == 'above':
             if isinstance(value, dict):
@@ -259,11 +315,24 @@ class ConditionEvaluator:
             return False
         
         elif operator == 'cross_above':
-            # 需要前一个值来判断交叉，简化处理
-            return value > compare_value
+            return (
+                isinstance(value, (int, float))
+                and isinstance(compare_value, (int, float))
+                and isinstance(prev_value, (int, float))
+                and isinstance(prev_compare_value, (int, float))
+                and prev_value <= prev_compare_value
+                and value > compare_value
+            )
         
         elif operator == 'cross_below':
-            return value < compare_value
+            return (
+                isinstance(value, (int, float))
+                and isinstance(compare_value, (int, float))
+                and isinstance(prev_value, (int, float))
+                and isinstance(prev_compare_value, (int, float))
+                and prev_value >= prev_compare_value
+                and value < compare_value
+            )
         
         return False
     

@@ -656,7 +656,8 @@ class BacktestEngine:
                     losing_trades += 1
                     total_loss += abs(pnl)
         
-        win_rate = winning_trades / total_trades if total_trades > 0 else 0.0
+        closed_trades = winning_trades + losing_trades
+        win_rate = winning_trades / closed_trades if closed_trades > 0 else 0.0
         avg_win = total_win / winning_trades if winning_trades > 0 else 0.0
         avg_loss = total_loss / losing_trades if losing_trades > 0 else 0.0
         profit_factor = total_win / total_loss if total_loss > 0 else float('inf')

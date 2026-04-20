@@ -243,6 +243,92 @@ def load_approval_request(proposal_id: str, base_dir: str | Path | None = None) 
     return json.loads(queue_path.read_text())
 
 
+def _proposal_validation_summary(record: dict[str, Any], base_dir: str | Path | None = None) -> dict[str, Any]:
+    validation = record.get("validation", {})
+    if not isinstance(validation, dict):
+        validation = {}
+
+    tests = validation.get("tests")
+    if not isinstance(tests, list):
+        tests = []
+
+    backtest = validation.get("backtest")
+    if not isinstance(backtest, dict):
+        backtest = {}
+    if not backtest and "backtest_delta" in record:
+        backtest = {"delta": record.get("backtest_delta")}
+
+    risk = validation.get("risk")
+    if not isinstance(risk, dict):
+        risk = {}
+    if not risk and record.get("risk_notes"):
+        risk = {"notes": record.get("risk_notes")}
+
+    fee_confidence = (
+        validation.get("fee_confidence")
+        or record.get("fee_confidence")
+        or load_fee_confidence_snapshot(base_dir).get("confidence", "missing")
+    )
+
+    return {
+        "tests": tests,
+        "backtest": backtest,
+        "risk": risk,
+        "fee_confidence": fee_confidence,
+    }
+
+
+def build_proposal_review_record(record: dict[str, Any], base_dir: str | Path | None = None) -> dict[str, Any]:
+    proposal_id = str(record.get("proposal_id") or "")
+    inferred_mode = infer_update_mode(record)
+    recommended_mode = record.get("recommended_update_mode", inferred_mode)
+    requires_restart = record.get("requires_restart")
+    if requires_restart is None:
+        requires_restart = recommended_mode == "cold"
+
+    return {
+        "proposal_id": proposal_id,
+        "status": record.get("status", "draft"),
+        "target_files": record.get("target_files", []),
+        "recommended_update_mode": recommended_mode,
+        "requires_restart": bool(requires_restart),
+        "diff_summary": record.get("diff_summary") or record.get("change_summary"),
+        "validation": _proposal_validation_summary(record, base_dir),
+        "decision": record.get("decision"),
+        "generated_at": record.get("generated_at"),
+        "change_intent": record.get("change_intent"),
+        "turnover_profile": record.get("turnover_profile"),
+    }
+
+
+def get_proposal_review_record(proposal_id: str, base_dir: str | Path | None = None) -> dict[str, Any]:
+    record = load_approval_request(proposal_id, base_dir)
+    return build_proposal_review_record(record, base_dir)
+
+
+def list_proposal_review_records(
+    base_dir: str | Path | None = None,
+    *,
+    limit: int | None = None,
+) -> list[dict[str, Any]]:
+    paths = ensure_strategist_dirs(base_dir)
+    queue_dir = paths["approval_queue_dir"]
+    files = sorted(queue_dir.glob("*.json"), key=lambda path: path.stat().st_mtime, reverse=True)
+    if limit is not None and limit >= 0:
+        files = files[:limit]
+
+    items: list[dict[str, Any]] = []
+    for path in files:
+        try:
+            record = json.loads(path.read_text())
+        except Exception:
+            continue
+        item = build_proposal_review_record(record, base_dir)
+        item["source_path"] = str(path)
+        items.append(item)
+    return items
+
+
 def infer_update_mode(record: dict[str, Any]) -> str:
     target_files = record.get("target_files") or []
     if not target_files:

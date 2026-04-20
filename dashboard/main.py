@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Agent Trading Dashboard - FastAPI entry point."""
 
 import json
@@ -1243,72 +1245,48 @@ async def api_control(action: str):
         return {"status": "ok", "action": "unlocked"}
     else:
         return JSONResponse({"error": f"unknown action: {action}"}, status_code=400)
-    """Reset paper account local state.
 
-    Clears all local order tracking (submitted, previews, sync, history)
-    so the system can trade freely after a paper account reset.
-    Also locks the engine as a safety measure.
-    """
-    import json as _json
-    from datetime import datetime as _dt
 
+@app.post("/api/execution-state/reset")
+async def api_execution_state_reset():
+    """Reset local execution tracking state and lock the control plane."""
     state_file = RUNTIME_DIR / "state" / "execution_state.json"
-    summary = {"cleared": {}, "backup": None}
-
-    # Read current state
-    if state_file.exists():
-        try:
-            state = _json.loads(state_file.read_text())
-        except Exception:
-            state = {}
-    else:
+    state = _safe_read_json(state_file)
+    if not isinstance(state, dict):
         state = {}
 
-    # Record counts before clearing
     submitted = state.get("submitted", {})
     previews = state.get("previews", {})
     sync = state.get("sync", {})
     history = state.get("history", [])
 
-    summary["cleared"] = {
-        "submitted": len(submitted),
-        "previews": len(previews),
-        "sync": len(sync),
-        "history": len(history),
+    summary = {
+        "status": "ok",
+        "backup": None,
+        "cleared": {
+            "submitted": len(submitted) if isinstance(submitted, dict) else 0,
+            "previews": len(previews) if isinstance(previews, dict) else 0,
+            "sync": len(sync) if isinstance(sync, dict) else 0,
+            "history": len(history) if isinstance(history, list) else 0,
+        },
     }
 
-    # Symbol breakdown
-    symbols = {}
-    for val in submitted.values():
-        sym = val.get("symbol", "?")
-        symbols[sym] = symbols.get(sym, 0) + 1
-    summary["submitted_by_symbol"] = symbols
-
-    # Backup before clearing
-    if state_file.exists() and (submitted or previews or history):
-        ts = _dt.now().strftime("%Y%m%d_%H%M%S")
+    if state_file.exists():
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_file = RUNTIME_DIR / "state" / f"execution_state.bak.{ts}.json"
+        backup_file.parent.mkdir(parents=True, exist_ok=True)
         backup_file.write_text(state_file.read_text())
         summary["backup"] = backup_file.name
 
-    # Clear
     state["submitted"] = {}
     state["previews"] = {}
     state["sync"] = {}
     state["history"] = []
-    state_file.parent.mkdir(parents=True, exist_ok=True)
-    state_file.write_text(_json.dumps(state, indent=2, ensure_ascii=False))
+    _write_json_file(state_file, state)
 
-    # Lock engine as safety measure
-    ctrl = _read_control_state()
-    ctrl["locked"] = True
-    ctrl["reason"] = "paper_account_reset"
-    ctrl["updated_by"] = "dashboard"
-    ctrl["updated_at"] = _dt.now().isoformat()
-    _write_control_state(ctrl)
+    control = ControlPlane(RUNTIME_DIR / "state")
+    control.lock("execution_state_reset", updated_by="dashboard")
     summary["engine_locked"] = True
-
-    summary["status"] = "ok"
     return summary
 
 

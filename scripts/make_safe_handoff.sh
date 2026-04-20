@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEFAULT_SOURCE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+SOURCE_ROOT="${1:-${DEFAULT_SOURCE_ROOT}}"
+OUTPUT_DIR="${2:-${SOURCE_ROOT}/handoff}"
+TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
+ZIP_PATH="${OUTPUT_DIR}/agent-trading-safe-handoff-${TIMESTAMP}.zip"
+
+mkdir -p "${OUTPUT_DIR}"
+
+export SOURCE_ROOT OUTPUT_DIR ZIP_PATH
+
+python3 - <<'PY'
+import fnmatch
+import os
+import zipfile
+from pathlib import Path
+
+source_root = Path(os.environ["SOURCE_ROOT"]).resolve()
+zip_path = Path(os.environ["ZIP_PATH"]).resolve()
+
+keep_specs = [
+    "docs",
+    "rules",
+    "config/app.defaults.json",
+    "config/app_config.docker.json",
+    "config/*.example.json",
+    "agents",
+    "cron",
+    "system/engine/src",
+    "system/engine/tests",
+    "dashboard",
+]
+
+exclude_patterns = [
+    ".env",
+    ".env.*",
+    "properties/*",
+    "runtime/*",
+    "logs/latest/execution_state.json",
+    "logs/latest/control_state.json",
+    "artifacts/broker/*",
+    "*.pem",
+    "*.key",
+    "*token*",
+    "*secret*",
+    "__pycache__/",
+    "*.pyc",
+]
+
+
+def is_excluded(rel_path: Path) -> bool:
+    rel_posix = rel_path.as_posix()
+    if "__pycache__" in rel_path.parts:
+        return True
+    for pattern in exclude_patterns:
+        if fnmatch.fnmatch(rel_posix, pattern):
+            return True
+        if fnmatch.fnmatch(rel_path.name, pattern):
+            return True
+    return False
+
+
+def iter_matches(spec: str):
+    if any(ch in spec for ch in "*?[]"):
+        yield from source_root.glob(spec)
+        return
+    candidate = source_root / spec
+    if candidate.exists():
+        yield candidate
+
+
+added = set()
+zip_path.parent.mkdir(parents=True, exist_ok=True)
+with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+    for spec in keep_specs:
+        for match in iter_matches(spec):
+            if match.is_dir():
+                for child in match.rglob("*"):
+                    if child.is_dir():
+                        continue
+                    rel = child.relative_to(source_root)
+                    rel_posix = rel.as_posix()
+                    if rel_posix in added or is_excluded(rel):
+                        continue
+                    zf.write(child, rel_posix)
+                    added.add(rel_posix)
+            else:
+                rel = match.relative_to(source_root)
+                rel_posix = rel.as_posix()
+                if rel_posix in added or is_excluded(rel):
+                    continue
+                zf.write(match, rel_posix)
+                added.add(rel_posix)
+
+print(f"packed_files={len(added)}")
+PY
+
+cat <<EOF
+Safe handoff zip: ${ZIP_PATH}
+Exclude rules:
+- .env
+- .env.*
+- properties/*
+- runtime/*
+- logs/latest/execution_state.json
+- logs/latest/control_state.json
+- artifacts/broker/*
+- *.pem
+- *.key
+- *token*
+- *secret*
+- __pycache__/
+- *.pyc
+EOF

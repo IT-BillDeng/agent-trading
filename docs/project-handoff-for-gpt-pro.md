@@ -71,6 +71,41 @@
 - 根目录 `README.md`
   - 适合作为概览，不适合作为策略/权限/目录边界的最终依据
 
+### 安全打包建议
+
+如果需要把当前项目交给外部模型或外部审查方，请优先使用：
+
+- `scripts/make_safe_handoff.sh`
+
+这个脚本会生成一个安全 zip，只保留：
+
+- `docs/`
+- `rules/`
+- `config/app.defaults.json`
+- `config/app_config.docker.json`
+- `config/*.example.json`
+- `agents/`
+- `cron/`
+- `system/engine/src/`
+- `system/engine/tests/`
+- `dashboard/`
+
+并显式排除：
+
+- `.env`
+- `.env.*`
+- `properties/*`
+- `runtime/*`
+- `logs/latest/execution_state.json`
+- `logs/latest/control_state.json`
+- `artifacts/broker/*`
+- `*.pem`
+- `*.key`
+- `*token*`
+- `*secret*`
+
+也就是说，这份 handoff 包适合交给 GPT Pro 或外部审查者做结构与代码分析，但**不应**包含真实凭据、broker properties、运行态 state 或 broker 费用校准原始数据。
+
 ---
 
 ## 3. 项目设计原则
@@ -820,4 +855,3 @@ strategist 当前三段式调度：
 - 找出当前真正的卡点
 - 识别哪些双轨/重复设计该收口
 - 帮 strategist 从“会提案”走向“稳定受控地演进”
-

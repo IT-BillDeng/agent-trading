@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .artifacts import resolve_artifacts_root
+from .artifacts import resolve_artifacts_root, write_json
 from .rule_schema import validate_rules_config
 from .strategist_artifacts import (
     load_approval_request,
@@ -24,6 +24,10 @@ def _artifacts_root(base_dir: str | Path | None = None) -> Path:
 
 def _repo_root(base_dir: str | Path | None = None) -> Path:
     return _artifacts_root(base_dir).parent
+
+
+def _approval_queue_path(proposal_id: str, base_dir: str | Path | None = None) -> Path:
+    return _artifacts_root(base_dir) / "strategist" / "approval_queue" / f"{proposal_id}.json"
 
 
 def _checksum_bytes(content: bytes) -> str:
@@ -183,6 +187,68 @@ def _apply_hot_rules_update(
         raise
 
 
+def _record_manual_code_apply_required(
+    proposal_id: str,
+    record: dict[str, Any],
+    plan: dict[str, Any],
+    *,
+    operator_type: str,
+    operator_id: str,
+    base_dir: str | Path | None = None,
+) -> dict[str, Any]:
+    queue_path = _approval_queue_path(proposal_id, base_dir)
+    recorded_at = datetime.now(timezone.utc).isoformat()
+    queue_record = dict(record)
+    queue_record.update(
+        {
+            "requires_restart": True,
+            "manual_code_apply_required": True,
+            "manual_code_apply_recorded_at": recorded_at,
+            "manual_code_apply_operator_type": operator_type,
+            "manual_code_apply_operator_id": operator_id,
+            "manual_code_apply_reason": "cold proposal requires manual code apply",
+            "apply_gate": {
+                "proposal_id": plan["proposal_id"],
+                "update_mode": plan["update_mode"],
+                "requires_restart": True,
+                "apply_action": "manual_code_apply_required",
+                "target_files": plan["target_files"],
+                "fee_confidence_snapshot": plan.get("fee_confidence_snapshot"),
+                "fee_confidence_gate": plan.get("fee_confidence_gate"),
+            },
+        }
+    )
+    write_json(queue_path, queue_record)
+
+    deployment_record = {
+        "proposal_id": proposal_id,
+        "operator_type": operator_type,
+        "operator_id": operator_id,
+        "update_mode": plan["update_mode"],
+        "requires_restart": True,
+        "apply_action": "manual_code_apply_required",
+        "fee_confidence_snapshot": plan.get("fee_confidence_snapshot"),
+        "recorded_at": recorded_at,
+        "success": True,
+        "code_applied": False,
+        "manual_code_apply_required": True,
+        "targets": [{"target_file": target} for target in plan["target_files"]],
+    }
+    deployment_path = record_deployment_record(deployment_record, base_dir=base_dir)
+
+    return {
+        "proposal_id": proposal_id,
+        "applied": False,
+        "recorded": True,
+        "manual_code_apply_required": True,
+        "update_mode": plan["update_mode"],
+        "requires_restart": True,
+        "apply_action": "manual_code_apply_required",
+        "queue_path": str(queue_path),
+        "deployment_path": str(deployment_path),
+    }
+
+
 def build_apply_plan(proposal_id: str, base_dir: str | Path | None = None) -> dict[str, Any]:
     record = load_approval_request(proposal_id, base_dir)
     gate = resolve_apply_gate(proposal_id, base_dir)
@@ -218,28 +284,11 @@ def apply_approved_proposal(
             base_dir=base_dir,
         )
 
-    deployment_record = {
-        "operator_type": operator_type,
-        "operator_id": operator_id,
-        "update_mode": plan["update_mode"],
-        "requires_restart": plan["requires_restart"],
-        "apply_action": plan["apply_action"],
-        "fee_confidence_snapshot": plan.get("fee_confidence_snapshot"),
-        "success": True,
-    }
-
-    queue_path, deployment_path = mark_request_applied(
+    return _record_manual_code_apply_required(
         proposal_id,
-        deployment_record,
+        record,
+        plan,
+        operator_type=operator_type,
+        operator_id=operator_id,
         base_dir=base_dir,
     )
-
-    return {
-        "proposal_id": proposal_id,
-        "applied": True,
-        "update_mode": plan["update_mode"],
-        "requires_restart": plan["requires_restart"],
-        "apply_action": plan["apply_action"],
-        "queue_path": str(queue_path),
-        "deployment_path": str(deployment_path),
-    }

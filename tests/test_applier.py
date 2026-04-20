@@ -41,7 +41,7 @@ class ApplierTests(unittest.TestCase):
             self.assertFalse(plan["requires_restart"])
             self.assertEqual(plan["apply_action"], "apply_rules_only")
 
-    def test_apply_approved_proposal_writes_deployment_record(self):
+    def test_apply_approved_proposal_records_manual_cold_apply(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             artifacts_dir = Path(tmpdir) / "artifacts"
             old_env = os.environ.get("ENGINE_ARTIFACTS_DIR")
@@ -69,12 +69,16 @@ class ApplierTests(unittest.TestCase):
                 else:
                     os.environ["ENGINE_ARTIFACTS_DIR"] = old_env
 
-            self.assertTrue(result["applied"])
+            self.assertFalse(result["applied"])
+            self.assertTrue(result["recorded"])
+            self.assertTrue(result["manual_code_apply_required"])
             self.assertEqual(result["update_mode"], "cold")
             self.assertTrue(result["requires_restart"])
-            self.assertEqual(queue_record["status"], "applied")
+            self.assertEqual(queue_record["status"], "approved")
+            self.assertTrue(queue_record["manual_code_apply_required"])
             self.assertEqual(deployment_record["operator_id"], "applier")
-            self.assertEqual(deployment_record["apply_action"], "require_restart")
+            self.assertEqual(deployment_record["apply_action"], "manual_code_apply_required")
+            self.assertFalse(deployment_record["code_applied"])
 
 
 if __name__ == "__main__":

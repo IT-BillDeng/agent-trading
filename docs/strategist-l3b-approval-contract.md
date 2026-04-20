@@ -290,7 +290,8 @@
 ### 应用规则
 
 - `hot` 更新：只改规则层文件
-- `cold` 更新：走重启 / reload / 重启容器流程
+- `cold` 更新：applier 只记录 `manual_code_apply_required`，保留 proposal 为 `approved`，不得自动 patch 代码
+- 真正的 `cold` 代码落地必须通过后续明确任务，进入更强 sandbox、diff review、test runner、rollback 流程
 - deployment record 应写入 `fee_confidence_snapshot`
 
 ---

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import tempfile
 import unittest
@@ -39,30 +41,41 @@ def _sample_contracts():
     }
 
 
+def _write_control_state(
+    path: Path,
+    *,
+    mode: str = "paper_trade",
+    enabled: bool = True,
+    locked: bool = False,
+    symbol_payload: dict | None = None,
+    risk_payload: dict | None = None,
+):
+    payload = {
+        "locked": locked,
+        "global": {"enabled": enabled, "mode": mode},
+        "markets": {"US": True},
+        "symbols": symbol_payload or {},
+        "risk": {
+            "reduce_only": False,
+            "emergency_flatten": False,
+            "daily_loss_locked": False,
+        },
+        "history": [],
+    }
+    if risk_payload:
+        payload["risk"].update(risk_payload)
+    (path / "control_state.json").write_text(json.dumps(payload, ensure_ascii=False))
+
+
 class LiveExecutionGateTests(unittest.TestCase):
     def test_guarded_defaults_never_call_place_order(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             state_dir = Path(tmpdir)
-            (state_dir / "control_state.json").write_text(
-                json.dumps(
-                    {
-                        "locked": False,
-                        "global": {"enabled": True, "mode": "paper_trade"},
-                        "markets": {"US": True},
-                        "symbols": {},
-                        "risk": {
-                            "reduce_only": False,
-                            "emergency_flatten": False,
-                            "daily_loss_locked": False,
-                        },
-                        "history": [],
-                    },
-                    ensure_ascii=False,
-                )
-            )
+            _write_control_state(state_dir, mode="paper_trade")
             client = FakeBrokerClient()
             adapter = LiveExecutionAdapter(
                 {
+                    "mode": "paper",
                     "execution": {
                         "submit_mode": "guarded",
                         "live_submit": False,
@@ -78,15 +91,125 @@ class LiveExecutionGateTests(unittest.TestCase):
             result = adapter.submit_intent(_sample_intent(), _sample_contracts())
 
             self.assertFalse(result.submitted)
-            self.assertEqual(result.reason, "guarded_mode")
+            self.assertEqual(result.reason, "app_mode:paper")
             self.assertEqual(client.preview_order_called, 1)
+            self.assertEqual(client.place_order_called, 0)
+
+    def test_live_mode_with_guarded_submit_mode_never_calls_place_order(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_dir = Path(tmpdir)
+            _write_control_state(state_dir, mode="live_trade")
+            client = FakeBrokerClient()
+            adapter = LiveExecutionAdapter(
+                {
+                    "mode": "live",
+                    "execution": {
+                        "submit_mode": "guarded",
+                        "live_submit": True,
+                        "preview_check": True,
+                    },
+                    "system": {
+                        "state_dir": tmpdir,
+                    },
+                },
+                client,
+            )
+
+            result = adapter.submit_intent(_sample_intent(), _sample_contracts())
+
+            self.assertFalse(result.submitted)
+            self.assertEqual(result.reason, "guarded_mode")
+            self.assertEqual(client.place_order_called, 0)
+
+    def test_live_mode_and_live_submit_still_block_when_control_not_live_trade(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_dir = Path(tmpdir)
+            _write_control_state(state_dir, mode="paper_trade")
+            client = FakeBrokerClient()
+            adapter = LiveExecutionAdapter(
+                {
+                    "mode": "live",
+                    "execution": {
+                        "submit_mode": "live",
+                        "live_submit": True,
+                        "preview_check": True,
+                    },
+                    "system": {
+                        "state_dir": tmpdir,
+                    },
+                },
+                client,
+            )
+
+            result = adapter.submit_intent(_sample_intent(), _sample_contracts())
+
+            self.assertFalse(result.submitted)
+            self.assertEqual(result.reason, "control_mode:paper_trade")
+            self.assertEqual(client.place_order_called, 0)
+
+    def test_all_live_conditions_must_be_met_before_place_order(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_dir = Path(tmpdir)
+            _write_control_state(state_dir, mode="live_trade")
+            client = FakeBrokerClient()
+            adapter = LiveExecutionAdapter(
+                {
+                    "mode": "live",
+                    "execution": {
+                        "submit_mode": "live",
+                        "live_submit": True,
+                        "preview_check": True,
+                    },
+                    "system": {
+                        "state_dir": tmpdir,
+                    },
+                },
+                client,
+            )
+
+            result = adapter.submit_intent(_sample_intent(), _sample_contracts())
+
+            self.assertTrue(result.submitted)
+            self.assertEqual(result.reason, "submitted")
+            self.assertEqual(client.place_order_called, 1)
+
+    def test_reduce_only_blocks_buy_live_submit(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_dir = Path(tmpdir)
+            _write_control_state(
+                state_dir,
+                mode="live_trade",
+                risk_payload={"reduce_only": True},
+            )
+            client = FakeBrokerClient()
+            adapter = LiveExecutionAdapter(
+                {
+                    "mode": "live",
+                    "execution": {
+                        "submit_mode": "live",
+                        "live_submit": True,
+                        "preview_check": True,
+                    },
+                    "system": {
+                        "state_dir": tmpdir,
+                    },
+                },
+                client,
+            )
+
+            result = adapter.submit_intent(_sample_intent(), _sample_contracts())
+
+            self.assertFalse(result.submitted)
+            self.assertEqual(result.reason, "risk_reduce_only")
             self.assertEqual(client.place_order_called, 0)
 
     def test_locked_control_blocks_submit_before_preview_or_place(self):
         with tempfile.TemporaryDirectory() as tmpdir:
+            _write_control_state(Path(tmpdir), mode="live_trade")
             client = FakeBrokerClient()
             adapter = LiveExecutionAdapter(
                 {
+                    "mode": "live",
                     "execution": {
                         "submit_mode": "live",
                         "live_submit": True,
@@ -106,6 +229,32 @@ class LiveExecutionGateTests(unittest.TestCase):
             self.assertIn("lock", result.reason)
             self.assertEqual(client.preview_order_called, 0)
             self.assertEqual(client.place_order_called, 0)
+
+    def test_cancel_order_blocks_when_live_cancel_disabled(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _write_control_state(Path(tmpdir), mode="live_trade")
+            client = FakeBrokerClient()
+            adapter = LiveExecutionAdapter(
+                {
+                    "mode": "live",
+                    "execution": {
+                        "submit_mode": "live",
+                        "live_submit": True,
+                        "live_cancel": False,
+                        "preview_check": True,
+                    },
+                    "system": {
+                        "state_dir": tmpdir,
+                    },
+                },
+                client,
+            )
+
+            result = adapter.cancel_order("order-1", order_id=1001)
+
+            self.assertFalse(result.submitted)
+            self.assertEqual(result.reason, "guarded_cancel_mode")
+            self.assertEqual(client.cancel_order_called, 0)
 
 
 if __name__ == "__main__":

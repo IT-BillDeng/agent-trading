@@ -50,6 +50,7 @@ class LiveExecutionAdapter:
     def __init__(self, app_config: dict[str, Any], client: BrokerClient):
         execution = dict(app_config.get('execution', {}))
         system = dict(app_config.get('system', {}))
+        self.app_mode = str(app_config.get('mode', 'paper'))
         self.client = client
         self.submit_mode = str(execution.get('submit_mode', 'guarded'))
         self.allow_live_submit = bool(execution.get('live_submit', False))
@@ -114,8 +115,16 @@ class LiveExecutionAdapter:
         if preview_result and not preview_result.ok:
             return SubmitResult(intent['intent_id'], intent['symbol'], False, self.submit_mode, preview_result.reason, preview_result.response)
 
-        if self.submit_mode != 'live' or not self.allow_live_submit:
-            return SubmitResult(intent['intent_id'], intent['symbol'], False, self.submit_mode, 'guarded_mode', preview_result.response if preview_result else None)
+        live_ok, live_reason = self._can_live_submit(intent)
+        if not live_ok:
+            return SubmitResult(
+                intent['intent_id'],
+                intent['symbol'],
+                False,
+                self.submit_mode,
+                live_reason,
+                preview_result.response if preview_result else None,
+            )
 
         payload = dict(preview_result.payload if preview_result else self._build_payload(intent, contracts))
         if 'order_id' not in payload:
@@ -158,8 +167,9 @@ class LiveExecutionAdapter:
         return snapshots
 
     def cancel_order(self, order_ref: str, id: int | None = None, order_id: int | None = None) -> SubmitResult:
-        if self.submit_mode != 'live' or not self.allow_live_cancel:
-            return SubmitResult(order_ref, order_ref, False, self.submit_mode, 'guarded_cancel_mode', None)
+        cancel_ok, cancel_reason = self._can_live_cancel()
+        if not cancel_ok:
+            return SubmitResult(order_ref, order_ref, False, self.submit_mode, cancel_reason, None)
         response = self.client.cancel_order(id=id, order_id=order_id)
         ok = response.get('body', {}).get('code') == 0
         if ok:
@@ -234,6 +244,47 @@ class LiveExecutionAdapter:
             raw = data.get('orderId') or data.get('order_id') or data.get('id')
             return int(raw) if raw is not None else None
         return None
+
+    def _can_live_submit(self, intent: dict[str, Any]) -> tuple[bool, str]:
+        if self.app_mode != 'live':
+            return False, f'app_mode:{self.app_mode}'
+        if self.submit_mode != 'live' or not self.allow_live_submit:
+            return False, 'guarded_mode'
+
+        gate_ok, gate_reason = self.control.can_live_submit(intent.get('market'), intent.get('symbol'))
+        if not gate_ok:
+            return False, self._map_control_gate_reason(gate_reason)
+
+        if str(intent.get('side', '')).upper() == 'BUY':
+            risk_cfg = self.control.status().get('risk', {})
+            if risk_cfg.get('reduce_only', False):
+                return False, 'risk_reduce_only'
+            if risk_cfg.get('emergency_flatten', False):
+                return False, 'risk_emergency_flatten'
+
+        return True, 'live_submit_allowed'
+
+    def _can_live_cancel(self) -> tuple[bool, str]:
+        if self.app_mode != 'live':
+            return False, f'app_mode:{self.app_mode}'
+        if not self.allow_live_cancel:
+            return False, 'guarded_cancel_mode'
+
+        gate_ok, gate_reason = self.control.can_live_submit()
+        if not gate_ok:
+            mapped = self._map_control_gate_reason(gate_reason)
+            if mapped == 'guarded_mode':
+                return False, 'guarded_cancel_mode'
+            return False, mapped
+
+        return True, 'live_cancel_allowed'
+
+    def _map_control_gate_reason(self, reason: str | None) -> str:
+        if not reason:
+            return 'live_gate_blocked'
+        if reason.startswith('mode:'):
+            return f"control_mode:{reason.split(':', 1)[1]}"
+        return reason
 
     def _submission_is_active(self, idem: str, record: dict[str, Any]) -> bool:
         sync_record = self.state.get_sync_record(idem)

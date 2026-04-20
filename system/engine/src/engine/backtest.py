@@ -472,14 +472,14 @@ class BacktestEngine:
         )
         
         for symbol in self.config.symbols:
-            self.current_index[symbol] = 0
+            self.current_index[symbol] = -1
             print(f"[Backtest] {symbol}: {len(self.bars_by_symbol.get(symbol, []))} bars loaded")
     
     def get_current_bar(self, symbol: str) -> Bar | None:
         """获取当前 K 线"""
         bars = self.bars_by_symbol.get(symbol, [])
         index = self.current_index.get(symbol, 0)
-        if index < len(bars):
+        if 0 <= index < len(bars):
             return bars[index]
         return None
     
@@ -487,6 +487,8 @@ class BacktestEngine:
         """获取历史 K 线数据（用于指标计算）"""
         bars = self.bars_by_symbol.get(symbol, [])
         index = self.current_index.get(symbol, 0)
+        if index < 0:
+            return []
         start = max(0, index - lookback + 1)
         end = index + 1
         
@@ -567,19 +569,27 @@ class BacktestEngine:
         
         self.load_data()
         
-        # 找到所有标的中最大的 K 线数量
-        max_bars = max(len(bars) for bars in self.bars_by_symbol.values())
-        
+        all_timestamps = sorted(
+            {
+                bar.timestamp
+                for bars in self.bars_by_symbol.values()
+                for bar in bars
+            }
+        )
+
         start_time = datetime.now()
-        
-        for i in range(max_bars):
+
+        for i, timestamp in enumerate(all_timestamps):
             for symbol in self.config.symbols:
                 bars = self.bars_by_symbol.get(symbol, [])
-                if i >= len(bars):
+                next_index = self.current_index.get(symbol, -1) + 1
+                if next_index >= len(bars):
                     continue
-                
-                self.current_index[symbol] = i
-                bar = bars[i]
+                if bars[next_index].timestamp != timestamp:
+                    continue
+
+                self.current_index[symbol] = next_index
+                bar = bars[next_index]
                 
                 # 更新持仓价格
                 if symbol in self.positions:
@@ -605,8 +615,12 @@ class BacktestEngine:
             
             # 更新权益曲线
             if i % 10 == 0:  # 每 10 根 K 线记录一次
-                timestamp = self.bars_by_symbol[self.config.symbols[0]][i].timestamp
                 self.update_equity(timestamp)
+
+        if all_timestamps:
+            last_timestamp = all_timestamps[-1]
+            if not self.equity_curve or self.equity_curve[-1]['timestamp'] != last_timestamp.isoformat():
+                self.update_equity(last_timestamp)
         
         end_time = datetime.now()
         

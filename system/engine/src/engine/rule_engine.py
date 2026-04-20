@@ -19,6 +19,7 @@ from .indicators import (
     bar_range_pct,
     volume_ratio as calc_volume_ratio,
 )
+from .rule_schema import validate_rules_config
 from .signal_arbiter import SignalArbiter
 
 
@@ -472,7 +473,18 @@ class RuleEngine:
             return {'rules': [], 'global_settings': {}}
         
         try:
-            return json.loads(self.rules_path.read_text())
+            data = json.loads(self.rules_path.read_text())
+            validation = validate_rules_config(data)
+            if not validation["valid"]:
+                print(f"[RuleEngine] Loaded rules with validation errors: {validation['errors']}")
+            normalized = dict(data)
+            normalized["rules"] = validation["valid_rules"]
+            normalized["__validation__"] = {
+                "valid": validation["valid"],
+                "errors": validation["errors"],
+                "warnings": validation["warnings"],
+            }
+            return normalized
         except Exception as e:
             print(f"[RuleEngine] Failed to load rules: {e}")
             return {'rules': [], 'global_settings': {}}

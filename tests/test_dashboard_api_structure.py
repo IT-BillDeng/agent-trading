@@ -111,6 +111,46 @@ with mock.patch.dict(
 
 
 class DashboardApiStructureTests(unittest.TestCase):
+    def test_rules_validate_returns_errors_and_hot_apply_rejects_invalid_rules(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            rules_dir = Path(tmpdir) / "rules"
+            rules_dir.mkdir(parents=True)
+            rules_file = rules_dir / "rules.json"
+            rules_file.write_text(json.dumps({"version": "1.0", "rules": []}, ensure_ascii=False))
+
+            invalid_rules = {
+                "rules": [
+                    {
+                        "rule_id": "bad_rule",
+                        "enabled": "yes",
+                        "priority": "high",
+                        "entry": {
+                            "action": "SELL",
+                            "conditions": {
+                                "type": "indicator",
+                                "indicator": "not_supported",
+                                "compare": {"operator": "cross_above"},
+                            },
+                        },
+                    }
+                ]
+            }
+
+            with mock.patch.object(dashboard_main, "RULES_DIR", rules_dir), mock.patch.object(dashboard_main, "RULES_FILE", rules_file):
+                validate_result = asyncio.run(dashboard_main.api_rules_validate(invalid_rules))
+                update_result = asyncio.run(dashboard_main.api_rules_update(invalid_rules))
+
+            self.assertFalse(validate_result["valid"])
+            self.assertGreater(len(validate_result["errors"]), 0)
+            self.assertEqual(validate_result["warnings"], [])
+
+            self.assertEqual(update_result.status_code, 400)
+            self.assertFalse(update_result["valid"])
+            self.assertGreater(len(update_result["errors"]), 0)
+
+            persisted = json.loads(rules_file.read_text())
+            self.assertEqual(persisted, {"version": "1.0", "rules": []})
+
     def test_trading_mode_get_exposes_reduce_only_and_emergency_flags(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             runtime_dir = Path(tmpdir) / "runtime" / "engine"

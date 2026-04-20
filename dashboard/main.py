@@ -31,6 +31,7 @@ from system.engine.src.engine.control import (
     canonical_mode_to_legacy_ui_mode,
     legacy_ui_mode_to_canonical_mode,
 )
+from system.engine.src.engine.rule_schema import validate_rules_config
 
 # --- App lifecycle ---
 
@@ -1412,6 +1413,17 @@ async def api_rules_update(rules_data: dict):
     if "rules" not in rules_data:
         return JSONResponse({"error": "Missing 'rules' field"}, status_code=400)
 
+    validation = validate_rules_config(rules_data)
+    if not validation["valid"]:
+        return JSONResponse(
+            {
+                "valid": False,
+                "errors": validation["errors"],
+                "warnings": validation["warnings"],
+            },
+            status_code=400,
+        )
+
     # Backup existing rules
     if RULES_FILE.exists():
         backup_dir = RULES_DIR / "rules_backup"
@@ -1434,33 +1446,12 @@ async def api_rules_update(rules_data: dict):
 @app.post("/api/rules/validate")
 async def api_rules_validate(rules_data: dict):
     """Validate rules configuration format."""
-    errors = []
-
-    if "rules" not in rules_data:
-        errors.append("Missing 'rules' field")
-        return {"valid": False, "errors": errors}
-
-    for i, rule in enumerate(rules_data["rules"]):
-        if "rule_id" not in rule:
-            errors.append(f"Rule {i}: missing 'rule_id'")
-        if "name" not in rule:
-            errors.append(f"Rule {i}: missing 'name'")
-
-        # Validate entry conditions
-        entry = rule.get("entry", {})
-        if entry:
-            conditions = entry.get("conditions", {})
-            if not conditions:
-                errors.append(f"Rule {rule.get('rule_id', i)}: entry missing conditions")
-
-        # Validate exit conditions
-        exit_config = rule.get("exit", {})
-        if exit_config:
-            conditions = exit_config.get("conditions", {})
-            if not conditions:
-                errors.append(f"Rule {rule.get('rule_id', i)}: exit missing conditions")
-
-    return {"valid": len(errors) == 0, "errors": errors}
+    validation = validate_rules_config(rules_data)
+    return {
+        "valid": validation["valid"],
+        "errors": validation["errors"],
+        "warnings": validation["warnings"],
+    }
 
 
 @app.post("/api/rules/test")

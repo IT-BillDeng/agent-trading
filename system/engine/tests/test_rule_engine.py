@@ -286,12 +286,68 @@ def test_rule_engine_supports_ema_slope_momentum_strategy():
         Path(rules_path).unlink()
 
 
+def test_rsi_reversal_rule_uses_real_cross_logic_and_can_trigger_once():
+    rules_path = Path(__file__).resolve().parents[3] / 'rules' / 'rules.json'
+    engine = RuleEngine(rules_path)
+
+    closes = [100, 99, 98, 97, 96, 95, 94, 93, 92, 91, 90, 89, 88, 87, 86, 85, 86, 87, 91]
+    bars = [
+        {
+            'open': close,
+            'high': close + 0.5,
+            'low': close - 0.5,
+            'close': close,
+            'volume': 1000000,
+        }
+        for close in closes
+    ]
+
+    signals = engine.evaluate_symbol('AAPL', 'US', bars, None)
+    signal = next((item for item in signals if item.rule_id == 'rsi_reversal'), None)
+
+    assert signal is not None, "rsi_reversal should be present in enabled rules"
+    assert signal.action == 'BUY', f"expected BUY, got {signal.action}"
+    cross_diag = signal.diagnostics['entry']['diagnostics'][0]
+    assert cross_diag['operator'] == 'cross_above'
+    assert cross_diag['prev_value'] <= 30
+    assert cross_diag['value'] > 30
+
+
+def test_rsi_reversal_rule_does_not_trigger_without_cross():
+    rules_path = Path(__file__).resolve().parents[3] / 'rules' / 'rules.json'
+    engine = RuleEngine(rules_path)
+
+    closes = [100, 99, 98, 97, 96, 95, 94, 93, 92, 91, 90, 89, 88, 87, 86, 85, 86, 87, 88]
+    bars = [
+        {
+            'open': close,
+            'high': close + 0.5,
+            'low': close - 0.5,
+            'close': close,
+            'volume': 1000000,
+        }
+        for close in closes
+    ]
+
+    signals = engine.evaluate_symbol('AAPL', 'US', bars, None)
+    signal = next((item for item in signals if item.rule_id == 'rsi_reversal'), None)
+
+    assert signal is not None, "rsi_reversal should be present in enabled rules"
+    assert signal.action != 'BUY', "rsi_reversal should not trigger without a true cross"
+
+
 class RuleEngineUnittestBridge(unittest.TestCase):
     def test_indicator_calculator_bridge(self):
         test_indicator_calculator()
 
     def test_ema_slope_strategy_bridge(self):
         test_rule_engine_supports_ema_slope_momentum_strategy()
+
+    def test_rsi_reversal_cross_bridge(self):
+        test_rsi_reversal_rule_uses_real_cross_logic_and_can_trigger_once()
+
+    def test_rsi_reversal_non_cross_bridge(self):
+        test_rsi_reversal_rule_does_not_trigger_without_cross()
 
 
 class _FakeCrossIndicatorCalculator:

@@ -8,6 +8,16 @@ from typing import Any
 
 CANONICAL_MODES = {"off", "signal_only", "paper_trade", "live_trade"}
 LEGACY_UI_MODES = {"off", "signals", "trade"}
+LIVE_READINESS_REQUIRED_ITEMS = (
+    "p0_safety_tests_passed",
+    "p1_risk_tests_passed",
+    "paper_shadow_20d_stable",
+    "fee_model_confidence_ok",
+    "recent_data_health_ok",
+    "broker_no_unknown_open_orders",
+    "execution_state_reconciled",
+    "operator_confirmed",
+)
 
 
 def legacy_ui_mode_to_canonical_mode(mode: str | None) -> str:
@@ -84,10 +94,26 @@ class ControlPlane:
         self._write(state)
         return state
 
-    def set_mode(self, mode: str, updated_by: str = "operator") -> dict[str, Any]:
+    def set_mode(
+        self,
+        mode: str,
+        updated_by: str = "operator",
+        *,
+        confirm_live: bool = False,
+        readiness_checklist_id: str | None = None,
+        checklist: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         if mode not in CANONICAL_MODES:
             raise ValueError(f"unknown canonical mode: {mode}")
         state = self._read()
+        if mode == "live_trade":
+            state = self._apply_live_readiness(
+                state,
+                confirm_live=confirm_live,
+                readiness_checklist_id=readiness_checklist_id,
+                checklist=checklist,
+                updated_by=updated_by,
+            )
         state.setdefault("global", {})
         state["global"]["mode"] = mode
         state["updated_at"] = self._ts()
@@ -173,6 +199,7 @@ class ControlPlane:
                 'last_equity_usd': None,
                 'daily_loss_pct': 0.0,
             },
+            'live_readiness': self._default_live_readiness(),
             'history': [],
         }
 
@@ -241,9 +268,97 @@ class ControlPlane:
             "daily_loss_pct": float(risk.get("daily_loss_pct", defaults["risk"]["daily_loss_pct"]) or 0.0),
         }
 
+        live_readiness = state.get("live_readiness")
+        normalized["live_readiness"] = self._normalize_live_readiness(
+            live_readiness if isinstance(live_readiness, dict) else None
+        )
+
         history = state.get("history")
         normalized["history"] = list(history) if isinstance(history, list) else []
         return normalized
+
+    def _default_live_readiness(self) -> dict[str, Any]:
+        return {
+            "checklist_id": None,
+            "status": "missing",
+            "confirm_live": False,
+            "items": {key: False for key in LIVE_READINESS_REQUIRED_ITEMS},
+            "failed_items": list(LIVE_READINESS_REQUIRED_ITEMS),
+            "updated_at": None,
+            "updated_by": None,
+        }
+
+    def _normalize_live_readiness(self, payload: dict[str, Any] | None) -> dict[str, Any]:
+        defaults = self._default_live_readiness()
+        raw = payload if isinstance(payload, dict) else {}
+        raw_items = raw.get("items")
+        normalized_items = {
+            key: bool(raw_items.get(key, defaults["items"][key])) if isinstance(raw_items, dict) else defaults["items"][key]
+            for key in LIVE_READINESS_REQUIRED_ITEMS
+        }
+        failed_items = [key for key, value in normalized_items.items() if not value]
+        status = raw.get("status")
+        if status not in {"missing", "blocked", "ready"}:
+            status = "ready" if not failed_items and raw.get("checklist_id") else "missing" if not raw.get("checklist_id") else "blocked"
+        return {
+            "checklist_id": raw.get("checklist_id", defaults["checklist_id"]),
+            "status": status,
+            "confirm_live": bool(raw.get("confirm_live", defaults["confirm_live"])),
+            "items": normalized_items,
+            "failed_items": failed_items,
+            "updated_at": raw.get("updated_at", defaults["updated_at"]),
+            "updated_by": raw.get("updated_by", defaults["updated_by"]),
+        }
+
+    def _apply_live_readiness(
+        self,
+        state: dict[str, Any],
+        *,
+        confirm_live: bool,
+        readiness_checklist_id: str | None,
+        checklist: dict[str, Any] | None,
+        updated_by: str,
+    ) -> dict[str, Any]:
+        checklist_id = str(readiness_checklist_id or "").strip() or None
+        if not checklist_id:
+            raise ValueError("readiness_checklist_id is required for live_trade")
+        if not confirm_live:
+            raise ValueError("confirm_live must be true for live_trade")
+
+        raw_items = dict(checklist) if isinstance(checklist, dict) else {}
+        raw_items["operator_confirmed"] = True
+        live_readiness = self._normalize_live_readiness(
+            {
+                "checklist_id": checklist_id,
+                "status": "blocked",
+                "confirm_live": confirm_live,
+                "items": raw_items,
+                "updated_at": self._ts(),
+                "updated_by": updated_by,
+            }
+        )
+        if live_readiness["failed_items"]:
+            live_readiness["status"] = "blocked"
+            state["live_readiness"] = live_readiness
+            state["updated_at"] = self._ts()
+            state["updated_by"] = updated_by
+            state.setdefault("history", []).append(
+                {
+                    "ts": state["updated_at"],
+                    "action": "live_readiness_check_failed",
+                    "checklist_id": checklist_id,
+                    "failed_items": list(live_readiness["failed_items"]),
+                    "updated_by": updated_by,
+                }
+            )
+            self._write(state)
+            raise ValueError(
+                "live readiness checklist failed: " + ", ".join(live_readiness["failed_items"])
+            )
+
+        live_readiness["status"] = "ready"
+        state["live_readiness"] = live_readiness
+        return state
 
     def _evaluate_gate(
         self,

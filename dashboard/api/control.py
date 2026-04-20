@@ -7,7 +7,7 @@ from datetime import datetime
 from fastapi.responses import JSONResponse
 
 
-VALID_TRADING_MODES = {"off", "signals", "trade"}
+VALID_TRADING_MODES = {"off", "signals", "trade", "live_trade"}
 _dashboard_main_module = None
 
 
@@ -65,6 +65,7 @@ def _trading_mode_payload(state: dict[str, object]) -> dict[str, object]:
         "emergency_flatten": emergency_flatten,
         "risk_state": risk_state,
         "risk_label": risk_label,
+        "live_readiness": state.get("live_readiness", {}),
     }
 
 
@@ -167,9 +168,18 @@ async def api_trading_mode_set(body: dict):
     mode = body.get("mode")
     if mode not in VALID_TRADING_MODES:
         return JSONResponse({"error": f"mode must be one of: {', '.join(VALID_TRADING_MODES)}"}, status_code=400)
-    canonical_mode = dashboard_main.legacy_ui_mode_to_canonical_mode(mode)
+    canonical_mode = mode if mode == "live_trade" else dashboard_main.legacy_ui_mode_to_canonical_mode(mode)
     control = dashboard_main.ControlPlane(dashboard_main.RUNTIME_DIR / "state")
-    state = control.set_mode(canonical_mode, updated_by="dashboard")
+    try:
+        state = control.set_mode(
+            canonical_mode,
+            updated_by="dashboard",
+            confirm_live=bool(body.get("confirm_live", False)),
+            readiness_checklist_id=body.get("readiness_checklist_id"),
+            checklist=body.get("checklist"),
+        )
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
     payload = _trading_mode_payload(state)
     return {"status": "ok", **payload}
 

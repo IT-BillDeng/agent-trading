@@ -209,6 +209,78 @@ class DashboardApiStructureTests(unittest.TestCase):
             self.assertEqual(result["reduce_only_reason"], "manual_reduce_only")
             self.assertTrue(result["emergency_flatten"])
             self.assertEqual(result["risk_state"], "emergency_flatten")
+            self.assertIn("live_readiness", result)
+
+    def test_live_trade_requires_readiness_checklist(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            runtime_dir = Path(tmpdir) / "runtime" / "engine"
+            state_dir = runtime_dir / "state"
+            state_dir.mkdir(parents=True)
+
+            with mock.patch.object(dashboard_main, "RUNTIME_DIR", runtime_dir):
+                missing_id = asyncio.run(
+                    dashboard_main.api_trading_mode_set(
+                        {
+                            "mode": "live_trade",
+                            "confirm_live": True,
+                        }
+                    )
+                )
+                blocked = asyncio.run(
+                    dashboard_main.api_trading_mode_set(
+                        {
+                            "mode": "live_trade",
+                            "confirm_live": True,
+                            "readiness_checklist_id": "live-readiness-v1",
+                            "checklist": {
+                                "p0_safety_tests_passed": True,
+                                "p1_risk_tests_passed": True,
+                            },
+                        }
+                    )
+                )
+
+            self.assertEqual(missing_id.status_code, 400)
+            self.assertIn("readiness_checklist_id is required", missing_id["error"])
+
+            self.assertEqual(blocked.status_code, 400)
+            self.assertIn("live readiness checklist failed", blocked["error"])
+
+            state = json.loads((state_dir / "control_state.json").read_text())
+            self.assertEqual(state["live_readiness"]["status"], "blocked")
+            self.assertEqual(state["global"]["mode"], "off")
+
+    def test_live_trade_can_be_enabled_with_passing_checklist(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            runtime_dir = Path(tmpdir) / "runtime" / "engine"
+            state_dir = runtime_dir / "state"
+            state_dir.mkdir(parents=True)
+
+            with mock.patch.object(dashboard_main, "RUNTIME_DIR", runtime_dir):
+                result = asyncio.run(
+                    dashboard_main.api_trading_mode_set(
+                        {
+                            "mode": "live_trade",
+                            "confirm_live": True,
+                            "readiness_checklist_id": "live-readiness-v1",
+                            "checklist": {
+                                "p0_safety_tests_passed": True,
+                                "p1_risk_tests_passed": True,
+                                "paper_shadow_20d_stable": True,
+                                "fee_model_confidence_ok": True,
+                                "recent_data_health_ok": True,
+                                "broker_no_unknown_open_orders": True,
+                                "execution_state_reconciled": True,
+                            },
+                        }
+                    )
+                )
+
+            self.assertEqual(result["status"], "ok")
+            self.assertEqual(result["canonical_mode"], "live_trade")
+            self.assertEqual(result["mode"], "trade")
+            self.assertEqual(result["live_readiness"]["status"], "ready")
+            self.assertEqual(result["live_readiness"]["checklist_id"], "live-readiness-v1")
 
     def test_api_control_only_handles_lock_and_unlock(self):
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -58,6 +58,9 @@ class ControlPlaneSafetyTests(unittest.TestCase):
                     "daily_loss_pct": 0.0,
                 },
             )
+            self.assertIn("live_readiness", payload)
+            self.assertEqual(payload["live_readiness"]["status"], "missing")
+            self.assertIsNone(payload["live_readiness"]["checklist_id"])
 
     def test_legacy_trading_mode_trade_normalizes_to_paper_trade(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -235,6 +238,66 @@ class ControlPlaneSafetyTests(unittest.TestCase):
         self.assertEqual(canonical_mode_to_legacy_ui_mode("signal_only"), "signals")
         self.assertEqual(canonical_mode_to_legacy_ui_mode("paper_trade"), "trade")
         self.assertEqual(canonical_mode_to_legacy_ui_mode("live_trade"), "trade")
+
+    def test_live_trade_requires_checklist_id_and_confirmation(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            control = ControlPlane(tmpdir)
+
+            with self.assertRaisesRegex(ValueError, "readiness_checklist_id is required"):
+                control.set_mode("live_trade", updated_by="test", confirm_live=True)
+
+            with self.assertRaisesRegex(ValueError, "confirm_live must be true"):
+                control.set_mode(
+                    "live_trade",
+                    updated_by="test",
+                    readiness_checklist_id="live-readiness-v1",
+                    checklist={},
+                )
+
+    def test_live_trade_requires_all_checklist_items(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            control = ControlPlane(tmpdir)
+
+            with self.assertRaisesRegex(ValueError, "live readiness checklist failed"):
+                control.set_mode(
+                    "live_trade",
+                    updated_by="test",
+                    confirm_live=True,
+                    readiness_checklist_id="live-readiness-v1",
+                    checklist={
+                        "p0_safety_tests_passed": True,
+                        "p1_risk_tests_passed": True,
+                    },
+                )
+
+            payload = control.status()
+            self.assertEqual(payload["live_readiness"]["status"], "blocked")
+            self.assertEqual(payload["live_readiness"]["checklist_id"], "live-readiness-v1")
+            self.assertIn("paper_shadow_20d_stable", payload["live_readiness"]["failed_items"])
+
+    def test_live_trade_can_be_enabled_when_checklist_passes(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            control = ControlPlane(tmpdir)
+            state = control.set_mode(
+                "live_trade",
+                updated_by="test",
+                confirm_live=True,
+                readiness_checklist_id="live-readiness-v1",
+                checklist={
+                    "p0_safety_tests_passed": True,
+                    "p1_risk_tests_passed": True,
+                    "paper_shadow_20d_stable": True,
+                    "fee_model_confidence_ok": True,
+                    "recent_data_health_ok": True,
+                    "broker_no_unknown_open_orders": True,
+                    "execution_state_reconciled": True,
+                },
+            )
+
+            self.assertEqual(state["global"]["mode"], "live_trade")
+            self.assertEqual(state["live_readiness"]["status"], "ready")
+            self.assertTrue(state["live_readiness"]["items"]["operator_confirmed"])
+            self.assertEqual(state["live_readiness"]["failed_items"], [])
 
 
 if __name__ == "__main__":

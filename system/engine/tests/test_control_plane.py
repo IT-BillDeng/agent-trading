@@ -11,6 +11,11 @@ from engine.control import canonical_mode_to_legacy_ui_mode, legacy_ui_mode_to_c
 
 
 class ControlPlaneSafetyTests(unittest.TestCase):
+    def _write_state(self, tmpdir: str, payload: dict) -> ControlPlane:
+        state_path = Path(tmpdir) / "control_state.json"
+        state_path.write_text(json.dumps(payload, ensure_ascii=False))
+        return ControlPlane(tmpdir)
+
     def test_default_state_allows_trade_when_unlocked(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             control = ControlPlane(tmpdir)
@@ -85,27 +90,135 @@ class ControlPlaneSafetyTests(unittest.TestCase):
 
     def test_symbol_suspended_blocks_trade(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            state_path = Path(tmpdir) / "control_state.json"
-            state_path.write_text(
-                json.dumps(
-                    {
-                        "locked": False,
-                        "global": {"enabled": True, "mode": "paper_trade"},
-                        "markets": {"US": True},
-                        "symbols": {
-                            "AAPL": {"enabled": True, "suspended": True},
-                        },
+            control = self._write_state(
+                tmpdir,
+                {
+                    "locked": False,
+                    "global": {"enabled": True, "mode": "paper_trade"},
+                    "markets": {"US": True},
+                    "symbols": {
+                        "AAPL": {"enabled": True, "suspended": True},
                     },
-                    ensure_ascii=False,
-                )
+                },
             )
-
-            control = ControlPlane(tmpdir)
 
             ok, reason = control.can_trade("US", "AAPL")
 
             self.assertFalse(ok)
             self.assertEqual(reason, "symbol_suspended:AAPL")
+
+    def test_symbol_suspended_blocks_build_order_intents(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            control = self._write_state(
+                tmpdir,
+                {
+                    "locked": False,
+                    "global": {"enabled": True, "mode": "paper_trade"},
+                    "markets": {"US": True},
+                    "symbols": {
+                        "SMCI": {"enabled": True, "suspended": True, "reason": "manual_suspend"},
+                    },
+                },
+            )
+
+            ok, reason = control.can_build_order_intents("US", "SMCI")
+
+            self.assertFalse(ok)
+            self.assertEqual(reason, "symbol_suspended:SMCI")
+
+    def test_symbol_suspended_blocks_live_submit(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            control = self._write_state(
+                tmpdir,
+                {
+                    "locked": False,
+                    "global": {"enabled": True, "mode": "live_trade"},
+                    "markets": {"US": True},
+                    "symbols": {
+                        "SMCI": {"enabled": True, "suspended": True, "reason": "manual_suspend"},
+                    },
+                },
+            )
+
+            ok, reason = control.can_live_submit("US", "SMCI")
+
+            self.assertFalse(ok)
+            self.assertEqual(reason, "symbol_suspended:SMCI")
+
+    def test_symbol_disabled_dict_blocks_with_distinct_reason(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            control = self._write_state(
+                tmpdir,
+                {
+                    "locked": False,
+                    "global": {"enabled": True, "mode": "paper_trade"},
+                    "markets": {"US": True},
+                    "symbols": {
+                        "SMCI": {"enabled": False},
+                    },
+                },
+            )
+
+            ok, reason = control.can_build_order_intents("US", "SMCI")
+
+            self.assertFalse(ok)
+            self.assertEqual(reason, "symbol_disabled:SMCI")
+
+    def test_legacy_symbol_false_is_compatible_with_disabled(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            control = self._write_state(
+                tmpdir,
+                {
+                    "locked": False,
+                    "global": {"enabled": True, "mode": "paper_trade"},
+                    "markets": {"US": True},
+                    "symbols": {
+                        "SMCI": False,
+                    },
+                },
+            )
+
+            ok, reason = control.can_build_order_intents("US", "SMCI")
+
+            self.assertFalse(ok)
+            self.assertEqual(reason, "symbol_disabled:SMCI")
+
+    def test_enabled_symbol_without_suspension_does_not_block_symbol_gate(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paper_control = self._write_state(
+                tmpdir,
+                {
+                    "locked": False,
+                    "global": {"enabled": True, "mode": "paper_trade"},
+                    "markets": {"US": True},
+                    "symbols": {
+                        "SMCI": {"enabled": True, "suspended": False},
+                    },
+                },
+            )
+
+            ok, reason = paper_control.can_build_order_intents("US", "SMCI")
+
+            self.assertTrue(ok)
+            self.assertIsNone(reason)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            live_control = self._write_state(
+                tmpdir,
+                {
+                    "locked": False,
+                    "global": {"enabled": True, "mode": "live_trade"},
+                    "markets": {"US": True},
+                    "symbols": {
+                        "SMCI": {"enabled": True, "suspended": False},
+                    },
+                },
+            )
+
+            ok, reason = live_control.can_live_submit("US", "SMCI")
+
+            self.assertTrue(ok)
+            self.assertIsNone(reason)
 
     def test_legacy_ui_mode_mapping_never_auto_upgrades_to_live_trade(self):
         self.assertEqual(legacy_ui_mode_to_canonical_mode("off"), "off")

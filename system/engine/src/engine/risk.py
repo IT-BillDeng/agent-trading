@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .control import ControlPlane
+from .state import TradeLimitStore
 
 
 @dataclass
@@ -31,12 +32,17 @@ class RiskManager:
         self.max_order_notional_usd = float(risk.get('max_order_notional_usd', 10000))
         self.max_total_exposure_usd = float(risk.get('max_total_exposure_usd', 1000000))
         self.daily_loss_limit_pct = float(risk.get('daily_loss_limit_pct', 5))
+        self.max_trades_per_day = int(risk.get('max_trades_per_day', 10))
+        self.max_trades_per_symbol_per_day = int(risk.get('max_trades_per_symbol_per_day', 3))
+        self.symbol_cooldown_minutes_after_order = int(risk.get('symbol_cooldown_minutes_after_order', 30))
+        self.symbol_cooldown_minutes_after_loss = int(risk.get('symbol_cooldown_minutes_after_loss', 120))
         self.fx_rates_to_usd = dict(risk.get('fx_rates_to_usd', {'USD': 1.0}))
         self.disable_leverage = bool(risk.get('disable_leverage', False))
         state_dir = Path(system.get('state_dir', './state'))
         if not state_dir.is_absolute():
             state_dir = Path(__file__).resolve().parents[2] / state_dir
         self.control = ControlPlane(state_dir)
+        self.trade_limits = TradeLimitStore(state_dir)
 
     def evaluate(
         self,
@@ -49,6 +55,18 @@ class RiskManager:
     ) -> list[RiskDecision]:
         decisions: list[RiskDecision] = []
         risk_state = self._refresh_daily_loss_state(asset_snapshot or {})
+        trading_day = self._resolve_trading_day(asset_snapshot or {})
+        now_ts = self._resolve_timestamp(asset_snapshot or {})
+        trade_limit_state = self.trade_limits.snapshot(trading_day)
+        projected_total_trades = int(trade_limit_state.get('total_trades', 0))
+        projected_symbol_state = {
+            symbol: {
+                'trade_count': int((data or {}).get('trade_count', 0)),
+                'last_order_at': (data or {}).get('last_order_at'),
+                'last_loss_at': (data or {}).get('last_loss_at'),
+            }
+            for symbol, data in dict(trade_limit_state.get('symbols', {})).items()
+        }
         current_exposure = self._estimate_current_exposure_usd(positions_map, contracts)
         projected_exposure = current_exposure
         for signal in signals:
@@ -61,10 +79,21 @@ class RiskManager:
                 active_orders_map=active_orders_map,
                 current_exposure_usd=projected_exposure,
                 risk_state=risk_state,
+                projected_total_trades=projected_total_trades,
+                projected_symbol_state=projected_symbol_state,
+                now_ts=now_ts,
             )
             decisions.append(decision)
             if decision.allowed and decision.action == 'BUY' and decision.estimated_notional_usd:
                 projected_exposure += float(decision.estimated_notional_usd)
+            if decision.allowed and decision.action in {'BUY', 'EXIT'}:
+                projected_total_trades += 1
+                symbol_state = projected_symbol_state.setdefault(
+                    decision.symbol,
+                    {'trade_count': 0, 'last_order_at': None, 'last_loss_at': None},
+                )
+                symbol_state['trade_count'] = int(symbol_state.get('trade_count', 0)) + 1
+                symbol_state['last_order_at'] = now_ts
         return decisions
 
     def _evaluate_one(
@@ -77,6 +106,9 @@ class RiskManager:
         active_orders_map: dict[str, dict[str, Any]],
         current_exposure_usd: float,
         risk_state: dict[str, Any],
+        projected_total_trades: int,
+        projected_symbol_state: dict[str, dict[str, Any]],
+        now_ts: str,
     ) -> RiskDecision:
         symbol = signal['symbol']
         market = signal['market']
@@ -100,6 +132,8 @@ class RiskManager:
             'daily_loss_locked': bool(risk_state.get('daily_loss_locked', False)),
             'daily_loss_pct': risk_state.get('daily_loss_pct'),
             'reduce_only': bool(risk_state.get('reduce_only', False)),
+            'projected_total_trades': projected_total_trades,
+            'projected_symbol_trades': int(projected_symbol_state.get(symbol, {}).get('trade_count', 0)),
         })
 
         if action == 'HOLD':
@@ -112,6 +146,14 @@ class RiskManager:
         if action == 'BUY':
             if risk_state.get('daily_loss_locked', False):
                 reasons.append('daily_loss_limit_exceeded')
+            reasons.extend(
+                self._trade_limit_reasons(
+                    symbol=symbol,
+                    projected_total_trades=projected_total_trades,
+                    projected_symbol_state=projected_symbol_state.get(symbol, {}),
+                    now_ts=now_ts,
+                )
+            )
             if position:
                 reasons.append('position_already_exists')
             if active_order:
@@ -331,10 +373,65 @@ class RiskManager:
                 return str(value)[:10]
         return datetime.now(timezone.utc).date().isoformat()
 
+    def _resolve_timestamp(self, asset_snapshot: dict[str, Any]) -> str:
+        for key in ('timestamp', 'ts', 'updated_at', 'as_of'):
+            value = asset_snapshot.get(key)
+            if value:
+                return str(value)
+        return datetime.now(timezone.utc).isoformat()
+
     def _optional_float(self, value: Any) -> float | None:
         if value in (None, ''):
             return None
         try:
             return float(value)
+        except Exception:
+            return None
+
+    def _trade_limit_reasons(
+        self,
+        *,
+        symbol: str,
+        projected_total_trades: int,
+        projected_symbol_state: dict[str, Any],
+        now_ts: str,
+    ) -> list[str]:
+        reasons: list[str] = []
+        if self.max_trades_per_day > 0 and projected_total_trades >= self.max_trades_per_day:
+            reasons.append('max_trades_per_day_exceeded')
+
+        symbol_trade_count = int(projected_symbol_state.get('trade_count', 0) or 0)
+        if self.max_trades_per_symbol_per_day > 0 and symbol_trade_count >= self.max_trades_per_symbol_per_day:
+            reasons.append(f'max_trades_per_symbol_exceeded:{symbol}')
+
+        now_dt = self._parse_timestamp(now_ts)
+        last_order_at = self._parse_timestamp(projected_symbol_state.get('last_order_at'))
+        if (
+            now_dt
+            and last_order_at
+            and self.symbol_cooldown_minutes_after_order > 0
+            and (now_dt - last_order_at).total_seconds() < self.symbol_cooldown_minutes_after_order * 60
+        ):
+            reasons.append(f'symbol_cooldown_active:{symbol}')
+
+        last_loss_at = self._parse_timestamp(projected_symbol_state.get('last_loss_at'))
+        if (
+            now_dt
+            and last_loss_at
+            and self.symbol_cooldown_minutes_after_loss > 0
+            and (now_dt - last_loss_at).total_seconds() < self.symbol_cooldown_minutes_after_loss * 60
+        ):
+            reasons.append(f'symbol_loss_cooldown_active:{symbol}')
+
+        return reasons
+
+    def _parse_timestamp(self, value: Any):
+        if not value:
+            return None
+        text = str(value)
+        if text.endswith('Z'):
+            text = text[:-1] + '+00:00'
+        try:
+            return datetime.fromisoformat(text)
         except Exception:
             return None

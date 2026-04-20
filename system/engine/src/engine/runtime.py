@@ -17,6 +17,7 @@ from .risk import RiskManager
 from .strategy import StrategyEngine
 from .rule_engine import RuleEngine
 from .broker_client import BrokerClient
+from .state import TradeLimitStore
 
 
 def _unwrap_data(resp: dict[str, Any]) -> Any:
@@ -84,6 +85,24 @@ def _state_dir(app: AppConfig) -> Path:
     if not state_dir.is_absolute():
         state_dir = Path(__file__).resolve().parents[2] / state_dir
     return state_dir
+
+
+def _resolve_trading_day(asset_snapshot: dict[str, Any] | None) -> str:
+    snapshot = asset_snapshot or {}
+    for key in ('trading_day', 'tradingDay', 'date'):
+        value = snapshot.get(key)
+        if value:
+            return str(value)[:10]
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def _resolve_timestamp(asset_snapshot: dict[str, Any] | None) -> str:
+    snapshot = asset_snapshot or {}
+    for key in ('timestamp', 'ts', 'updated_at', 'as_of'):
+        value = snapshot.get(key)
+        if value:
+            return str(value)
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _log_dir(app: AppConfig) -> Path:
@@ -287,6 +306,16 @@ def build_execution_summary(raw: dict[str, Any], app: AppConfig) -> dict[str, An
         risk_decisions=decision_dicts,
         contracts=summary.get('contracts', {}),
     )]
+    trade_limit_store = TradeLimitStore(_state_dir(app))
+    trading_day = _resolve_trading_day(summary.get('asset_snapshot'))
+    recorded_at = _resolve_timestamp(summary.get('asset_snapshot'))
+    for preview in previews:
+        trade_limit_store.record_trade(
+            trading_day,
+            symbol=preview['symbol'],
+            side=preview['side'],
+            ts=recorded_at,
+        )
     intents = [item.to_dict() for item in intent_builder.build(previews, cycle_id=cycle_id)]
 
     summary['cycle_id'] = cycle_id

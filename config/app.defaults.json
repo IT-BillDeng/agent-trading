@@ -61,6 +61,10 @@
     "max_order_notional_usd": 10000,
     "daily_loss_limit_pct": 5,
     "max_total_exposure_usd": 100000,
+    "max_trades_per_day": 10,
+    "max_trades_per_symbol_per_day": 3,
+    "symbol_cooldown_minutes_after_order": 30,
+    "symbol_cooldown_minutes_after_loss": 120,
     "fx_rates_to_usd": {
       "USD": 1.0
     },

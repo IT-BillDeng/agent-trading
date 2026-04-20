@@ -126,6 +126,39 @@
         </section>
 
         <section class="card">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <div>
+                    <div class="card-title mb-0">🧾 Proposal Review</div>
+                    <div id="proposal-review-meta" class="text-xs text-gray-500 mt-1">--</div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 text-xs">
+                    <button onclick="refreshProposals()" class="px-3 py-1.5 rounded bg-gray-800/70 hover:bg-gray-700/80 text-gray-200 border border-gray-600/60">刷新提案</button>
+                    <span id="proposal-review-status" class="text-gray-500">--</span>
+                </div>
+            </div>
+            <div class="overflow-auto">
+                <table class="w-full min-w-max text-sm">
+                    <thead class="sticky top-0 z-10" style="background:#2a2a3c">
+                        <tr class="text-gray-500 border-b border-gray-700/50">
+                            <th class="px-3 py-2 text-left">Proposal</th>
+                            <th class="px-3 py-2 text-center">状态</th>
+                            <th class="px-3 py-2 text-center">更新模式</th>
+                            <th class="px-3 py-2 text-center">重启</th>
+                            <th class="px-3 py-2 text-left">目标文件</th>
+                            <th class="px-3 py-2 text-left">摘要 / 校验</th>
+                            <th class="px-3 py-2 text-center">费用</th>
+                            <th class="px-3 py-2 text-left">风险影响</th>
+                            <th class="px-3 py-2 text-right">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="proposal-review-body">
+                        <tr><td colspan="9" class="py-4 text-center text-gray-500">加载中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card">
             <div class="card-title">📈 回测报告</div>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                 <div>
@@ -336,6 +369,7 @@
         let autoRefreshTimer = null;
         let currentStrategyData = null;
         let ruleFilter = 'all';
+        let currentProposalItems = [];
 
         function escapeHtml(s) {
             return String(s ?? '')
@@ -423,6 +457,20 @@
                         ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
                         : 'bg-gray-700/60 text-gray-300 border-gray-600/40';
             return `<span class="badge ${cls}">${escapeHtml(label)}</span>`;
+        }
+
+        function proposalStatusBadge(status) {
+            const value = String(status || '--').toLowerCase();
+            const cls = value === 'approved'
+                ? 'bg-green-500/15 text-green-300 border-green-500/30'
+                : value === 'rejected'
+                    ? 'bg-red-500/15 text-red-300 border-red-500/30'
+                    : value === 'applied'
+                        ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
+                        : value === 'awaiting_approval'
+                            ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                            : 'bg-gray-700/60 text-gray-300 border-gray-600/40';
+            return `<span class="badge ${cls}">${escapeHtml(value)}</span>`;
         }
 
         function renderSummary(data) {
@@ -761,6 +809,133 @@
             }).join('');
         }
 
+        function renderProposals(items) {
+            const body = document.getElementById('proposal-review-body');
+            const meta = document.getElementById('proposal-review-meta');
+            currentProposalItems = Array.isArray(items) ? items : [];
+
+            if (!currentProposalItems.length) {
+                meta.textContent = '暂无待审查 proposal';
+                body.innerHTML = '<tr><td colspan="9" class="py-4 text-center text-gray-500">暂无 proposal</td></tr>';
+                return;
+            }
+
+            const awaiting = currentProposalItems.filter(item => item.status === 'awaiting_approval').length;
+            meta.textContent = `${awaiting} 待审批 / ${currentProposalItems.length} 总提案`;
+
+            body.innerHTML = currentProposalItems.map(item => {
+                const validation = item.validation || {};
+                const tests = Array.isArray(validation.tests) ? validation.tests : [];
+                const passedTests = tests.filter(test => test && test.passed).length;
+                const targetFiles = Array.isArray(item.target_files) ? item.target_files : [];
+                const riskImpact = validation.risk?.notes
+                    || validation.risk?.summary
+                    || validation.risk?.impact
+                    || '--';
+                const feeConfidence = validation.fee_confidence || '--';
+                const canReview = item.status === 'awaiting_approval';
+
+                return `
+                    <tr class="border-b border-gray-700/30 hover:bg-dark-800/40 align-top">
+                        <td class="px-3 py-2">
+                            <div class="font-medium text-gray-100 mono">${escapeHtml(item.proposal_id || '--')}</div>
+                            <div class="text-xs text-gray-500 mt-1">${escapeHtml(item.generated_at ? fmtDateTime(item.generated_at) : '--')}</div>
+                        </td>
+                        <td class="px-3 py-2 text-center">${proposalStatusBadge(item.status)}</td>
+                        <td class="px-3 py-2 text-center">${smallBadge(item.recommended_update_mode || '--', item.recommended_update_mode === 'hot' ? 'warn' : 'neutral')}</td>
+                        <td class="px-3 py-2 text-center">${item.requires_restart ? smallBadge('需要重启', 'bad') : smallBadge('无需重启', 'good')}</td>
+                        <td class="px-3 py-2 text-gray-300">
+                            ${targetFiles.length
+                                ? targetFiles.map(path => `<div class="mono text-xs">${escapeHtml(path)}</div>`).join('')
+                                : '<span class="text-gray-500">--</span>'}
+                        </td>
+                        <td class="px-3 py-2 text-gray-300">
+                            <div>${escapeHtml(item.diff_summary || '--')}</div>
+                            <div class="text-xs text-gray-500 mt-2">
+                                tests ${passedTests}/${tests.length || 0}
+                                ${validation.backtest && Object.keys(validation.backtest).length ? ` · backtest ${escapeHtml(JSON.stringify(validation.backtest))}` : ''}
+                            </div>
+                        </td>
+                        <td class="px-3 py-2 text-center">${smallBadge(feeConfidence, feeConfidence === 'high' ? 'good' : feeConfidence === 'low' ? 'bad' : 'warn')}</td>
+                        <td class="px-3 py-2 text-gray-300">${escapeHtml(Array.isArray(riskImpact) ? riskImpact.join(' | ') : riskImpact)}</td>
+                        <td class="px-3 py-2 text-right">
+                            <div class="flex justify-end gap-2">
+                                <button
+                                    onclick="approveProposal('${escapeHtml(item.proposal_id || '')}')"
+                                    class="px-2 py-1 rounded text-xs border border-green-600/50 bg-green-600/15 text-green-300 ${canReview ? 'hover:bg-green-600/25' : 'opacity-40 cursor-not-allowed'}"
+                                    ${canReview ? '' : 'disabled'}
+                                >批准</button>
+                                <button
+                                    onclick="rejectProposal('${escapeHtml(item.proposal_id || '')}')"
+                                    class="px-2 py-1 rounded text-xs border border-red-600/50 bg-red-600/15 text-red-300 ${canReview ? 'hover:bg-red-600/25' : 'opacity-40 cursor-not-allowed'}"
+                                    ${canReview ? '' : 'disabled'}
+                                >拒绝</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function refreshProposals() {
+            const statusEl = document.getElementById('proposal-review-status');
+            statusEl.textContent = '刷新中...';
+            try {
+                const response = await fetch(API_BASE + '/api/strategy/proposals');
+                const data = await response.json();
+                if (!response.ok || data.error) throw new Error(data.error || 'proposal fetch failed');
+                renderProposals(data.items || []);
+                statusEl.textContent = `已刷新 ${new Date().toLocaleTimeString('zh-CN')}`;
+            } catch (e) {
+                console.error(e);
+                statusEl.textContent = '刷新失败';
+                renderProposals([]);
+            }
+        }
+
+        async function approveProposal(proposalId) {
+            if (!proposalId) return;
+            if (!window.confirm(`确认批准 proposal ${proposalId}？`)) return;
+            const statusEl = document.getElementById('proposal-review-status');
+            statusEl.textContent = `批准 ${proposalId}...`;
+            try {
+                const response = await fetch(API_BASE + `/api/strategy/proposals/${encodeURIComponent(proposalId)}/approve`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ decider_type: 'human', decider_id: 'dashboard' }),
+                });
+                const data = await response.json();
+                if (!response.ok || data.error) throw new Error(data.error || 'approve failed');
+                statusEl.textContent = `已批准 ${proposalId}`;
+                await refreshProposals();
+            } catch (e) {
+                console.error(e);
+                statusEl.textContent = `批准失败: ${proposalId}`;
+            }
+        }
+
+        async function rejectProposal(proposalId) {
+            if (!proposalId) return;
+            const reason = window.prompt(`拒绝 proposal ${proposalId} 的原因`, 'needs revision');
+            if (reason === null) return;
+            const statusEl = document.getElementById('proposal-review-status');
+            statusEl.textContent = `拒绝 ${proposalId}...`;
+            try {
+                const response = await fetch(API_BASE + `/api/strategy/proposals/${encodeURIComponent(proposalId)}/reject`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ decider_type: 'human', decider_id: 'dashboard', reason }),
+                });
+                const data = await response.json();
+                if (!response.ok || data.error) throw new Error(data.error || 'reject failed');
+                statusEl.textContent = `已拒绝 ${proposalId}`;
+                await refreshProposals();
+            } catch (e) {
+                console.error(e);
+                statusEl.textContent = `拒绝失败: ${proposalId}`;
+            }
+        }
+
         async function runBacktest() {
             const statusEl = document.getElementById('bt-status');
             const resultsEl = document.getElementById('bt-results');
@@ -851,6 +1026,7 @@
                 renderStrategist(data);
                 renderFeeCalibration(data);
                 renderDataHealth(data);
+                await refreshProposals();
                 document.getElementById('page-status').textContent = '已刷新 ' + new Date().toLocaleTimeString('zh-CN');
             } catch (e) {
                 console.error(e);

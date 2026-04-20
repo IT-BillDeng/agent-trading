@@ -111,6 +111,29 @@ with mock.patch.dict(
 
 
 class DashboardApiStructureTests(unittest.TestCase):
+    def test_scheduler_status_is_read_only_and_control_mutations_are_disabled(self):
+        class _FakeScheduler:
+            def get_state(self):
+                return {"running": True, "cycle_count": 7}
+
+        with mock.patch.object(dashboard_main, "scheduler", _FakeScheduler()):
+            status = asyncio.run(dashboard_main.api_scheduler_status())
+            interval_result = asyncio.run(dashboard_main.api_scheduler_interval({"interval": 30}))
+            run_result = asyncio.run(dashboard_main.api_scheduler_run())
+
+        self.assertTrue(status["running"])
+        self.assertEqual(status["cycle_count"], 7)
+        self.assertTrue(status["read_only"])
+        self.assertTrue(status["mutable_controls_disabled"])
+
+        self.assertEqual(interval_result.status_code, 403)
+        self.assertEqual(interval_result["error"], "scheduler control disabled from dashboard")
+        self.assertTrue(interval_result["read_only"])
+
+        self.assertEqual(run_result.status_code, 403)
+        self.assertEqual(run_result["error"], "scheduler control disabled from dashboard")
+        self.assertTrue(run_result["read_only"])
+
     def test_rules_validate_returns_errors_and_hot_apply_rejects_invalid_rules(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             rules_dir = Path(tmpdir) / "rules"

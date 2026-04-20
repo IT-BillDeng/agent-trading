@@ -230,9 +230,15 @@ class SignalScheduler:
             # Signals only — skip risk/execution
             summary = build_strategy_summary(raw, app)
         elif mode in {"paper_trade", "live_trade"}:
-            # Full pipeline: signals + risk + order build + submit
+            # Dashboard-owned scheduler is preview-only. It may build the full
+            # execution summary, but it must not perform broker submit/cancel.
             summary = build_execution_summary(raw, app)
-            self._submit_orders(summary, app)
+            summary["execution_submit"] = {
+                "items": [],
+                "count": 0,
+                "disabled": True,
+                "reason": "dashboard_scheduler_preview_only",
+            }
         else:
             summary = build_strategy_summary(raw, app)
 

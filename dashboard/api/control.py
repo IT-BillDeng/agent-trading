@@ -71,28 +71,37 @@ def _trading_mode_payload(state: dict[str, object]) -> dict[str, object]:
 async def api_scheduler_status():
     dashboard_main = _dashboard_main()
     if not dashboard_main.scheduler:
-        return {"running": False, "error": "scheduler not initialized"}
-    return dashboard_main.scheduler.get_state()
+        return {
+            "running": False,
+            "error": "scheduler not initialized",
+            "read_only": True,
+            "mutable_controls_disabled": True,
+        }
+    return {
+        **dashboard_main.scheduler.get_state(),
+        "read_only": True,
+        "mutable_controls_disabled": True,
+    }
 
 
 async def api_scheduler_interval(body: dict):
-    dashboard_main = _dashboard_main()
-    if not dashboard_main.scheduler:
-        return JSONResponse({"error": "scheduler not initialized"}, status_code=503)
-    interval = body.get("interval")
-    if not isinstance(interval, int) or interval < 10:
-        return JSONResponse({"error": "interval must be >= 10 seconds"}, status_code=400)
-    dashboard_main.scheduler.set_interval(interval)
-    return {"status": "ok", "interval": interval}
+    return JSONResponse(
+        {
+            "error": "scheduler control disabled from dashboard",
+            "read_only": True,
+        },
+        status_code=403,
+    )
 
 
 async def api_scheduler_run():
-    dashboard_main = _dashboard_main()
-    if not dashboard_main.scheduler:
-        return JSONResponse({"error": "scheduler not initialized"}, status_code=503)
-    thread = threading.Thread(target=dashboard_main.scheduler._run_cycle, daemon=True)
-    thread.start()
-    return {"status": "ok", "message": "cycle triggered"}
+    return JSONResponse(
+        {
+            "error": "scheduler control disabled from dashboard",
+            "read_only": True,
+        },
+        status_code=403,
+    )
 
 
 async def api_control(action: str):

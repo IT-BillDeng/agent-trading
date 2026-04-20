@@ -1293,19 +1293,39 @@ async def api_execution_state_reset():
 VALID_TRADING_MODES = {"off", "signals", "trade"}
 
 
-@app.get("/api/trading/mode")
-async def api_trading_mode_get():
-    """Get current trading mode."""
-    state = _read_control_state()
+def _trading_mode_payload(state: dict[str, Any]) -> dict[str, Any]:
     canonical_mode = state.get("global", {}).get("mode", "off")
     mode = canonical_mode_to_legacy_ui_mode(canonical_mode)
+    risk_cfg = state.get("risk", {}) if isinstance(state.get("risk"), dict) else {}
+    reduce_only = bool(risk_cfg.get("reduce_only", False))
+    emergency_flatten = bool(risk_cfg.get("emergency_flatten", False))
+    if emergency_flatten:
+        risk_state = "emergency_flatten"
+        risk_label = "紧急平仓"
+    elif reduce_only:
+        risk_state = "reduce_only"
+        risk_label = "只减仓"
+    else:
+        risk_state = "normal"
+        risk_label = "正常"
     return {
         "mode": mode,
         "canonical_mode": canonical_mode,
         "locked": state.get("locked", False),
         "signal_generation": mode != "off",
         "order_submission": mode == "trade",
+        "reduce_only": reduce_only,
+        "reduce_only_reason": risk_cfg.get("reduce_only_reason"),
+        "emergency_flatten": emergency_flatten,
+        "risk_state": risk_state,
+        "risk_label": risk_label,
     }
+
+
+@app.get("/api/trading/mode")
+async def api_trading_mode_get():
+    """Get current trading mode."""
+    return _trading_mode_payload(_read_control_state())
 
 
 @app.post("/api/trading/mode")
@@ -1320,12 +1340,10 @@ async def api_trading_mode_set(body: dict):
     canonical_mode = legacy_ui_mode_to_canonical_mode(mode)
     control = ControlPlane(RUNTIME_DIR / "state")
     state = control.set_mode(canonical_mode, updated_by="dashboard")
+    payload = _trading_mode_payload(state)
     return {
         "status": "ok",
-        "mode": mode,
-        "canonical_mode": state.get("global", {}).get("mode", canonical_mode),
-        "signal_generation": mode != "off",
-        "order_submission": mode == "trade",
+        **payload,
     }
 
 

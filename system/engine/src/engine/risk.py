@@ -132,6 +132,8 @@ class RiskManager:
             'daily_loss_locked': bool(risk_state.get('daily_loss_locked', False)),
             'daily_loss_pct': risk_state.get('daily_loss_pct'),
             'reduce_only': bool(risk_state.get('reduce_only', False)),
+            'reduce_only_reason': risk_state.get('reduce_only_reason'),
+            'emergency_flatten': bool(risk_state.get('emergency_flatten', False)),
             'projected_total_trades': projected_total_trades,
             'projected_symbol_trades': int(projected_symbol_state.get(symbol, {}).get('trade_count', 0)),
         })
@@ -144,6 +146,10 @@ class RiskManager:
             reasons.append('market_not_regular_session')
 
         if action == 'BUY':
+            if risk_state.get('emergency_flatten', False):
+                reasons.append('emergency_flatten_active')
+            if risk_state.get('reduce_only', False) and risk_state.get('reduce_only_reason') != 'daily_loss_limit_exceeded':
+                reasons.append('reduce_only_active')
             if risk_state.get('daily_loss_locked', False):
                 reasons.append('daily_loss_limit_exceeded')
             reasons.extend(

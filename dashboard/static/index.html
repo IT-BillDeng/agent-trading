@@ -1151,9 +1151,17 @@
             const watchlistCount = Object.keys(watchlistMap || {}).length;
 
             document.getElementById('summary-cycle').textContent = cycle.cycle_id || '暂无最新 cycle';
-            document.getElementById('summary-lock').innerHTML = control.locked
-                ? '<span class="text-red-400">已锁定</span><span class="text-xs text-gray-500 ml-2">' + escapeHtml(control.reason || '') + '</span>'
-                : '<span class="text-green-400">未锁定</span>';
+            const riskBadges = [];
+            if (mode.emergency_flatten) {
+                riskBadges.push('<span class="text-red-400">🚨 紧急平仓</span>');
+            } else if (mode.reduce_only) {
+                riskBadges.push('<span class="text-yellow-400">⚠️ 只减仓</span>');
+            }
+            document.getElementById('summary-lock').innerHTML = (
+                control.locked
+                    ? '<span class="text-red-400">已锁定</span><span class="text-xs text-gray-500 ml-2">' + escapeHtml(control.reason || '') + '</span>'
+                    : '<span class="text-green-400">未锁定</span>'
+            ) + (riskBadges.length ? '<div class="text-xs mt-1">' + riskBadges.join(' ') + '</div>' : '');
             document.getElementById('summary-refresh').textContent = system.last_updated ? ago(system.last_updated) : '暂无刷新记录';
             document.getElementById('summary-coverage').textContent = `${positionsCount} 持仓 / ${watchlistCount} 自选`;
             document.getElementById('summary-signals').innerHTML = `${signals.length} 条 <span class="text-green-400 ml-1">${buys} BUY</span> <span class="text-red-400 ml-2">${exits} EXIT</span>`;
@@ -1637,9 +1645,16 @@
                 if (data.control_state) {
                     const ctrl = data.control_state;
                     const locked = ctrl.locked;
+                    const risk = ctrl.risk || {};
+                    const statusBits = [];
+                    if (risk.emergency_flatten) {
+                        statusBits.push('<span class="text-red-400">🚨 紧急平仓</span>');
+                    } else if (risk.reduce_only) {
+                        statusBits.push('<span class="text-yellow-400">⚠️ 只减仓</span>');
+                    }
                     document.getElementById('engine-control').innerHTML = locked
-                        ? '<span class="text-red-400">🔒 已锁定</span><div class="text-xs text-gray-500">' + (ctrl.reason || '') + '</div>'
-                        : '<span class="text-green-400">🔓 正常</span>';
+                        ? '<span class="text-red-400">🔒 已锁定</span><div class="text-xs text-gray-500">' + (ctrl.reason || '') + '</div>' + (statusBits.length ? '<div class="text-xs mt-1">' + statusBits.join(' ') + '</div>' : '')
+                        : '<span class="text-green-400">🔓 正常</span>' + (statusBits.length ? '<div class="text-xs mt-1">' + statusBits.join(' ') + '</div>' : '');
                 } else {
                     document.getElementById('engine-control').textContent = '无状态';
                 }

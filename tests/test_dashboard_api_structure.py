@@ -111,6 +111,42 @@ with mock.patch.dict(
 
 
 class DashboardApiStructureTests(unittest.TestCase):
+    def test_trading_mode_get_exposes_reduce_only_and_emergency_flags(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            runtime_dir = Path(tmpdir) / "runtime" / "engine"
+            state_dir = runtime_dir / "state"
+            state_dir.mkdir(parents=True)
+
+            (state_dir / "control_state.json").write_text(
+                json.dumps(
+                    {
+                        "locked": False,
+                        "reason": None,
+                        "global": {"enabled": True, "mode": "paper_trade"},
+                        "markets": {"US": True},
+                        "symbols": {},
+                        "risk": {
+                            "reduce_only": True,
+                            "reduce_only_reason": "manual_reduce_only",
+                            "emergency_flatten": True,
+                            "daily_loss_locked": False,
+                        },
+                        "history": [],
+                    },
+                    ensure_ascii=False,
+                )
+            )
+
+            with mock.patch.object(dashboard_main, "RUNTIME_DIR", runtime_dir):
+                result = asyncio.run(dashboard_main.api_trading_mode_get())
+
+            self.assertEqual(result["mode"], "trade")
+            self.assertEqual(result["canonical_mode"], "paper_trade")
+            self.assertTrue(result["reduce_only"])
+            self.assertEqual(result["reduce_only_reason"], "manual_reduce_only")
+            self.assertTrue(result["emergency_flatten"])
+            self.assertEqual(result["risk_state"], "emergency_flatten")
+
     def test_api_control_only_handles_lock_and_unlock(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             runtime_dir = Path(tmpdir) / "runtime" / "engine"

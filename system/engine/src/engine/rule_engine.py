@@ -19,6 +19,7 @@ from .indicators import (
     bar_range_pct,
     volume_ratio as calc_volume_ratio,
 )
+from .signal_arbiter import SignalArbiter
 
 
 @dataclass
@@ -31,6 +32,7 @@ class RuleSignal:
     order_type: str
     score: int
     reason: str
+    priority: int | None
     stop_loss: float | None
     take_profit: float | None
     last_close: float | None
@@ -461,6 +463,7 @@ class RuleEngine:
         self.rules_path = Path(rules_path)
         self.indicator_calc = IndicatorCalculator()
         self.condition_eval = ConditionEvaluator(self.indicator_calc)
+        self.signal_arbiter = SignalArbiter()
         self.rules_config = self._load_rules()
     
     def _load_rules(self) -> dict[str, Any]:
@@ -500,7 +503,8 @@ class RuleEngine:
             if signal:
                 signals.append(signal)
         
-        return signals
+        final_signal = self.signal_arbiter.choose(signals)
+        return [final_signal] if final_signal else []
     
     def _rule_applies(self, rule: dict[str, Any], symbol: str, market: str) -> bool:
         """检查规则是否适用于标的"""
@@ -521,6 +525,7 @@ class RuleEngine:
                        bars: list[dict[str, Any]], position: dict[str, Any] | None) -> RuleSignal | None:
         """评估单条规则"""
         rule_id = rule.get('rule_id', 'unknown')
+        priority = int(rule.get('priority', 999999))
         
         # 检查数据充足性
         min_bars = self._get_min_bars_required(rule)
@@ -533,6 +538,7 @@ class RuleEngine:
                 order_type='LMT',
                 score=0,
                 reason=f'insufficient_bars ({len(bars)}/{min_bars})',
+                priority=priority,
                 stop_loss=None,
                 take_profit=None,
                 last_close=bars[-1]['close'] if bars else None,
@@ -557,6 +563,7 @@ class RuleEngine:
                         order_type=exit_config.get('order_type', 'MKT'),
                         score=1,
                         reason=f'exit_condition_met',
+                        priority=priority,
                         stop_loss=None,
                         take_profit=None,
                         last_close=last_close,
@@ -592,6 +599,7 @@ class RuleEngine:
                         order_type=entry_config.get('order_type', 'LMT'),
                         score=1,
                         reason=f'entry_condition_met',
+                        priority=priority,
                         stop_loss=stop_loss,
                         take_profit=take_profit,
                         last_close=last_close,
@@ -609,6 +617,7 @@ class RuleEngine:
             order_type='LMT',
             score=0,
             reason='no_condition_met',
+            priority=priority,
             stop_loss=None,
             take_profit=None,
             last_close=last_close,

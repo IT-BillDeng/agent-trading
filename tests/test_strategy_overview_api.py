@@ -1,10 +1,112 @@
 import json
+import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest import mock
 
-from dashboard import main as dashboard_main
+
+class _FakeFastAPI:
+    def __init__(self, *args, **kwargs):
+        self.routes = []
+
+    def middleware(self, *args, **kwargs):
+        def decorator(fn):
+            return fn
+        return decorator
+
+    def mount(self, *args, **kwargs):
+        return None
+
+    def get(self, *args, **kwargs):
+        def decorator(fn):
+            return fn
+        return decorator
+
+    post = get
+    put = get
+    patch = get
+    delete = get
+
+
+class _FakeUploadFile:
+    filename = ""
+
+    async def read(self):
+        return b""
+
+
+class _FakeJSONResponse(dict):
+    def __init__(self, content, status_code=200):
+        super().__init__(content)
+        self.status_code = status_code
+
+
+class _FakeStaticFiles:
+    def __init__(self, *args, **kwargs):
+        pass
+
+
+fake_fastapi = types.ModuleType("fastapi")
+fake_fastapi.FastAPI = _FakeFastAPI
+fake_fastapi.Form = lambda default=None, **kwargs: default
+fake_fastapi.File = lambda default=None, **kwargs: default
+fake_fastapi.UploadFile = _FakeUploadFile
+
+fake_fastapi_responses = types.ModuleType("fastapi.responses")
+fake_fastapi_responses.FileResponse = object
+fake_fastapi_responses.JSONResponse = _FakeJSONResponse
+
+fake_fastapi_staticfiles = types.ModuleType("fastapi.staticfiles")
+fake_fastapi_staticfiles.StaticFiles = _FakeStaticFiles
+
+fake_pydantic = types.ModuleType("pydantic")
+fake_pydantic.BaseModel = object
+
+fake_broker_client = types.ModuleType("dashboard.broker_client")
+fake_broker_client.BrokerClient = type("BrokerClient", (), {})
+
+fake_tiger_client = types.ModuleType("dashboard.tiger_client")
+fake_tiger_client.TigerClient = object
+
+fake_data_cache = types.ModuleType("dashboard.data_cache")
+fake_data_cache.DataCache = object
+
+fake_quote_provider = types.ModuleType("dashboard.quote_provider")
+fake_quote_provider.get_quote_provider = lambda *args, **kwargs: None
+
+fake_scheduler = types.ModuleType("dashboard.scheduler")
+fake_scheduler.SignalScheduler = object
+
+fake_normalize = types.ModuleType("dashboard.normalize")
+fake_normalize.get_normalizer = lambda *args, **kwargs: None
+fake_normalize.available_brokers = lambda: []
+
+fake_service_logs = types.ModuleType("dashboard.service_logs")
+fake_service_logs.append_service_log = lambda *args, **kwargs: None
+
+fake_trading_day = types.ModuleType("dashboard.trading_day")
+fake_trading_day.get_us_trading_day_status = lambda *args, **kwargs: {}
+
+with mock.patch.dict(
+    sys.modules,
+    {
+        "fastapi": fake_fastapi,
+        "fastapi.responses": fake_fastapi_responses,
+        "fastapi.staticfiles": fake_fastapi_staticfiles,
+        "pydantic": fake_pydantic,
+        "dashboard.broker_client": fake_broker_client,
+        "dashboard.tiger_client": fake_tiger_client,
+        "dashboard.data_cache": fake_data_cache,
+        "dashboard.quote_provider": fake_quote_provider,
+        "dashboard.scheduler": fake_scheduler,
+        "dashboard.normalize": fake_normalize,
+        "dashboard.service_logs": fake_service_logs,
+        "dashboard.trading_day": fake_trading_day,
+    },
+):
+    from dashboard import main as dashboard_main
 
 
 class StrategyOverviewApiTests(unittest.TestCase):
@@ -18,6 +120,7 @@ class StrategyOverviewApiTests(unittest.TestCase):
             latest_dir = logs_root / "latest"
             strategist_logs_dir = logs_root / "agents" / "strategist" / "iterations"
             broker_artifacts_dir = root / "artifacts" / "broker"
+            strategist_artifacts_dir = root / "artifacts" / "strategist"
 
             (config_dir).mkdir(parents=True)
             (runtime_dir / "state").mkdir(parents=True)
@@ -26,6 +129,7 @@ class StrategyOverviewApiTests(unittest.TestCase):
             latest_dir.mkdir(parents=True)
             strategist_logs_dir.mkdir(parents=True)
             broker_artifacts_dir.mkdir(parents=True)
+            strategist_artifacts_dir.mkdir(parents=True)
 
             (config_dir / "app_config.docker.json").write_text(json.dumps({
                 "mode": "paper",
@@ -83,6 +187,21 @@ class StrategyOverviewApiTests(unittest.TestCase):
                         {"rule_id": "bollinger_breakout", "symbol": "MSFT", "market": "US", "action": "EXIT", "score": 1, "reason": "exit_condition_met", "order_type": "MKT", "last_close": 411.27},
                         {"rule_id": "rsi_reversal", "symbol": "MSFT", "market": "US", "action": "HOLD", "score": 0, "reason": "no_condition_met", "order_type": "LMT", "last_close": 411.27},
                     ],
+                },
+                "data_health": {
+                    "AAPL": {
+                        "market": "US",
+                        "provider": "yfinance",
+                        "quote_status": "delayed",
+                        "contract_status": "ok",
+                        "raw_bars_count": 0,
+                        "normalized_bars_count": 0,
+                        "required_bars": 25,
+                        "latest_bar_time": None,
+                        "timeframe": "30min",
+                        "strategy_ready": False,
+                        "reason": "bars_empty",
+                    }
                 },
                 "quote_access": {"US": True},
                 "market_state": {"US": {"state": "OPEN"}},
@@ -150,6 +269,9 @@ class StrategyOverviewApiTests(unittest.TestCase):
                 mock.patch.object(dashboard_main, "LOGS_ROOT", logs_root), \
                 mock.patch.object(dashboard_main, "LATEST_LOG_DIR", latest_dir), \
                 mock.patch.object(dashboard_main, "BROKER_ARTIFACTS_DIR", broker_artifacts_dir), \
+                mock.patch.object(dashboard_main, "STRATEGIST_ARTIFACTS_DIR", strategist_artifacts_dir), \
+                mock.patch.object(dashboard_main, "STRATEGIST_MEMORY_DIR", strategist_artifacts_dir / "memory"), \
+                mock.patch.object(dashboard_main, "STRATEGIST_ITERATIONS_ARTIFACT_DIR", strategist_artifacts_dir / "iterations"), \
                 mock.patch.object(dashboard_main, "STRATEGIST_ITERATIONS_LOG_DIR", strategist_logs_dir):
                 overview = dashboard_main._build_strategy_overview()
 
@@ -169,6 +291,8 @@ class StrategyOverviewApiTests(unittest.TestCase):
             self.assertEqual(overview["fee_calibration"]["count"], 1)
             self.assertAlmostEqual(overview["fee_calibration"]["avg_delta"], -0.04, places=6)
             self.assertEqual(overview["fee_calibration"]["trust"]["label"], "观察")
+            self.assertIn("AAPL", overview["data_health"])
+            self.assertEqual(overview["data_health"]["AAPL"]["reason"], "bars_empty")
             self.assertTrue((latest_dir / "strategy_overview.json").exists())
 
 

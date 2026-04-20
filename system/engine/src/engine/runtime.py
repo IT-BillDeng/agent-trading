@@ -20,6 +20,12 @@ from .broker_client import BrokerClient
 from .state import TradeLimitStore
 
 
+SUPPORTED_PROVIDER_TIMEFRAMES: dict[str, set[str]] = {
+    "tiger": {"1min", "5min", "15min", "30min", "1hour", "1day", "1week", "1month"},
+    "yfinance": {"1min", "5min", "15min", "30min", "60min", "1day"},
+}
+
+
 def _unwrap_data(resp: dict[str, Any]) -> Any:
     body = resp.get('body', {})
     data = body.get('data')
@@ -76,6 +82,197 @@ def _quote_status(resp: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _response_ok(resp: dict[str, Any] | None) -> bool:
+    if not isinstance(resp, dict):
+        return False
+    body = resp.get("body", {})
+    return resp.get("http_status", 500) < 400 and body.get("code") == 0
+
+
+def _find_symbol_entry(resp: dict[str, Any] | None, symbol: str) -> dict[str, Any] | None:
+    data = _unwrap_data(resp or {}) or []
+    if not isinstance(data, list):
+        return None
+    for entry in data:
+        if isinstance(entry, dict) and entry.get("symbol") == symbol:
+            return entry
+    return None
+
+
+def _latest_bar_time(bars: list[dict[str, Any]]) -> str | None:
+    if not bars:
+        return None
+    last_bar = bars[-1]
+    for key in ("time", "timestamp", "date", "datetime"):
+        value = last_bar.get(key)
+        if value:
+            return str(value)
+    return None
+
+
+def _market_closed(market_state: Any) -> bool:
+    candidates: list[str] = []
+    if isinstance(market_state, list):
+        for item in market_state:
+            if isinstance(item, dict):
+                candidates.extend(
+                    str(item.get(key, "")).strip().lower()
+                    for key in ("marketStatus", "status", "state")
+                    if item.get(key) is not None
+                )
+    elif isinstance(market_state, dict):
+        candidates.extend(
+            str(market_state.get(key, "")).strip().lower()
+            for key in ("marketStatus", "status", "state")
+            if market_state.get(key) is not None
+        )
+    return any("closed" in value for value in candidates)
+
+
+def _symbol_disabled_reason(app: AppConfig, market: str, symbol: str) -> str | None:
+    control_path = _state_dir(app) / "control_state.json"
+    if not control_path.exists():
+        return None
+    try:
+        state = json.loads(control_path.read_text())
+    except Exception:
+        return None
+
+    markets_cfg = state.get("markets", {})
+    if isinstance(markets_cfg, dict) and not markets_cfg.get(market, True):
+        return "symbol_disabled"
+
+    symbols_cfg = state.get("symbols", {})
+    if not isinstance(symbols_cfg, dict):
+        return None
+    symbol_cfg = symbols_cfg.get(symbol, True)
+    if isinstance(symbol_cfg, dict):
+        if not symbol_cfg.get("enabled", True) or symbol_cfg.get("suspended", False):
+            return "symbol_disabled"
+        return None
+    if not bool(symbol_cfg):
+        return "symbol_disabled"
+    return None
+
+
+def _legacy_required_bars(app: AppConfig) -> int:
+    signal = app.signal
+    return max(
+        int(signal.get("fast_sma", 5)),
+        int(signal.get("slow_sma", 10)),
+        int(signal.get("trend_sma", 20)),
+        4,
+    )
+
+
+def _required_bars_for_symbol(
+    app: AppConfig,
+    symbol: str,
+    market: str,
+    *,
+    engine_type: str,
+    rule_engine: RuleEngine | None,
+) -> int:
+    if engine_type == "rule_engine" and rule_engine is not None:
+        applicable_rules = [
+            rule
+            for rule in rule_engine.get_enabled_rules()
+            if rule_engine._rule_applies(rule, symbol, market)
+        ]
+        if applicable_rules:
+            return max(rule_engine._get_min_bars_required(rule) for rule in applicable_rules)
+    return _legacy_required_bars(app)
+
+
+def _build_data_health_report(
+    raw: dict[str, Any],
+    summary: dict[str, Any],
+    app: AppConfig,
+    *,
+    engine_type: str,
+    rule_engine: RuleEngine | None,
+    bars_by_symbol: dict[str, list[dict[str, Any]]],
+) -> dict[str, dict[str, Any]]:
+    provider = str(raw.get("_provider") or app.signal.get("provider") or app.broker_platform or "unknown")
+    supported_timeframes = SUPPORTED_PROVIDER_TIMEFRAMES.get(provider, set())
+    report: dict[str, dict[str, Any]] = {}
+
+    for item in app.symbols:
+        symbol = item["symbol"]
+        market = item["market"]
+        bars_status = summary.get("quote_access", {}).get(market, {}).get("bars", {})
+        brief_status = summary.get("quote_access", {}).get(market, {}).get("brief", {})
+        delay_status = summary.get("quote_access", {}).get(market, {}).get("quote_delay", {})
+
+        quote_status = "unknown"
+        if bars_status.get("ok") is False or brief_status.get("ok") is False:
+            quote_status = "failed"
+        elif provider == "yfinance" or delay_status.get("ok"):
+            quote_status = "delayed"
+        elif bars_status.get("ok") or brief_status.get("ok"):
+            quote_status = "ok"
+
+        contract_resp = raw.get("contracts", {}).get(market, {}).get(symbol)
+        contract_data = summary.get("contracts", {}).get(market, {}).get(symbol)
+        if contract_resp is None or contract_data in (None, "", {}):
+            contract_status = "missing"
+        elif not _response_ok(contract_resp):
+            contract_status = "failed"
+        else:
+            contract_status = "ok"
+
+        bars_resp = raw.get("bars", {}).get(market)
+        bars_entry = _find_symbol_entry(bars_resp, symbol)
+        raw_items = bars_entry.get("items") if isinstance(bars_entry, dict) else None
+        raw_bars_count = len(raw_items) if isinstance(raw_items, list) else 0
+        normalized_bars = list(bars_by_symbol.get(symbol, []))
+        normalized_bars_count = len(normalized_bars)
+        latest_bar_time = _latest_bar_time(normalized_bars)
+        required_bars = _required_bars_for_symbol(
+            app,
+            symbol,
+            market,
+            engine_type=engine_type,
+            rule_engine=rule_engine,
+        )
+
+        reason: str | None = None
+        if supported_timeframes and app.timeframe not in supported_timeframes:
+            reason = "unsupported_timeframe"
+        elif _symbol_disabled_reason(app, market, symbol):
+            reason = "symbol_disabled"
+        elif bars_entry is not None and raw_items is not None and not isinstance(raw_items, list):
+            reason = "bars_normalization_failed"
+        elif bars_status.get("ok") is False or brief_status.get("ok") is False:
+            reason = "provider_error"
+        elif contract_status == "missing":
+            reason = "contract_missing"
+        elif contract_status == "failed":
+            reason = "provider_error"
+        elif normalized_bars_count == 0 and _market_closed(summary.get("market_state", {}).get(market)):
+            reason = "market_closed"
+        elif normalized_bars_count == 0:
+            reason = "bars_empty"
+        elif normalized_bars_count < required_bars:
+            reason = "insufficient_bars"
+
+        report[symbol] = {
+            "market": market,
+            "provider": provider,
+            "quote_status": quote_status,
+            "contract_status": contract_status,
+            "raw_bars_count": raw_bars_count,
+            "normalized_bars_count": normalized_bars_count,
+            "required_bars": required_bars,
+            "latest_bar_time": latest_bar_time,
+            "timeframe": app.timeframe,
+            "strategy_ready": reason is None,
+            "reason": reason or None,
+        }
+
+    return report
+
+
 def _cycle_id() -> str:
     return datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
 
@@ -121,6 +318,7 @@ def fetch_cycle_raw(client: BrokerClient, app: AppConfig) -> dict[str, Any]:
         symbols_by_market.setdefault(item['market'], []).append(item['symbol'])
 
     result: dict[str, Any] = {
+        '_provider': app.broker_platform,
         'accounts': client.get_accounts(),
         'assets': client.get_assets(),
         'positions': client.get_positions(),
@@ -246,7 +444,8 @@ def build_strategy_summary(raw: dict[str, Any], app: AppConfig) -> dict[str, Any
     
     signals = []
     engine_type = 'legacy'
-    
+    rule_engine: RuleEngine | None = None
+
     if use_rule_engine and rules_path:
         # Use new rule engine
         try:
@@ -274,12 +473,20 @@ def build_strategy_summary(raw: dict[str, Any], app: AppConfig) -> dict[str, Any
         # Use legacy strategy engine
         engine = StrategyEngine(app)
         signals = [signal.to_dict() for signal in engine.generate(bars_by_symbol=bars_by_symbol, positions=positions_map)]
-    
+
     summary['strategy'] = {
         'timeframe': app.timeframe,
         'signals': signals,
         'engine': engine_type,
     }
+    summary['data_health'] = _build_data_health_report(
+        raw,
+        summary,
+        app,
+        engine_type=engine_type,
+        rule_engine=rule_engine,
+        bars_by_symbol=bars_by_symbol,
+    )
     return summary
 
 
@@ -415,6 +622,7 @@ def fetch_cycle_raw_with_provider(client: BrokerClient | None, data: Any, app: A
 
     if client:
         result: dict[str, Any] = {
+            '_provider': getattr(data, 'name', app.broker_platform),
             'accounts': client.get_accounts(),
             'assets': client.get_assets(),
             'positions': client.get_positions(),
@@ -423,6 +631,7 @@ def fetch_cycle_raw_with_provider(client: BrokerClient | None, data: Any, app: A
         }
     else:
         result = {
+            '_provider': getattr(data, 'name', app.broker_platform),
             'accounts': {'http_status': 200, 'body': {'code': 0, 'data': {'items': []}}},
             'assets': {'http_status': 200, 'body': {'code': 0, 'data': {'items': []}}},
             'positions': {'http_status': 200, 'body': {'code': 0, 'data': {'items': []}}},

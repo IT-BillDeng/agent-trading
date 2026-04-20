@@ -996,6 +996,7 @@ def _build_strategy_overview() -> dict[str, Any]:
         "hold_count": signal_totals["HOLD"],
         "quote_access": cycle.get("quote_access"),
         "market_state": cycle.get("market_state"),
+        "data_health": cycle.get("data_health", {}),
     }
 
     fee_calibration = _safe_read_json(BROKER_ARTIFACTS_DIR / "fee_calibration_summary.json") or {}
@@ -1034,6 +1035,7 @@ def _build_strategy_overview() -> dict[str, Any]:
             "reason": control.get("reason"),
         },
         "latest_cycle": latest_cycle,
+        "data_health": cycle.get("data_health", {}),
         "rules_meta": _file_meta(RULES_FILE),
         "rules_summary": rules_summary,
         "signal_records": signal_records,

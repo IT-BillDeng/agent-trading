@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from math import floor
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
+
+from .control import ControlPlane
 
 
 @dataclass
@@ -24,11 +27,16 @@ class RiskDecision:
 class RiskManager:
     def __init__(self, app_config: dict[str, Any]):
         risk = dict(app_config.get('risk', {}))
+        system = dict(app_config.get('system', {}))
         self.max_order_notional_usd = float(risk.get('max_order_notional_usd', 10000))
         self.max_total_exposure_usd = float(risk.get('max_total_exposure_usd', 1000000))
         self.daily_loss_limit_pct = float(risk.get('daily_loss_limit_pct', 5))
         self.fx_rates_to_usd = dict(risk.get('fx_rates_to_usd', {'USD': 1.0}))
         self.disable_leverage = bool(risk.get('disable_leverage', False))
+        state_dir = Path(system.get('state_dir', './state'))
+        if not state_dir.is_absolute():
+            state_dir = Path(__file__).resolve().parents[2] / state_dir
+        self.control = ControlPlane(state_dir)
 
     def evaluate(
         self,
@@ -40,6 +48,7 @@ class RiskManager:
         active_orders_map: dict[str, dict[str, Any]],
     ) -> list[RiskDecision]:
         decisions: list[RiskDecision] = []
+        risk_state = self._refresh_daily_loss_state(asset_snapshot or {})
         current_exposure = self._estimate_current_exposure_usd(positions_map, contracts)
         projected_exposure = current_exposure
         for signal in signals:
@@ -51,6 +60,7 @@ class RiskManager:
                 positions_map=positions_map,
                 active_orders_map=active_orders_map,
                 current_exposure_usd=projected_exposure,
+                risk_state=risk_state,
             )
             decisions.append(decision)
             if decision.allowed and decision.action == 'BUY' and decision.estimated_notional_usd:
@@ -66,6 +76,7 @@ class RiskManager:
         positions_map: dict[str, dict[str, Any]],
         active_orders_map: dict[str, dict[str, Any]],
         current_exposure_usd: float,
+        risk_state: dict[str, Any],
     ) -> RiskDecision:
         symbol = signal['symbol']
         market = signal['market']
@@ -86,6 +97,9 @@ class RiskManager:
             'has_position': bool(position),
             'has_active_order': bool(active_order),
             'market_tradeable': self._market_tradeable(market_state.get(market)),
+            'daily_loss_locked': bool(risk_state.get('daily_loss_locked', False)),
+            'daily_loss_pct': risk_state.get('daily_loss_pct'),
+            'reduce_only': bool(risk_state.get('reduce_only', False)),
         })
 
         if action == 'HOLD':
@@ -96,6 +110,8 @@ class RiskManager:
             reasons.append('market_not_regular_session')
 
         if action == 'BUY':
+            if risk_state.get('daily_loss_locked', False):
+                reasons.append('daily_loss_limit_exceeded')
             if position:
                 reasons.append('position_already_exists')
             if active_order:
@@ -181,6 +197,51 @@ class RiskManager:
         reasons.append('unknown_action')
         return RiskDecision(symbol, market, action, False, 0, None, None, reasons, diagnostics)
 
+    def _refresh_daily_loss_state(self, asset_snapshot: dict[str, Any]) -> dict[str, Any]:
+        current_equity = self._optional_float(asset_snapshot.get('netLiquidation'))
+        state = self.control.status()
+        risk_state = dict(state.get('risk', {}))
+
+        if current_equity is None or current_equity <= 0:
+            return risk_state
+
+        trading_day = self._resolve_trading_day(asset_snapshot)
+        previous_day = risk_state.get('trading_day')
+        updates: dict[str, Any] = {}
+
+        if trading_day != previous_day:
+            updates = {
+                'trading_day': trading_day,
+                'day_start_equity_usd': current_equity,
+                'last_equity_usd': current_equity,
+                'daily_loss_pct': 0.0,
+                'daily_loss_locked': False,
+            }
+            if risk_state.get('reduce_only_reason') == 'daily_loss_limit_exceeded':
+                updates['reduce_only'] = False
+                updates['reduce_only_reason'] = None
+            return self.control.update_risk(updates, updated_by='risk_manager', action='daily_loss_reset')['risk']
+
+        day_start = self._optional_float(risk_state.get('day_start_equity_usd'))
+        if day_start is None or day_start <= 0:
+            day_start = current_equity
+            updates['day_start_equity_usd'] = current_equity
+            if not risk_state.get('trading_day'):
+                updates['trading_day'] = trading_day
+
+        daily_loss_pct = max(0.0, ((day_start - current_equity) / day_start) * 100.0) if day_start > 0 else 0.0
+        updates['last_equity_usd'] = current_equity
+        updates['daily_loss_pct'] = daily_loss_pct
+
+        if daily_loss_pct >= self.daily_loss_limit_pct and not risk_state.get('daily_loss_locked', False):
+            updates['daily_loss_locked'] = True
+            updates['reduce_only'] = True
+            updates['reduce_only_reason'] = 'daily_loss_limit_exceeded'
+
+        if updates:
+            return self.control.update_risk(updates, updated_by='risk_manager', action='daily_loss_update')['risk']
+        return risk_state
+
     def _size_buy(
         self,
         last_close: float,
@@ -262,3 +323,18 @@ class RiskManager:
             return False
         positive = ('TRADING', 'OPEN', 'MORNING', 'AFTERNOON')
         return any(word in status for word in positive) or 'trading' in market_status or 'open' in market_status
+
+    def _resolve_trading_day(self, asset_snapshot: dict[str, Any]) -> str:
+        for key in ('trading_day', 'tradingDay', 'date'):
+            value = asset_snapshot.get(key)
+            if value:
+                return str(value)[:10]
+        return datetime.now(timezone.utc).date().isoformat()
+
+    def _optional_float(self, value: Any) -> float | None:
+        if value in (None, ''):
+            return None
+        try:
+            return float(value)
+        except Exception:
+            return None

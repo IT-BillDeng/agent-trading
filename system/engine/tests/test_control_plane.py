@@ -49,8 +49,13 @@ class ControlPlaneSafetyTests(unittest.TestCase):
                 payload["risk"],
                 {
                     "reduce_only": False,
+                    "reduce_only_reason": None,
                     "emergency_flatten": False,
                     "daily_loss_locked": False,
+                    "trading_day": None,
+                    "day_start_equity_usd": None,
+                    "last_equity_usd": None,
+                    "daily_loss_pct": 0.0,
                 },
             )
 

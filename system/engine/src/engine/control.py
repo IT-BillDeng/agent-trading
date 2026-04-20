@@ -69,6 +69,12 @@ class ControlPlane:
         state['reason'] = reason
         state['updated_at'] = self._ts()
         state['updated_by'] = updated_by
+        risk_cfg = state.setdefault("risk", {})
+        if risk_cfg.get("daily_loss_locked"):
+            risk_cfg["daily_loss_locked"] = False
+            if risk_cfg.get("reduce_only_reason") == "daily_loss_limit_exceeded":
+                risk_cfg["reduce_only"] = False
+                risk_cfg["reduce_only_reason"] = None
         state.setdefault('history', []).append({
             'ts': state['updated_at'],
             'action': 'unlock',
@@ -98,6 +104,23 @@ class ControlPlane:
         return state
 
     def replace_state(self, state: dict[str, Any]) -> dict[str, Any]:
+        self._write(state)
+        return self._read()
+
+    def update_risk(self, updates: dict[str, Any], updated_by: str = "system", action: str = "risk_update") -> dict[str, Any]:
+        state = self._read()
+        risk_cfg = state.setdefault("risk", {})
+        risk_cfg.update(updates)
+        state["updated_at"] = self._ts()
+        state["updated_by"] = updated_by
+        state.setdefault("history", []).append(
+            {
+                "ts": state["updated_at"],
+                "action": action,
+                "risk_updates": dict(updates),
+                "updated_by": updated_by,
+            }
+        )
         self._write(state)
         return self._read()
 
@@ -142,8 +165,13 @@ class ControlPlane:
             'symbols': {},
             'risk': {
                 'reduce_only': False,
+                'reduce_only_reason': None,
                 'emergency_flatten': False,
                 'daily_loss_locked': False,
+                'trading_day': None,
+                'day_start_equity_usd': None,
+                'last_equity_usd': None,
+                'daily_loss_pct': 0.0,
             },
             'history': [],
         }
@@ -204,8 +232,13 @@ class ControlPlane:
             risk = {}
         normalized["risk"] = {
             "reduce_only": bool(risk.get("reduce_only", defaults["risk"]["reduce_only"])),
+            "reduce_only_reason": risk.get("reduce_only_reason", defaults["risk"]["reduce_only_reason"]),
             "emergency_flatten": bool(risk.get("emergency_flatten", defaults["risk"]["emergency_flatten"])),
             "daily_loss_locked": bool(risk.get("daily_loss_locked", defaults["risk"]["daily_loss_locked"])),
+            "trading_day": risk.get("trading_day", defaults["risk"]["trading_day"]),
+            "day_start_equity_usd": self._optional_float(risk.get("day_start_equity_usd", defaults["risk"]["day_start_equity_usd"])),
+            "last_equity_usd": self._optional_float(risk.get("last_equity_usd", defaults["risk"]["last_equity_usd"])),
+            "daily_loss_pct": float(risk.get("daily_loss_pct", defaults["risk"]["daily_loss_pct"]) or 0.0),
         }
 
         history = state.get("history")
@@ -228,8 +261,6 @@ class ControlPlane:
         mode = str(global_cfg.get("mode", "off"))
         if mode not in allowed_modes:
             return False, f"mode:{mode}"
-        if state.get("risk", {}).get("daily_loss_locked"):
-            return False, "risk_daily_loss_locked"
         if market:
             market_enabled = state.get("markets", {}).get(market, True)
             if not market_enabled:
@@ -249,3 +280,11 @@ class ControlPlane:
 
     def _ts(self) -> str:
         return datetime.now(timezone.utc).isoformat()
+
+    def _optional_float(self, value: Any) -> float | None:
+        if value in (None, ""):
+            return None
+        try:
+            return float(value)
+        except Exception:
+            return None

@@ -201,3 +201,28 @@
 - strategist 盘后快速读取
 - dashboard / strategy 页面直接展示
 - 主 agent 判断当前净收益模型是否仍可信
+
+## Fee Confidence Gate
+
+当 `artifacts/broker/fee_calibration_summary.json` 存在时，审批与应用链应读取其中的 `trust`，
+并归一化为：
+
+- `high`
+- `medium`（来自 `observe`）
+- `low`
+- `missing`
+
+建议 gate：
+
+- `high`：允许正常 hot / cold apply
+- `medium`：允许低换手策略调参；不允许新增高换手 BUY 规则
+- `low / missing`：不允许启用新 BUY 规则；只允许 `paper_shadow`、禁用规则、降低频率、降低仓位、收紧过滤器等降风险变更
+
+deployment record 应写入当时的 `fee_confidence_snapshot`，便于事后审计：
+
+- `confidence`
+- `label`
+- `reason`
+- `count`
+- `avg_delta`
+- `max_abs_delta`

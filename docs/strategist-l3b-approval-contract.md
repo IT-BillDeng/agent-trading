@@ -84,6 +84,8 @@
 - `hypothesis`
 - `target_files`
 - `change_summary`
+- `change_intent`
+- `turnover_profile`
 - `tests_passed`
 - `dry_run_passed`
 - `backtest_delta`
@@ -95,6 +97,16 @@
 
 - `recommended_update_mode` 取值：`hot | cold`
 - `requires_restart` 取值：`true | false`
+- `change_intent` 建议显式标记：
+  - `enable_new_buy_rule`
+  - `paper_shadow`
+  - `disable_rule`
+  - `reduce_risk`
+  - `lower_frequency`
+  - `lower_position_size`
+  - `tighten_filters`
+- `turnover_profile` 建议取值：
+  - `low | medium | high`
 - `status` 取值：
   - `draft`
   - `validated`
@@ -246,6 +258,22 @@
 
 - 必须有简洁的 rollback 说明
 - 必须标明是否需要 restart
+- 应结合 `artifacts/broker/fee_calibration_summary.json` 写入 fee confidence snapshot
+
+### Fee Confidence Gate
+
+审批 / apply 前应读取 `artifacts/broker/fee_calibration_summary.json`，并将其归一化为：
+
+- `high`
+- `medium`（来自 `observe`）
+- `low`
+- `missing`
+
+最低 gate：
+
+- `high`：允许正常参数 / 规则 apply
+- `medium`：允许低换手策略调参；不允许新增高换手 BUY 规则
+- `low / missing`：不允许启用新 BUY 规则；只允许 `paper_shadow`、禁用规则、降低频率、降低仓位、收紧过滤器等降风险变更
 
 ---
 
@@ -263,6 +291,7 @@
 
 - `hot` 更新：只改规则层文件
 - `cold` 更新：走重启 / reload / 重启容器流程
+- deployment record 应写入 `fee_confidence_snapshot`
 
 ---
 

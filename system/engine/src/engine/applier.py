@@ -19,6 +19,8 @@ def build_apply_plan(proposal_id: str, base_dir: str | Path | None = None) -> di
         "apply_action": gate["apply_action"],
         "target_files": gate["target_files"],
         "recommended_update_mode": record.get("recommended_update_mode", gate["update_mode"]),
+        "fee_confidence_snapshot": gate.get("fee_confidence_snapshot"),
+        "fee_confidence_gate": gate.get("fee_confidence_gate"),
     }
 
 
@@ -36,6 +38,7 @@ def apply_approved_proposal(
         "update_mode": plan["update_mode"],
         "requires_restart": plan["requires_restart"],
         "apply_action": plan["apply_action"],
+        "fee_confidence_snapshot": plan.get("fee_confidence_snapshot"),
         "success": True,
     }
 

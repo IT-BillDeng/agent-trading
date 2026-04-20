@@ -39,6 +39,16 @@ COLD_UPDATE_MARKERS = (
     "system/engine/src/engine/indicators.py",
 )
 
+SAFE_LOW_CONFIDENCE_CHANGE_INTENTS = {
+    "paper_shadow",
+    "disable_rule",
+    "reduce_risk",
+    "lower_frequency",
+    "lower_position_size",
+    "tighten_filter",
+    "tighten_filters",
+}
+
 
 def resolve_strategist_dir(base_dir: str | Path | None = None) -> Path:
     return resolve_artifacts_root(base_dir) / "strategist"
@@ -67,6 +77,123 @@ def strategist_paths(base_dir: str | Path | None = None) -> dict[str, Path]:
         "rollback_notes": root / "rollback_notes.jsonl",
         "approval_decisions": root / "approval_decisions.jsonl",
         "deployment_records": root / "deployment_records.jsonl",
+    }
+
+
+def _broker_fee_summary_path(base_dir: str | Path | None = None) -> Path:
+    return resolve_artifacts_root(base_dir) / "broker" / "fee_calibration_summary.json"
+
+
+def _normalize_fee_confidence_level(level: str | None) -> str:
+    value = str(level or "").strip().lower()
+    if value == "high":
+        return "high"
+    if value in {"observe", "medium"}:
+        return "medium"
+    if value == "low":
+        return "low"
+    return "missing"
+
+
+def load_fee_confidence_snapshot(base_dir: str | Path | None = None) -> dict[str, Any]:
+    path = _broker_fee_summary_path(base_dir)
+    if not path.exists():
+        return {
+            "confidence": "missing",
+            "label": "缺失",
+            "reason": "fee calibration summary missing",
+            "trust": None,
+            "summary_path": str(path),
+        }
+
+    payload = json.loads(path.read_text())
+    trust = payload.get("trust", {}) if isinstance(payload, dict) else {}
+    level = _normalize_fee_confidence_level(trust.get("level"))
+    labels = {
+        "high": "可信",
+        "medium": "观察",
+        "low": "不可信",
+        "missing": "缺失",
+    }
+    return {
+        "confidence": level,
+        "label": labels[level],
+        "reason": trust.get("reason") or "fee calibration trust unavailable",
+        "trust": trust or None,
+        "count": payload.get("count") if isinstance(payload, dict) else None,
+        "avg_delta": payload.get("avg_delta") if isinstance(payload, dict) else None,
+        "max_abs_delta": payload.get("max_abs_delta") if isinstance(payload, dict) else None,
+        "summary_path": str(path),
+    }
+
+
+def _proposal_change_intent(record: dict[str, Any]) -> str:
+    return str(record.get("change_intent") or "").strip().lower()
+
+
+def _proposal_turnover_profile(record: dict[str, Any]) -> str:
+    return str(record.get("turnover_profile") or "").strip().lower()
+
+
+def _requires_fee_confidence_gate(record: dict[str, Any], *, update_mode: str) -> bool:
+    return update_mode == "hot" and infer_update_mode(record) == "hot"
+
+
+def evaluate_fee_confidence_gate(
+    record: dict[str, Any],
+    fee_snapshot: dict[str, Any],
+    *,
+    update_mode: str,
+) -> dict[str, Any]:
+    confidence = fee_snapshot.get("confidence", "missing")
+    change_intent = _proposal_change_intent(record)
+    turnover_profile = _proposal_turnover_profile(record)
+
+    if not _requires_fee_confidence_gate(record, update_mode=update_mode):
+        return {
+            "allowed": True,
+            "reason": "not_fee_sensitive_apply",
+            "confidence": confidence,
+        }
+
+    if confidence == "high":
+        return {
+            "allowed": True,
+            "reason": "fee_confidence_high",
+            "confidence": confidence,
+        }
+
+    if not change_intent:
+        return {
+            "allowed": True,
+            "reason": "fee_sensitive_metadata_missing",
+            "confidence": confidence,
+        }
+
+    if change_intent in SAFE_LOW_CONFIDENCE_CHANGE_INTENTS:
+        return {
+            "allowed": True,
+            "reason": f"safe_change_intent:{change_intent}",
+            "confidence": confidence,
+        }
+
+    if confidence == "medium":
+        if change_intent == "enable_new_buy_rule" and turnover_profile == "low":
+            return {
+                "allowed": True,
+                "reason": "medium_confidence_low_turnover_only",
+                "confidence": confidence,
+            }
+        return {
+            "allowed": False,
+            "reason": "fee_confidence_medium_blocks_high_or_unknown_turnover",
+            "confidence": confidence,
+        }
+
+    return {
+        "allowed": False,
+        "reason": "fee_confidence_low_or_missing_blocks_enablement",
+        "confidence": confidence,
     }
 
 
@@ -153,6 +280,15 @@ def resolve_apply_gate(proposal_id: str, base_dir: str | Path | None = None) -> 
     if requires_restart is None:
         requires_restart = recommended_mode == "cold"
 
+    fee_confidence_snapshot = load_fee_confidence_snapshot(base_dir)
+    fee_gate = evaluate_fee_confidence_gate(
+        record,
+        fee_confidence_snapshot,
+        update_mode=recommended_mode,
+    )
+    if not fee_gate["allowed"]:
+        raise ValueError(f"fee confidence gate blocked apply: {fee_gate['reason']}")
+
     return {
         "proposal_id": proposal_id,
         "approved": True,
@@ -160,6 +296,8 @@ def resolve_apply_gate(proposal_id: str, base_dir: str | Path | None = None) -> 
         "requires_restart": bool(requires_restart),
         "apply_action": "apply_rules_only" if recommended_mode == "hot" else "require_restart",
         "target_files": record.get("target_files", []),
+        "fee_confidence_snapshot": fee_confidence_snapshot,
+        "fee_confidence_gate": fee_gate,
     }
 
 

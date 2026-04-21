@@ -10,6 +10,7 @@ services:
     build:
       context: .
       dockerfile: dashboard/Dockerfile
+      target: runtime
     container_name: agent-dashboard
     ports:
       - "8088:8088"
@@ -45,3 +46,12 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  test-runner:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+      target: test-runner
+    profiles: ["test"]
+    environment:
+      - TZ=${TZ:-Asia/Shanghai}

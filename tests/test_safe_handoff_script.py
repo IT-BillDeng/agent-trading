@@ -54,11 +54,7 @@ class SafeHandoffScriptTests(unittest.TestCase):
         (repo_root / "system" / "engine" / "src" / "engine" / "__pycache__").mkdir(parents=True)
         (repo_root / "system" / "engine" / "src" / "engine" / "__pycache__" / "rule_engine.pyc").write_bytes(b"pyc")
 
-        script_path = (
-            Path("/Users/openclaw/.openclaw/workspace-yuuka/agent-trading")
-            / "scripts"
-            / "make_safe_handoff.sh"
-        )
+        script_path = Path(__file__).resolve().parents[1] / "scripts" / "make_safe_handoff.sh"
         result = subprocess.run(
             ["bash", str(script_path), str(repo_root), str(output_dir)],
             capture_output=True,

@@ -20,6 +20,12 @@ class StrategyPageStructureTests(unittest.TestCase):
         self.assertIn("approveProposal(", html)
         self.assertIn("rejectProposal(", html)
 
+    def test_strategy_page_prefers_canonical_mode_display(self):
+        html = STRATEGY_PAGE.read_text(encoding="utf-8")
+        self.assertIn("data.control.canonical_mode", html)
+        self.assertIn("paper_trade", html)
+        self.assertIn("live_trade", html)
+
     def test_strategy_page_contains_symbol_profile_and_attribution_sections(self):
         html = STRATEGY_PAGE.read_text(encoding="utf-8")
         self.assertIn("Symbol Profiles", html)

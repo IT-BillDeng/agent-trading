@@ -204,11 +204,17 @@ class DashboardApiStructureTests(unittest.TestCase):
                 result = asyncio.run(dashboard_main.api_trading_mode_get())
 
             self.assertEqual(result["mode"], "trade")
+            self.assertEqual(result["legacy_mode"], "trade")
             self.assertEqual(result["canonical_mode"], "paper_trade")
             self.assertTrue(result["reduce_only"])
             self.assertEqual(result["reduce_only_reason"], "manual_reduce_only")
             self.assertTrue(result["emergency_flatten"])
             self.assertEqual(result["risk_state"], "emergency_flatten")
+            self.assertTrue(result["signal_generation_enabled"])
+            self.assertTrue(result["paper_execution_enabled"])
+            self.assertFalse(result["live_execution_enabled"])
+            self.assertFalse(result["live_submission_ready"])
+            self.assertFalse(result["order_submission"])
             self.assertIn("live_readiness", result)
 
     def test_live_trade_requires_readiness_checklist(self):

@@ -3,41 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agent Trading Strategy Hub</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#11111b">
+    <title>Agent Trading · 策略</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        sakura: { 50: '#fff1f5', 500: '#ec4899', 600: '#db2777', 700: '#be185d' },
-                        dark: { 800: '#1e1e2e', 900: '#11111b', 950: '#0b0b12' }
-                    }
-                }
-            }
-        }
-    </script>
+    <script src="/static/dashboard-head.js"></script>
+    <script src="/static/header-status.js"></script>
+    <link rel="stylesheet" href="/static/dashboard-base.css">
     <style>
-        body { font-family: 'Inter', -apple-system, sans-serif; }
-        .card {
-            background-color: #2a2a3c;
-            border-radius: 0.75rem;
-            padding: 1rem;
-            border: 1px solid rgba(107, 114, 128, 0.5);
-        }
-        .card-title {
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: #9ca3af;
-            margin-bottom: 0.75rem;
-        }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
-        .mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
-        .badge { display: inline-flex; align-items: center; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; line-height: 1rem; border: 1px solid transparent; white-space: nowrap; }
     </style>
 </head>
 <body class="bg-dark-900 text-gray-100 min-h-screen">
@@ -51,13 +25,26 @@
                 <a href="/logs" class="px-2 py-1 rounded bg-gray-800/60 text-gray-400 hover:text-gray-200 border border-gray-700/60">日志</a>
             </nav>
         </div>
-        <div class="flex items-center gap-2 text-xs">
+        <div class="flex items-center gap-4 text-sm">
+            <span id="market-status-us" class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-gray-500"></span>
+                <span class="text-gray-400">美股</span>
+            </span>
+            <span id="market-session" class="text-xs text-gray-400">--</span>
+            <span id="et-time" class="text-xs text-gray-500 font-mono"></span>
+        </div>
+        <div class="flex items-center gap-4 text-xs">
+            <span id="trading-mode-badge" class="text-xs px-2 py-0.5 rounded bg-gray-600/30 text-gray-400 font-medium">--</span>
             <button onclick="refreshAll()" class="px-3 py-1.5 rounded bg-sakura-600 hover:bg-sakura-700 text-white border border-sakura-700/60">刷新</button>
             <label class="flex items-center gap-1 text-gray-400">
                 <input type="checkbox" id="auto-refresh" class="accent-sakura-500" onchange="toggleAutoRefresh()" checked>
                 自动
             </label>
-            <span id="page-status" class="text-gray-500">--</span>
+            <span id="refresh-status" class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-gray-500"></span>
+                <span class="text-gray-400">--</span>
+            </span>
+            <span id="last-update" class="text-gray-500">上次更新: --</span>
         </div>
     </header>
 
@@ -464,6 +451,12 @@
             return n.toFixed(digits);
         }
 
+        function fmtPct(value, digits = 2) {
+            const n = Number(value);
+            if (!Number.isFinite(n)) return '--';
+            return (n * 100).toFixed(digits) + '%';
+        }
+
         function pnlClass(value) {
             const n = Number(value);
             if (!Number.isFinite(n)) return 'text-gray-200';
@@ -530,6 +523,17 @@
             return `<span class="badge ${cls}">${escapeHtml(value)}</span>`;
         }
 
+        function canonicalModeLabel(mode) {
+            const value = String(mode || '').toLowerCase();
+            const labels = {
+                off: 'off',
+                signal_only: 'signal_only',
+                paper_trade: 'paper_trade',
+                live_trade: 'live_trade',
+            };
+            return labels[value] || (mode || '--');
+        }
+
         function renderSummary(data) {
             const rules = data.rules_summary || [];
             const enabled = rules.filter(r => r.enabled).length;
@@ -543,7 +547,9 @@
             document.getElementById('stat-adjustments').textContent = fmtNumber(adjustments);
 
             const meta = [];
-            if (data.control) meta.push(`模式: ${data.control.trading_mode || '--'}${data.control.locked ? ' / 已锁定' : ''}`);
+            if (data.control) {
+                meta.push(`模式: ${canonicalModeLabel(data.control.canonical_mode || data.control.trading_mode)}${data.control.locked ? ' / 已锁定' : ''}`);
+            }
             if (cycle.cycle_id) meta.push(`cycle: ${cycle.cycle_id}`);
             if (data.config) meta.push(`timeframe: ${data.config.timeframe || '--'}`);
             document.getElementById('strategy-meta').textContent = meta.join(' | ') || '--';
@@ -895,8 +901,9 @@
                 return;
             }
 
-            const readyCount = entries.filter(([, item]) => item?.strategy_ready).length;
-            meta.textContent = `${readyCount}/${entries.length} ready`;
+            const strategyReadyCount = entries.filter(([, item]) => item?.strategy_ready).length;
+            const actionableReadyCount = entries.filter(([, item]) => item?.actionable_ready).length;
+            meta.textContent = `${strategyReadyCount}/${entries.length} strategy ready · ${actionableReadyCount}/${entries.length} actionable`;
 
             body.innerHTML = entries.map(([symbol, item]) => {
                 const quoteTone = item.quote_status === 'failed'
@@ -912,20 +919,47 @@
                         ? 'warn'
                         : 'bad';
                 const barsLabel = `${fmtNumber(item.normalized_bars_count || 0)} / ${fmtNumber(item.required_bars || 0)}`;
+                const extended = item.extended_context || {};
+                const latestRaw = item.latest_raw_bar_time || '--';
+                const latestRegular = item.latest_regular_bar_time || '--';
+                const actionableTone = item.actionable_ready ? 'good' : 'warn';
+                const actionableReason = item.actionable_block_reason || '--';
+                const completeLabel = item.latest_regular_bar_is_complete ? 'complete' : 'partial/stale';
+                const staleLabel = item.latest_regular_bar_is_stale ? 'stale' : 'fresh';
+                const firstBarLabel = item.first_regular_30m_bar_completed ? 'yes' : 'no';
 
                 return `
                     <tr class="border-b border-gray-700/30 hover:bg-dark-800/40">
                         <td class="px-3 py-2 font-medium text-gray-100">${escapeHtml(symbol)}</td>
-                        <td class="px-3 py-2 text-center">${smallBadge(item.provider || '--')}</td>
+                        <td class="px-3 py-2 text-center">
+                            ${smallBadge(item.provider || '--')}
+                            <div class="text-xs text-gray-500 mt-1">${escapeHtml(item.provider_path || '--')}</div>
+                        </td>
                         <td class="px-3 py-2 text-center">${smallBadge(item.quote_status || 'unknown', quoteTone)}</td>
                         <td class="px-3 py-2 text-center">${smallBadge(item.contract_status || 'unknown', contractTone)}</td>
                         <td class="px-3 py-2 text-right text-gray-200 whitespace-nowrap">
                             ${barsLabel}
-                            <div class="text-xs text-gray-500 mt-1">raw ${fmtNumber(item.raw_bars_count || 0)}</div>
+                            <div class="text-xs text-gray-500 mt-1">raw ${fmtNumber(item.raw_bars_count || 0)} · regular ${fmtNumber(item.regular_bars_count || 0)} · ext ${fmtNumber(item.extended_bars_count || 0)}</div>
                         </td>
-                        <td class="px-3 py-2 text-center text-gray-300 whitespace-nowrap">${escapeHtml(item.latest_bar_time || '--')}</td>
-                        <td class="px-3 py-2 text-center">${healthBadge(!!item.strategy_ready)}</td>
-                        <td class="px-3 py-2 text-gray-300">${escapeHtml(item.reason || '--')}</td>
+                        <td class="px-3 py-2 text-center text-gray-300 whitespace-nowrap">
+                            <div>${escapeHtml(latestRegular)}</div>
+                            <div class="text-xs text-gray-500 mt-1">raw ${escapeHtml(latestRaw)}</div>
+                            <div class="text-xs text-gray-500 mt-1">${escapeHtml(completeLabel)} · ${escapeHtml(staleLabel)} · first 30m ${escapeHtml(firstBarLabel)}</div>
+                        </td>
+                        <td class="px-3 py-2 text-center">
+                            ${healthBadge(!!item.strategy_ready)}
+                            <div class="mt-1">${smallBadge(item.actionable_ready ? 'actionable' : 'blocked', actionableTone)}</div>
+                        </td>
+                        <td class="px-3 py-2 text-gray-300">
+                            <div>${escapeHtml(item.reason || '--')}</div>
+                            <div class="text-xs text-gray-500 mt-1">actionable: ${escapeHtml(actionableReason)}</div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                ext provider ${escapeHtml(extended.provider || '--')} · pre ${fmtNumber(extended.premarket_bars_count || 0)} · post ${fmtNumber(extended.afterhours_bars_count || 0)}
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                gap ${fmtPct(extended.premarket_gap_pct)} · range ${fmtPct(extended.premarket_range_pct)} · post ${fmtPct(extended.afterhours_move_pct)} · overnight ${fmtPct(extended.overnight_return_pct)}
+                            </div>
+                        </td>
                     </tr>
                 `;
             }).join('');
@@ -1187,7 +1221,7 @@
         }
 
         async function refreshAll() {
-            document.getElementById('page-status').textContent = '刷新中...';
+            dashboardHeaderSetRefreshState('更新中', 'active');
             try {
                 const data = await fetch(API_BASE + '/api/strategy-overview').then(r => r.json());
                 if (data.error) throw new Error(data.error);
@@ -1201,10 +1235,11 @@
                 renderDataHealth(data);
                 renderBacktestAttribution(currentBacktestResult);
                 await refreshProposals();
-                document.getElementById('page-status').textContent = '已刷新 ' + new Date().toLocaleTimeString('zh-CN');
+                dashboardHeaderSetRefreshState('已刷新', 'ok');
+                await dashboardRefreshHeaderStatus(API_BASE, { lastUpdatedFallback: new Date().toISOString() });
             } catch (e) {
                 console.error(e);
-                document.getElementById('page-status').textContent = '刷新失败';
+                dashboardHeaderSetRefreshState('刷新失败', 'error');
             }
         }
 

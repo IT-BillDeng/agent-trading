@@ -3,43 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agent Trading Logs</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📜</text></svg>">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#11111b">
+    <title>Agent Trading · 日志</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        tiger: { 50: '#fff7ed', 500: '#f97316', 600: '#ea580c', 700: '#c2410c' },
-                        dark: { 800: '#1e1e2e', 900: '#11111b', 700: '#2a2a3c', 950: '#0b0b12' }
-                    }
-                }
-            }
-        }
-    </script>
+    <script src="/static/dashboard-head.js"></script>
+    <script src="/static/header-status.js"></script>
+    <link rel="stylesheet" href="/static/dashboard-base.css">
     <style>
-        body { font-family: 'Inter', -apple-system, sans-serif; }
-        .card {
-            background-color: #2a2a3c;
-            border-radius: 0.75rem;
-            padding: 1rem;
-            border: 1px solid rgba(107, 114, 128, 0.5);
-        }
-        .card-title {
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: #9ca3af;
-            margin-bottom: 0.75rem;
-        }
-        .positive { color: #22c55e; }
-        .negative { color: #ef4444; }
-        .neutral { color: #a1a1aa; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
-        .mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
         .log-row:hover { background: rgba(75, 85, 99, 0.15); }
     </style>
 </head>
@@ -54,13 +26,26 @@
                 <a href="/logs" class="px-2 py-1 rounded bg-gray-700/60 text-gray-200 border border-gray-600/60">日志</a>
             </nav>
         </div>
-        <div class="flex items-center gap-2 text-xs">
+        <div class="flex items-center gap-4 text-sm">
+            <span id="market-status-us" class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-gray-500"></span>
+                <span class="text-gray-400">美股</span>
+            </span>
+            <span id="market-session" class="text-xs text-gray-400">--</span>
+            <span id="et-time" class="text-xs text-gray-500 font-mono"></span>
+        </div>
+        <div class="flex items-center gap-4 text-xs">
+            <span id="trading-mode-badge" class="text-xs px-2 py-0.5 rounded bg-gray-600/30 text-gray-400 font-medium">--</span>
             <button onclick="refreshAll()" class="px-3 py-1.5 rounded bg-sakura-600 hover:bg-sakura-700 text-white border border-sakura-700/60">刷新</button>
             <label class="flex items-center gap-1 text-gray-400">
                 <input type="checkbox" id="auto-refresh" class="accent-sakura-500" onchange="toggleAutoRefresh()" checked>
                 自动
             </label>
-            <span id="page-status" class="text-gray-500">--</span>
+            <span id="refresh-status" class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-gray-500"></span>
+                <span class="text-gray-400">--</span>
+            </span>
+            <span id="last-update" class="text-gray-500">上次更新: --</span>
         </div>
     </header>
 
@@ -386,7 +371,7 @@
         }
 
         function refreshAll() {
-            document.getElementById('page-status').textContent = '刷新中...';
+            dashboardHeaderSetRefreshState('更新中', 'active');
             Promise.all([loadOverview(), loadLogsList()])
                 .then(() => currentLogName ? fetch(API_BASE + '/api/logs/' + encodeURIComponent(currentLogName) + '?lines=' + document.getElementById('log-lines').value)
                     .then(r => r.json())
@@ -397,10 +382,11 @@
                         }
                     }) : null)
                 .then(() => {
-                    document.getElementById('page-status').textContent = '已刷新 ' + new Date().toLocaleTimeString('zh-CN');
+                    dashboardHeaderSetRefreshState('已刷新', 'ok');
+                    return dashboardRefreshHeaderStatus(API_BASE, { lastUpdatedFallback: new Date().toISOString() });
                 })
                 .catch(err => {
-                    document.getElementById('page-status').textContent = '刷新失败';
+                    dashboardHeaderSetRefreshState('刷新失败', 'error');
                     console.error(err);
                 });
         }

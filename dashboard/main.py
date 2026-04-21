@@ -293,6 +293,7 @@ async def log_service_exceptions(request, call_next):
 # --- Static files ---
 
 STATIC_DIR = Path(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 def serve_static_html(filename: str):
@@ -782,11 +783,11 @@ def _build_strategy_overview() -> dict[str, Any]:
             "reason": signal.get("reason"),
             "order_type": signal.get("order_type"),
             "last_close": signal.get("last_close"),
-            "diagnostics": signal.get("diagnostics") if isinstance(signal.get("diagnostics"), dict) else {},
             "symbol_profile": signal.get("symbol_profile") or symbol_profiles.get(signal.get("symbol"), {}).get("profile"),
             "effective_config_hash": signal.get("effective_config_hash"),
             "effective_config_hashes": signal.get("effective_config_hashes", []),
             "overrides_applied": signal.get("overrides_applied", {}),
+            "diagnostics": signal.get("diagnostics") if isinstance(signal.get("diagnostics"), dict) else {},
         })
 
     signal_records.sort(
@@ -923,6 +924,17 @@ def _build_strategy_overview() -> dict[str, Any]:
             "recent": fee_calibration_entries[:8],
         }
 
+    control_global = control.get("global", {}) if isinstance(control.get("global"), dict) else {}
+    control_enabled = bool(control_global.get("enabled", True))
+    control_canonical_mode = control_global.get("mode") or legacy_ui_mode_to_canonical_mode(control.get("trading_mode", "off"))
+    live_readiness = control.get("live_readiness", {}) if isinstance(control.get("live_readiness"), dict) else {}
+    live_submission_ready = (
+        control_enabled
+        and control_canonical_mode == "live_trade"
+        and live_readiness.get("status") == "ready"
+        and not live_readiness.get("failed_items")
+    )
+
     overview = {
         "generated_at": datetime.now().isoformat(),
         "config": {
@@ -935,6 +947,12 @@ def _build_strategy_overview() -> dict[str, Any]:
         "control": {
             "locked": control.get("locked", False),
             "trading_mode": control.get("trading_mode", "off"),
+            "legacy_mode": control.get("trading_mode", "off"),
+            "canonical_mode": control_canonical_mode,
+            "signal_generation_enabled": control_enabled and control_canonical_mode != "off",
+            "paper_execution_enabled": control_enabled and control_canonical_mode in {"paper_trade", "live_trade"},
+            "live_execution_enabled": control_enabled and control_canonical_mode == "live_trade",
+            "live_submission_ready": live_submission_ready,
             "reason": control.get("reason"),
         },
         "latest_cycle": latest_cycle,

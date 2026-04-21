@@ -293,6 +293,12 @@ class StrategyOverviewApiTests(unittest.TestCase):
             self.assertEqual(overview["fee_calibration"]["trust"]["label"], "观察")
             self.assertIn("AAPL", overview["data_health"])
             self.assertEqual(overview["data_health"]["AAPL"]["reason"], "bars_empty")
+            self.assertEqual(overview["control"]["legacy_mode"], "signals")
+            self.assertEqual(overview["control"]["canonical_mode"], "signal_only")
+            self.assertTrue(overview["control"]["signal_generation_enabled"])
+            self.assertFalse(overview["control"]["paper_execution_enabled"])
+            self.assertFalse(overview["control"]["live_execution_enabled"])
+            self.assertFalse(overview["control"]["live_submission_ready"])
             self.assertTrue((latest_dir / "strategy_overview.json").exists())
 
 

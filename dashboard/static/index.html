@@ -3,38 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agent Trading Dashboard</title>
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#11111b">
+    <title>Agent Trading · 总览</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        sakura: { 50: '#fff4f7', 400: '#f472b6', 500: '#ec4899', 600: '#db2777', 700: '#be185d' },
-                        dark: { 800: '#1e1e2e', 900: '#11111b', 700: '#2a2a3c' }
-                    }
-                }
-            }
-        }
-    </script>
+    <script src="/static/dashboard-head.js"></script>
+    <link rel="stylesheet" href="/static/dashboard-base.css">
     <style>
-        body { font-family: 'Inter', -apple-system, sans-serif; }
-        .card {
-            background-color: #2a2a3c;
-            border-radius: 0.75rem;
-            padding: 1rem;
-            border: 1px solid rgba(107, 114, 128, 0.5);
-        }
-        .card-title {
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: #9ca3af;
-            margin-bottom: 0.5rem;
-        }
-        .positive { color: #22c55e; }
-        .negative { color: #ef4444; }
-        .neutral { color: #a1a1aa; }
+        .card-title { margin-bottom: 0.5rem; }
         @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
         .status-chip {
@@ -55,10 +32,6 @@
             background: rgba(17, 17, 27, 0.45);
             padding: 0.875rem 1rem;
         }
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 2px; }
-        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
         input[type="number"]::-webkit-outer-spin-button,
         input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type="number"] { -moz-appearance: textfield; }
@@ -527,6 +500,7 @@
         let latestNotificationsData = null;
         let latestEngineData = null;
         let latestTradingModeData = null;
+        let latestSuccessfulRefreshAt = null;
         const REFRESH_MS = 15000; // 15 seconds
         const STOCK_ANALYSIS_RANGE_OPTIONS = [
             ['all', '全部'],
@@ -1007,7 +981,8 @@
             latestSystemData = data;
             document.getElementById('system-info').textContent =
                 `账户: ${data.account_id || '--'} | 刷新: ${data.refresh_count || 0}次 | 间隔: ${data.refresh_interval || '--'}s`;
-            const updateTime = data.last_updated ? ago(data.last_updated) : '--';
+            const effectiveUpdatedAt = data.last_updated || latestSuccessfulRefreshAt;
+            const updateTime = effectiveUpdatedAt ? ago(effectiveUpdatedAt) : '刚刚';
             document.getElementById('last-update').textContent = '上次更新: ' + updateTime;
             renderHomeSummary();
         }
@@ -1135,9 +1110,8 @@
             const sessionTone = session === 'regular' ? 'green' : session === 'premarket' ? 'yellow' : session === 'afterhours' ? 'blue' : 'gray';
             setStatusChip('summary-market-chip', `时段: ${sessionLabel || '--'}`, sessionTone);
 
-            const modeValue = mode.mode || '--';
-            const modeTone = modeValue === 'trade' ? 'green' : modeValue === 'signals' ? 'blue' : modeValue === 'off' ? 'gray' : 'pink';
-            setStatusChip('summary-mode-chip', `模式: ${modeValue}`, modeTone);
+            const modeConfig = getCanonicalModeConfig(mode);
+            setStatusChip('summary-mode-chip', `模式: ${modeConfig.chipLabel}`, modeConfig.tone);
 
             const cycle = engine.last_cycle || {};
             const control = engine.control_state || {};
@@ -1474,13 +1448,13 @@
             latestMarketInfo = data;
             const usEl = document.getElementById('market-status-us');
             let usColor = 'bg-gray-500';
-            let usText = '美股: --';
+            let usText = '美股';
             if (data && data.session) {
                 const sessionMap = {
-                    regular: ['bg-green-500', '美股: 开盘中'],
-                    premarket: ['bg-yellow-500', '美股: 盘前'],
-                    afterhours: ['bg-orange-500', '美股: 盘后'],
-                    closed: ['bg-gray-500', '美股: 已收盘']
+                    regular: ['bg-green-500', '美股'],
+                    premarket: ['bg-yellow-500', '美股'],
+                    afterhours: ['bg-orange-500', '美股'],
+                    closed: ['bg-gray-500', '美股']
                 };
                 const m = sessionMap[data.session] || sessionMap.closed;
                 usColor = m[0];
@@ -1488,10 +1462,10 @@
             } else if (data && data.US) {
                 // Legacy format fallback
                 const us = data.US;
-                if (us.open) { usColor = 'bg-green-500'; usText = '美股: 开盘中'; }
-                else if (us.pre_market) { usColor = 'bg-yellow-500'; usText = '美股: 盘前'; }
-                else if (us.post_market) { usColor = 'bg-orange-500'; usText = '美股: 盘后'; }
-                else { usColor = 'bg-gray-500'; usText = '美股: 已收盘'; }
+                if (us.open) { usColor = 'bg-green-500'; usText = '美股'; }
+                else if (us.pre_market) { usColor = 'bg-yellow-500'; usText = '美股'; }
+                else if (us.post_market) { usColor = 'bg-orange-500'; usText = '美股'; }
+                else { usColor = 'bg-gray-500'; usText = '美股'; }
             }
             usEl.innerHTML = `<span class="w-2 h-2 rounded-full ${usColor}"></span><span class="text-gray-400">${usText}</span>`;
             renderHomeSummary();
@@ -1502,6 +1476,7 @@
         // --- Fetch & Render ---
         async function fetchAll() {
             try {
+                latestSuccessfulRefreshAt = new Date().toISOString();
                 const [account, positions, quotes, orders, pnl, system, wlData, marketInfo, tradingDay, configData] = await Promise.all([
                     fetch(API_BASE + '/api/account').then(r => r.json()),
                     fetch(API_BASE + '/api/positions').then(r => r.json()),
@@ -1577,14 +1552,9 @@
                 ]);
                 // Trading mode badge
                 const badge = document.getElementById('trading-mode-badge');
-                const modeMap = {
-                    off: { label: '🛑 停止', cls: 'bg-gray-600/30 text-gray-400' },
-                    signals: { label: '📡 信号', cls: 'bg-blue-600/20 text-blue-400' },
-                    trade: { label: '⚡ 交易', cls: 'bg-green-600/20 text-green-400' },
-                };
-                const m = modeMap[mode.mode] || modeMap.off;
+                const m = getCanonicalModeConfig(mode);
                 latestTradingModeData = mode;
-                badge.textContent = m.label + ' ▾';
+                badge.textContent = m.badgeLabel + ' ▾';
                 badge.className = 'text-xs px-2 py-0.5 rounded font-medium ' + m.cls;
 
                 // Update mode buttons
@@ -1694,6 +1664,24 @@
             signals: { label: '信号', cls: 'bg-blue-600/20 text-blue-400 border-blue-600/30' },
             trade:   { label: '交易', cls: 'bg-green-600/20 text-green-400 border-green-600/30' },
         };
+        const CANONICAL_MODE_CONFIG = {
+            off:         { badgeLabel: '🛑 off', chipLabel: 'off', cls: 'bg-gray-600/30 text-gray-400', tone: 'gray' },
+            signal_only: { badgeLabel: '📡 signal_only', chipLabel: 'signal_only', cls: 'bg-blue-600/20 text-blue-400', tone: 'blue' },
+            paper_trade: { badgeLabel: '🧪 paper_trade', chipLabel: 'paper_trade', cls: 'bg-emerald-600/20 text-emerald-400', tone: 'green' },
+            live_trade:  { badgeLabel: '🔴 live_trade', chipLabel: 'live_trade', cls: 'bg-red-600/20 text-red-300', tone: 'pink' },
+        };
+
+        function getCanonicalMode(modeData) {
+            if (modeData?.canonical_mode) return modeData.canonical_mode;
+            if (modeData?.mode === 'signals') return 'signal_only';
+            if (modeData?.mode === 'trade') return 'paper_trade';
+            return 'off';
+        }
+
+        function getCanonicalModeConfig(modeData) {
+            const canonical = getCanonicalMode(modeData);
+            return { canonical, ...(CANONICAL_MODE_CONFIG[canonical] || CANONICAL_MODE_CONFIG.off) };
+        }
 
         function updateModeButtons(currentMode) {
             // 安全检查：如果没有 mode-btn 元素，直接返回
@@ -1739,12 +1727,12 @@
                 }
                 // Update header badge immediately
                 const badge = document.getElementById('trading-mode-badge');
-                const m = MODE_CONFIG[mode];
+                const m = getCanonicalModeConfig(data);
                 if (badge && m) {
-                    badge.textContent = m.label + ' ▾';
+                    badge.textContent = m.badgeLabel + ' ▾';
                     badge.className = 'text-xs px-2 py-0.5 rounded font-medium cursor-pointer hover:opacity-80 ' + m.cls;
                 }
-                updateModeButtons(mode);
+                updateModeButtons(data.mode || mode);
             } catch (e) {
                 showModeMsg('切换失败', true);
             }

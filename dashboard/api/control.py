@@ -40,11 +40,22 @@ def _write_control_state(state: dict):
 
 def _trading_mode_payload(state: dict[str, object]) -> dict[str, object]:
     dashboard_main = _dashboard_main()
-    canonical_mode = state.get("global", {}).get("mode", "off")  # type: ignore[union-attr]
+    global_cfg = state.get("global", {}) if isinstance(state.get("global"), dict) else {}
+    canonical_mode = global_cfg.get("mode", "off")
     mode = dashboard_main.canonical_mode_to_legacy_ui_mode(canonical_mode)
+    globally_enabled = bool(global_cfg.get("enabled", True))
     risk_cfg = state.get("risk", {}) if isinstance(state.get("risk"), dict) else {}
+    live_readiness = state.get("live_readiness", {}) if isinstance(state.get("live_readiness"), dict) else {}
     reduce_only = bool(risk_cfg.get("reduce_only", False))
     emergency_flatten = bool(risk_cfg.get("emergency_flatten", False))
+    signal_generation_enabled = globally_enabled and canonical_mode != "off"
+    paper_execution_enabled = globally_enabled and canonical_mode in {"paper_trade", "live_trade"}
+    live_execution_enabled = globally_enabled and canonical_mode == "live_trade"
+    live_submission_ready = (
+        live_execution_enabled
+        and live_readiness.get("status") == "ready"
+        and not live_readiness.get("failed_items")
+    )
     if emergency_flatten:
         risk_state = "emergency_flatten"
         risk_label = "紧急平仓"
@@ -56,16 +67,22 @@ def _trading_mode_payload(state: dict[str, object]) -> dict[str, object]:
         risk_label = "正常"
     return {
         "mode": mode,
+        "legacy_mode": mode,
         "canonical_mode": canonical_mode,
         "locked": state.get("locked", False),
-        "signal_generation": mode != "off",
-        "order_submission": mode == "trade",
+        "signal_generation": signal_generation_enabled,
+        "signal_generation_enabled": signal_generation_enabled,
+        "order_intents_enabled": paper_execution_enabled,
+        "paper_execution_enabled": paper_execution_enabled,
+        "live_execution_enabled": live_execution_enabled,
+        "live_submission_ready": live_submission_ready,
+        "order_submission": live_submission_ready,
         "reduce_only": reduce_only,
         "reduce_only_reason": risk_cfg.get("reduce_only_reason"),
         "emergency_flatten": emergency_flatten,
         "risk_state": risk_state,
         "risk_label": risk_label,
-        "live_readiness": state.get("live_readiness", {}),
+        "live_readiness": live_readiness,
     }
 
 

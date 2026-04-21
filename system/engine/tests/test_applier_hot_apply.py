@@ -91,6 +91,7 @@ class HotApplyTests(unittest.TestCase):
         self.assertEqual(target_record["before_checksum"], _checksum(before_bytes))
         self.assertEqual(target_record["after_checksum"], _checksum(after_bytes))
         self.assertTrue(target_record["validation_result"]["valid"])
+        self.assertIn(updated_rules["rules"][0]["rule_id"], target_record["changed_rules"])
         self.assertEqual(deployment_record["operator_id"], "applier")
         self.assertTrue(deployment_record["success"])
 

@@ -19,6 +19,11 @@ from .indicators import (
     bar_range_pct,
     volume_ratio as calc_volume_ratio,
 )
+from .rule_profiles import (
+    build_symbol_profile_overview,
+    resolve_rule_state,
+    rule_applies_to_symbol,
+)
 from .rule_schema import validate_rules_config
 from .signal_arbiter import SignalArbiter
 
@@ -40,6 +45,13 @@ class RuleSignal:
     suggested_quantity: int | None = None
     risk_per_share: float | None = None
     diagnostics: dict[str, Any] = field(default_factory=dict)
+    base_rule_id: str | None = None
+    primary_rule_id: str | None = None
+    source_rule_ids: list[str] = field(default_factory=list)
+    symbol_profile: str | None = None
+    effective_config_hash: str | None = None
+    effective_config_hashes: list[str] = field(default_factory=list)
+    overrides_applied: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -470,8 +482,14 @@ class ConditionEvaluator:
 class RuleEngine:
     """规则引擎 - 加载配置并评估规则"""
     
-    def __init__(self, rules_path: str | Path):
+    def __init__(
+        self,
+        rules_path: str | Path,
+        *,
+        symbol_universe: list[str] | set[str] | tuple[str, ...] | None = None,
+    ):
         self.rules_path = Path(rules_path)
+        self.symbol_universe = list(symbol_universe) if symbol_universe is not None else None
         self.indicator_calc = IndicatorCalculator()
         self.condition_eval = ConditionEvaluator(self.indicator_calc)
         self.signal_arbiter = SignalArbiter()
@@ -484,11 +502,14 @@ class RuleEngine:
         
         try:
             data = json.loads(self.rules_path.read_text())
-            validation = validate_rules_config(data)
+            validation = validate_rules_config(data, symbol_universe=self.symbol_universe)
             if not validation["valid"]:
                 print(f"[RuleEngine] Loaded rules with validation errors: {validation['errors']}")
             normalized = dict(data)
             normalized["rules"] = validation["valid_rules"]
+            if not validation["valid"]:
+                normalized.pop("symbol_profile_templates", None)
+                normalized.pop("symbol_profiles", None)
             normalized["__validation__"] = {
                 "valid": validation["valid"],
                 "errors": validation["errors"],
@@ -503,9 +524,40 @@ class RuleEngine:
         """重新加载规则配置"""
         self.rules_config = self._load_rules()
     
-    def get_enabled_rules(self) -> list[dict[str, Any]]:
+    def get_enabled_rules(
+        self,
+        *,
+        symbol: str | None = None,
+        market: str | None = None,
+    ) -> list[dict[str, Any]]:
         """获取启用的规则"""
+        if symbol is not None:
+            enabled_rules: list[dict[str, Any]] = []
+            for rule in self.rules_config.get("rules", []):
+                if not isinstance(rule, dict) or not rule.get("rule_id"):
+                    continue
+                state = resolve_rule_state(
+                    self.rules_config,
+                    symbol,
+                    str(rule["rule_id"]),
+                    market=market,
+                )
+                if state["enabled"] and isinstance(state["effective_rule"], dict):
+                    enabled_rules.append(state["effective_rule"])
+            return enabled_rules
         return [r for r in self.rules_config.get('rules', []) if r.get('enabled', True)]
+
+    def get_symbol_profile_overview(
+        self,
+        symbols: list[str],
+        *,
+        market_by_symbol: dict[str, str] | None = None,
+    ) -> dict[str, dict[str, Any]]:
+        return build_symbol_profile_overview(
+            self.rules_config,
+            symbols,
+            market_by_symbol=market_by_symbol,
+        )
     
     def evaluate_symbol(self, symbol: str, market: str, bars: list[dict[str, Any]], 
                         position: dict[str, Any] | None = None) -> list[RuleSignal]:
@@ -514,13 +566,9 @@ class RuleEngine:
         返回信号列表
         """
         signals = []
-        enabled_rules = self.get_enabled_rules()
+        enabled_rules = self.get_enabled_rules(symbol=symbol, market=market)
         
         for rule in enabled_rules:
-            # 检查规则是否适用于此标的
-            if not self._rule_applies(rule, symbol, market):
-                continue
-            
             signal = self._evaluate_rule(rule, symbol, market, bars, position)
             if signal:
                 signals.append(signal)
@@ -530,23 +578,17 @@ class RuleEngine:
     
     def _rule_applies(self, rule: dict[str, Any], symbol: str, market: str) -> bool:
         """检查规则是否适用于标的"""
-        rule_symbols = rule.get('symbols', ['*'])
-        rule_markets = rule.get('markets', [])
-        
-        # 检查市场
-        if rule_markets and market not in rule_markets:
-            return False
-        
-        # 检查标的
-        if '*' in rule_symbols:
-            return True
-        
-        return symbol in rule_symbols
+        return rule_applies_to_symbol(rule, symbol, market)
     
     def _evaluate_rule(self, rule: dict[str, Any], symbol: str, market: str,
                        bars: list[dict[str, Any]], position: dict[str, Any] | None) -> RuleSignal | None:
         """评估单条规则"""
         rule_id = rule.get('rule_id', 'unknown')
+        profile_meta = rule.get("__rule_profile__") if isinstance(rule.get("__rule_profile__"), dict) else {}
+        base_rule_id = str(profile_meta.get("base_rule_id") or rule_id)
+        symbol_profile = profile_meta.get("profile_id")
+        overrides_applied = profile_meta.get("overrides_applied") if isinstance(profile_meta.get("overrides_applied"), dict) else {}
+        effective_config_hash = profile_meta.get("effective_config_hash")
         priority = int(rule.get('priority', 999999))
         
         # 检查数据充足性
@@ -564,7 +606,14 @@ class RuleEngine:
                 stop_loss=None,
                 take_profit=None,
                 last_close=bars[-1]['close'] if bars else None,
-                diagnostics={'bar_count': len(bars), 'required': min_bars}
+                diagnostics={'bar_count': len(bars), 'required': min_bars},
+                base_rule_id=base_rule_id,
+                primary_rule_id=str(rule_id),
+                source_rule_ids=[str(rule_id)],
+                symbol_profile=symbol_profile,
+                effective_config_hash=effective_config_hash,
+                effective_config_hashes=[effective_config_hash] if effective_config_hash else [],
+                overrides_applied=overrides_applied,
             )
         
         last_close = float(bars[-1]['close'])
@@ -589,7 +638,14 @@ class RuleEngine:
                         stop_loss=None,
                         take_profit=None,
                         last_close=last_close,
-                        diagnostics={'exit': exit_diag}
+                        diagnostics={'exit': exit_diag},
+                        base_rule_id=base_rule_id,
+                        primary_rule_id=str(rule_id),
+                        source_rule_ids=[str(rule_id)],
+                        symbol_profile=symbol_profile,
+                        effective_config_hash=effective_config_hash,
+                        effective_config_hashes=[effective_config_hash] if effective_config_hash else [],
+                        overrides_applied=overrides_applied,
                     )
         
         # 评估入场条件（如果没有持仓）
@@ -627,7 +683,14 @@ class RuleEngine:
                         last_close=last_close,
                         suggested_quantity=suggested_qty,
                         risk_per_share=risk_per_share,
-                        diagnostics={'entry': entry_diag, 'risk_budget': risk_budget, 'suggested_qty': suggested_qty}
+                        diagnostics={'entry': entry_diag, 'risk_budget': risk_budget, 'suggested_qty': suggested_qty},
+                        base_rule_id=base_rule_id,
+                        primary_rule_id=str(rule_id),
+                        source_rule_ids=[str(rule_id)],
+                        symbol_profile=symbol_profile,
+                        effective_config_hash=effective_config_hash,
+                        effective_config_hashes=[effective_config_hash] if effective_config_hash else [],
+                        overrides_applied=overrides_applied,
                     )
         
         # 默认 HOLD
@@ -643,7 +706,14 @@ class RuleEngine:
             stop_loss=None,
             take_profit=None,
             last_close=last_close,
-            diagnostics={}
+            diagnostics={},
+            base_rule_id=base_rule_id,
+            primary_rule_id=str(rule_id),
+            source_rule_ids=[str(rule_id)],
+            symbol_profile=symbol_profile,
+            effective_config_hash=effective_config_hash,
+            effective_config_hashes=[effective_config_hash] if effective_config_hash else [],
+            overrides_applied=overrides_applied,
         )
     
     def _get_min_bars_required(self, rule: dict[str, Any]) -> int:

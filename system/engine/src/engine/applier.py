@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from .artifacts import resolve_artifacts_root, write_json
+from .config import load_app_config_raw
 from .rule_schema import validate_rules_config
 from .strategist_artifacts import (
     load_approval_request,
@@ -88,6 +89,90 @@ def _write_rules_file(target_path: Path, payload: Any) -> bytes:
     return encoded
 
 
+def _load_symbol_universe(repo_root: Path) -> list[str] | None:
+    for config_path in (repo_root / "config" / "app_config.docker.json", repo_root / "config" / "app.defaults.json"):
+        if not config_path.exists():
+            continue
+        try:
+            config = load_app_config_raw(config_path)
+        except Exception:
+            continue
+        strategy = config.get("strategy", {}) if isinstance(config, dict) else {}
+        symbols = strategy.get("symbols", []) if isinstance(strategy, dict) else []
+        universe = [
+            str(item.get("symbol")).upper()
+            for item in symbols
+            if isinstance(item, dict) and item.get("symbol")
+        ]
+        if universe:
+            return universe
+    return None
+
+
+def _validate_rules_payload_for_repo(payload: Any, repo_root: Path) -> dict[str, Any]:
+    if isinstance(payload, str):
+        payload = json.loads(payload)
+    if not isinstance(payload, dict):
+        raise ValueError("rules payload must be a JSON object")
+    return validate_rules_config(payload, symbol_universe=_load_symbol_universe(repo_root))
+
+
+def _rule_ids_from_profile_payload(payload: dict[str, Any]) -> set[str]:
+    rule_ids: set[str] = set()
+    enabled_rules = payload.get("enabled_rules")
+    if isinstance(enabled_rules, dict):
+        rule_ids.update(str(rule_id) for rule_id in enabled_rules.keys())
+    rule_overrides = payload.get("rule_overrides")
+    if isinstance(rule_overrides, dict):
+        rule_ids.update(str(rule_id) for rule_id in rule_overrides.keys())
+    return rule_ids
+
+
+def _describe_rules_changes(before_payload: dict[str, Any], after_payload: dict[str, Any]) -> dict[str, list[str]]:
+    changed_rules: set[str] = set()
+    changed_profiles: set[str] = set()
+    changed_symbols: set[str] = set()
+
+    before_rules = {
+        str(rule.get("rule_id")): rule
+        for rule in before_payload.get("rules", [])
+        if isinstance(rule, dict) and rule.get("rule_id")
+    }
+    after_rules = {
+        str(rule.get("rule_id")): rule
+        for rule in after_payload.get("rules", [])
+        if isinstance(rule, dict) and rule.get("rule_id")
+    }
+    for rule_id in sorted(set(before_rules.keys()) | set(after_rules.keys())):
+        if before_rules.get(rule_id) != after_rules.get(rule_id):
+            changed_rules.add(rule_id)
+
+    before_templates = before_payload.get("symbol_profile_templates", {}) if isinstance(before_payload.get("symbol_profile_templates"), dict) else {}
+    after_templates = after_payload.get("symbol_profile_templates", {}) if isinstance(after_payload.get("symbol_profile_templates"), dict) else {}
+    for profile_id in sorted(set(before_templates.keys()) | set(after_templates.keys())):
+        if before_templates.get(profile_id) != after_templates.get(profile_id):
+            changed_profiles.add(str(profile_id))
+            changed_rules.update(_rule_ids_from_profile_payload(after_templates.get(profile_id) or before_templates.get(profile_id) or {}))
+
+    before_symbol_profiles = before_payload.get("symbol_profiles", {}) if isinstance(before_payload.get("symbol_profiles"), dict) else {}
+    after_symbol_profiles = after_payload.get("symbol_profiles", {}) if isinstance(after_payload.get("symbol_profiles"), dict) else {}
+    for symbol in sorted(set(before_symbol_profiles.keys()) | set(after_symbol_profiles.keys())):
+        if before_symbol_profiles.get(symbol) != after_symbol_profiles.get(symbol):
+            changed_symbols.add(str(symbol))
+            after_symbol_profile = after_symbol_profiles.get(symbol) or {}
+            before_symbol_profile = before_symbol_profiles.get(symbol) or {}
+            profile_name = after_symbol_profile.get("profile") or before_symbol_profile.get("profile")
+            if profile_name:
+                changed_profiles.add(str(profile_name))
+            changed_rules.update(_rule_ids_from_profile_payload(after_symbol_profile or before_symbol_profile or {}))
+
+    return {
+        "changed_profiles": sorted(changed_profiles),
+        "changed_symbols": sorted(changed_symbols),
+        "changed_rules": sorted(changed_rules),
+    }
+
+
 def _apply_hot_rules_update(
     proposal_id: str,
     record: dict[str, Any],
@@ -102,6 +187,9 @@ def _apply_hot_rules_update(
 
     backups: list[tuple[Path, Path, bytes, bool]] = []
     deployment_targets: list[dict[str, Any]] = []
+    changed_profiles: set[str] = set()
+    changed_symbols: set[str] = set()
+    changed_rules: set[str] = set()
 
     try:
         content_map = _normalize_target_content(record, target_files)
@@ -118,25 +206,31 @@ def _apply_hot_rules_update(
 
             before_checksum = _checksum_bytes(original_bytes)
             payload = content_map[target]
-            validation = _validate_rules_payload(payload)
+            validation = _validate_rules_payload_for_repo(payload, repo_root)
             if not validation["valid"]:
                 raise ValueError(f"invalid rules payload for {target}: {'; '.join(validation['errors'])}")
 
+            before_payload = json.loads(original_bytes.decode("utf-8")) if original_bytes else {"rules": []}
+            after_payload = json.loads(payload) if isinstance(payload, str) else payload
+
             written_bytes = _write_rules_file(target_path, payload)
             after_checksum = _checksum_bytes(written_bytes)
-            deployment_targets.append(
-                {
-                    "target_file": target,
-                    "before_checksum": before_checksum,
-                    "after_checksum": after_checksum,
-                    "backup_path": str(backup_path),
-                    "validation_result": {
-                        "valid": validation["valid"],
-                        "errors": validation["errors"],
-                        "warnings": validation["warnings"],
-                    },
-                }
-            )
+            target_record = {
+                "target_file": target,
+                "before_checksum": before_checksum,
+                "after_checksum": after_checksum,
+                "backup_path": str(backup_path),
+                "validation_result": {
+                    "valid": validation["valid"],
+                    "errors": validation["errors"],
+                    "warnings": validation["warnings"],
+                },
+                **_describe_rules_changes(before_payload, after_payload),
+            }
+            changed_profiles.update(target_record.get("changed_profiles", []))
+            changed_symbols.update(target_record.get("changed_symbols", []))
+            changed_rules.update(target_record.get("changed_rules", []))
+            deployment_targets.append(target_record)
 
         deployment_record = {
             "operator_type": operator_type,
@@ -147,6 +241,9 @@ def _apply_hot_rules_update(
             "fee_confidence_snapshot": plan.get("fee_confidence_snapshot"),
             "applied_at": datetime.now(timezone.utc).isoformat(),
             "success": True,
+            "changed_profiles": sorted(changed_profiles),
+            "changed_symbols": sorted(changed_symbols),
+            "changed_rules": sorted(changed_rules),
             "targets": deployment_targets,
         }
 

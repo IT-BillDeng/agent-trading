@@ -115,6 +115,33 @@
         <section class="card">
             <div class="flex items-center justify-between gap-3 mb-3">
                 <div>
+                    <div class="card-title mb-0">🧩 Symbol Profiles</div>
+                    <div id="symbol-profiles-meta" class="text-xs text-gray-500 mt-1">只读展示 per-symbol profile / rule matrix / latest signal / backtest attribution</div>
+                </div>
+                <div class="text-xs text-gray-500">proposal / hot apply only</div>
+            </div>
+            <div class="overflow-auto">
+                <table class="w-full min-w-max text-sm">
+                    <thead class="sticky top-0 z-10" style="background:#2a2a3c">
+                        <tr class="text-gray-500 border-b border-gray-700/50">
+                            <th class="px-3 py-2 text-left">Symbol</th>
+                            <th class="px-3 py-2 text-left">Profile</th>
+                            <th class="px-3 py-2 text-left">Enabled / Disabled</th>
+                            <th class="px-3 py-2 text-left">Overrides</th>
+                            <th class="px-3 py-2 text-left">Latest Signal</th>
+                            <th class="px-3 py-2 text-left">Backtest Attribution</th>
+                        </tr>
+                    </thead>
+                    <tbody id="symbol-profiles-body">
+                        <tr><td colspan="6" class="py-4 text-center text-gray-500">加载中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="flex items-center justify-between gap-3 mb-3">
+                <div>
                     <div class="card-title mb-0">📝 最新策略调整</div>
                     <div id="latest-strategy-meta" class="text-xs text-gray-500 mt-1">--</div>
                 </div>
@@ -248,6 +275,35 @@
         <section class="card">
             <div class="flex items-center justify-between gap-3 mb-3">
                 <div>
+                    <div class="card-title mb-0">📊 Symbol × Rule Attribution</div>
+                    <div id="attribution-meta" class="text-xs text-gray-500 mt-1">显示最近一次 backtest 的 symbol × rule attribution 摘要</div>
+                </div>
+                <div class="text-xs text-gray-500">read-only</div>
+            </div>
+            <div class="overflow-auto">
+                <table class="w-full min-w-max text-sm">
+                    <thead class="sticky top-0 z-10" style="background:#2a2a3c">
+                        <tr class="text-gray-500 border-b border-gray-700/50">
+                            <th class="px-3 py-2 text-left">Symbol</th>
+                            <th class="px-3 py-2 text-left">Rule</th>
+                            <th class="px-3 py-2 text-left">Profile</th>
+                            <th class="px-3 py-2 text-right">Signals</th>
+                            <th class="px-3 py-2 text-right">Entries / Exits</th>
+                            <th class="px-3 py-2 text-right">Closed</th>
+                            <th class="px-3 py-2 text-right">Net Return</th>
+                            <th class="px-3 py-2 text-right">Fee Drag</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attribution-body">
+                        <tr><td colspan="8" class="py-4 text-center text-gray-500">暂无 backtest attribution</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="flex items-center justify-between gap-3 mb-3">
+                <div>
                     <div class="card-title mb-0">🧾 费用校准</div>
                     <div class="text-xs text-gray-500 mt-1">静态 fee model vs broker 实际 charges</div>
                 </div>
@@ -368,6 +424,7 @@
         const API_BASE = '';
         let autoRefreshTimer = null;
         let currentStrategyData = null;
+        let currentBacktestResult = null;
         let ruleFilter = 'all';
         let currentProposalItems = [];
 
@@ -574,6 +631,71 @@
                         <td class="px-3 py-2 text-gray-200">${escapeHtml(reason)}</td>
                         <td class="px-3 py-2 text-right text-gray-200 whitespace-nowrap">${fmtUSD(item.last_close)}</td>
                         <td class="px-3 py-2 text-center">${statusBadge(item.rule_enabled)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderSymbolProfiles(data) {
+            const body = document.getElementById('symbol-profiles-body');
+            const meta = document.getElementById('symbol-profiles-meta');
+            const profiles = data?.symbol_profiles || {};
+            const signals = Array.isArray(data?.signal_records) ? data.signal_records : [];
+            const latestSignals = {};
+            signals.forEach(item => {
+                if (!item || !item.symbol) return;
+                if (!latestSignals[item.symbol]) latestSignals[item.symbol] = item;
+            });
+
+            const entries = Object.entries(profiles);
+            if (!entries.length) {
+                meta.textContent = '未配置 symbol profiles';
+                body.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-gray-500">未配置 symbol profiles</td></tr>';
+                return;
+            }
+
+            meta.textContent = `${entries.length} symbols · ${entries.filter(([, item]) => (item?.rules_with_overrides || []).length > 0).length} with overrides`;
+
+            body.innerHTML = entries.map(([symbol, item]) => {
+                const enabledRules = Array.isArray(item?.enabled_rules) ? item.enabled_rules : [];
+                const disabledRules = Array.isArray(item?.disabled_rules) ? item.disabled_rules : [];
+                const rulesWithOverrides = Array.isArray(item?.rules_with_overrides) ? item.rules_with_overrides : [];
+                const latest = latestSignals[symbol];
+                const symbolAttribution = currentBacktestResult?.attribution?.symbols?.[symbol]?.rules || {};
+                const attributionSummary = Object.entries(symbolAttribution)
+                    .filter(([, rule]) => (rule?.signals || 0) > 0 || (rule?.closed_trades || 0) > 0)
+                    .slice(0, 2)
+                    .map(([ruleId, rule]) => `${ruleId}: ${fmt(rule.net_return_pct)}% / ${rule.closed_trades || 0} closed`)
+                    .join(' | ');
+                return `
+                    <tr class="border-b border-gray-700/30 hover:bg-dark-800/40 align-top">
+                        <td class="px-3 py-2">
+                            <div class="font-medium text-gray-100">${escapeHtml(symbol)}</div>
+                            <div class="text-xs text-gray-500 mt-1">${escapeHtml(data?.config?.timeframe || '--')}</div>
+                        </td>
+                        <td class="px-3 py-2">
+                            <div class="font-medium text-gray-100">${escapeHtml(item?.profile || '--')}</div>
+                            <div class="text-xs text-gray-500 mt-1">effective ${fmtNumber(item?.effective_rule_count || 0)}</div>
+                        </td>
+                        <td class="px-3 py-2 text-gray-300">
+                            <div class="text-xs text-green-300">enabled: ${enabledRules.join(', ') || '--'}</div>
+                            <div class="text-xs text-gray-500 mt-1">disabled: ${disabledRules.join(', ') || '--'}</div>
+                        </td>
+                        <td class="px-3 py-2 text-gray-300">
+                            ${rulesWithOverrides.length
+                                ? rulesWithOverrides.map(ruleId => `<div class="text-xs">${smallBadge(ruleId, 'warn')}</div>`).join('')
+                                : '<span class="text-xs text-gray-500">none</span>'}
+                        </td>
+                        <td class="px-3 py-2 text-gray-300">
+                            ${latest ? `
+                                <div>${actionBadge(latest.action)}</div>
+                                <div class="text-xs text-gray-500 mt-1">${escapeHtml(latest.primary_rule_id || latest.rule_id || '--')}</div>
+                                <div class="text-xs text-gray-500 mt-1">${escapeHtml(latest.effective_config_hash || '--')}</div>
+                            ` : '<span class="text-xs text-gray-500">--</span>'}
+                        </td>
+                        <td class="px-3 py-2 text-gray-300">
+                            <div class="text-xs">${escapeHtml(attributionSummary || '暂无 backtest 数据')}</div>
+                        </td>
                     </tr>
                 `;
             }).join('');
@@ -972,6 +1094,7 @@
                 }
 
                 const result = data.result;
+                currentBacktestResult = result;
                 document.getElementById('bt-return').textContent = (result.total_return_pct >= 0 ? '+' : '') + fmt(result.total_return_pct) + '%';
                 document.getElementById('bt-return').className = 'text-xl font-bold ' + pnlClass(result.total_return);
                 document.getElementById('bt-trades').textContent = result.total_trades || 0;
@@ -1004,6 +1127,8 @@
                     tradesList.textContent = '无交易记录';
                 }
 
+                renderBacktestAttribution(result);
+                renderSymbolProfiles(currentStrategyData);
                 resultsEl.classList.remove('hidden');
                 statusEl.textContent = '回测完成';
                 statusEl.className = 'text-xs text-green-400 self-center';
@@ -1014,6 +1139,53 @@
             }
         }
 
+        function renderBacktestAttribution(result) {
+            const body = document.getElementById('attribution-body');
+            const meta = document.getElementById('attribution-meta');
+            const attribution = result?.attribution || {};
+            const symbols = attribution.symbols || {};
+            const rows = [];
+
+            Object.entries(symbols).forEach(([symbol, symbolEntry]) => {
+                const rules = symbolEntry?.rules || {};
+                Object.entries(rules).forEach(([ruleId, rule]) => {
+                    rows.push({
+                        symbol,
+                        ruleId,
+                        profile: symbolEntry?.profile || '--',
+                        signals: rule?.signals || 0,
+                        entries: rule?.entries || 0,
+                        exits: rule?.exits || 0,
+                        closedTrades: rule?.closed_trades || 0,
+                        netReturnPct: rule?.net_return_pct || 0,
+                        feeDragPct: rule?.fee_drag_pct || 0,
+                    });
+                });
+            });
+
+            if (!rows.length) {
+                meta.textContent = '暂无 backtest attribution';
+                body.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-gray-500">暂无 backtest attribution</td></tr>';
+                return;
+            }
+
+            meta.textContent = `${rows.length} symbol × rule rows`;
+            body.innerHTML = rows.map(item => `
+                <tr class="border-b border-gray-700/30 hover:bg-dark-800/40">
+                    <td class="px-3 py-2 font-medium text-gray-100">${escapeHtml(item.symbol)}</td>
+                    <td class="px-3 py-2">
+                        <div class="font-medium text-gray-100">${escapeHtml(item.ruleId)}</div>
+                    </td>
+                    <td class="px-3 py-2 text-gray-300">${escapeHtml(item.profile)}</td>
+                    <td class="px-3 py-2 text-right text-gray-200">${fmtNumber(item.signals)}</td>
+                    <td class="px-3 py-2 text-right text-gray-200">${fmtNumber(item.entries)} / ${fmtNumber(item.exits)}</td>
+                    <td class="px-3 py-2 text-right text-gray-200">${fmtNumber(item.closedTrades)}</td>
+                    <td class="px-3 py-2 text-right ${pnlClass(item.netReturnPct)}">${fmt(item.netReturnPct)}%</td>
+                    <td class="px-3 py-2 text-right text-amber-300">${fmt(item.feeDragPct)}%</td>
+                </tr>
+            `).join('');
+        }
+
         async function refreshAll() {
             document.getElementById('page-status').textContent = '刷新中...';
             try {
@@ -1022,10 +1194,12 @@
                 currentStrategyData = data;
                 renderSummary(data);
                 renderRules(data);
+                renderSymbolProfiles(data);
                 renderSignals(data);
                 renderStrategist(data);
                 renderFeeCalibration(data);
                 renderDataHealth(data);
+                renderBacktestAttribution(currentBacktestResult);
                 await refreshProposals();
                 document.getElementById('page-status').textContent = '已刷新 ' + new Date().toLocaleTimeString('zh-CN');
             } catch (e) {

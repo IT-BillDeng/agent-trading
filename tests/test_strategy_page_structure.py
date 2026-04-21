@@ -20,6 +20,19 @@ class StrategyPageStructureTests(unittest.TestCase):
         self.assertIn("approveProposal(", html)
         self.assertIn("rejectProposal(", html)
 
+    def test_strategy_page_contains_symbol_profile_and_attribution_sections(self):
+        html = STRATEGY_PAGE.read_text(encoding="utf-8")
+        self.assertIn("Symbol Profiles", html)
+        self.assertIn("Symbol × Rule Attribution", html)
+        self.assertIn("symbol-profiles-body", html)
+        self.assertIn("attribution-body", html)
+
+    def test_strategy_page_does_not_expose_direct_rules_edit_controls(self):
+        html = STRATEGY_PAGE.read_text(encoding="utf-8")
+        self.assertNotIn("updateRules(", html)
+        self.assertNotIn("fetch(API_BASE + '/api/rules'", html)
+        self.assertIn("proposal / hot apply only", html)
+
 
 if __name__ == "__main__":
     unittest.main()

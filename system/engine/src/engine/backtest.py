@@ -47,6 +47,13 @@ class Trade:
     commission: float = 0.0
     slippage: float = 0.0
     fee_breakdown: dict[str, float] = field(default_factory=dict)
+    rule_id: str | None = None
+    primary_rule_id: str | None = None
+    base_rule_id: str | None = None
+    symbol_profile: str | None = None
+    effective_config_hash: str | None = None
+    source_rule_ids: list[str] = field(default_factory=list)
+    overrides_applied: dict[str, Any] = field(default_factory=dict)
     
     @property
     def total_cost(self) -> float:
@@ -54,7 +61,9 @@ class Trade:
         return self.price * self.quantity + self.commission + self.slippage
     
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        payload = asdict(self)
+        payload["timestamp"] = self.timestamp.isoformat()
+        return payload
 
 
 @dataclass
@@ -65,6 +74,15 @@ class Position:
     avg_cost: float
     entry_time: datetime
     current_price: float = 0.0
+    entry_rule_id: str | None = None
+    entry_primary_rule_id: str | None = None
+    entry_base_rule_id: str | None = None
+    entry_symbol_profile: str | None = None
+    entry_effective_config_hash: str | None = None
+    entry_source_rule_ids: list[str] = field(default_factory=list)
+    entry_overrides_applied: dict[str, Any] = field(default_factory=dict)
+    entry_commission: float = 0.0
+    entry_slippage: float = 0.0
     
     @property
     def market_value(self) -> float:
@@ -108,7 +126,7 @@ class BacktestConfig:
     fee_model: str = 'broker_default'
     max_position_pct: float = 0.2  # 单标的最大仓位比例
     data_source: str = 'tiger'  # 默认使用当前券商的历史数据提供器（兼容历史 provider 名）
-    
+
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
@@ -139,12 +157,14 @@ class BacktestResult:
     fee_drag_pct: float
     trades: list[Trade]
     equity_curve: list[dict[str, Any]]
+    attribution: dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
         result['config'] = self.config.to_dict()
         result['start_time'] = self.start_time.isoformat()
         result['end_time'] = self.end_time.isoformat()
+        result['trades'] = [trade.to_dict() for trade in self.trades]
         return result
 
 
@@ -429,9 +449,16 @@ class BacktestEngine:
         self.positions: dict[str, Position] = {}
         self.trades: list[Trade] = []
         self.equity_curve: list[dict[str, Any]] = []
+        self.closed_trade_records: list[dict[str, Any]] = []
+        self.signal_attribution: dict[str, dict[str, dict[str, Any]]] = {}
+        self.attribution_unknown: list[dict[str, Any]] = []
         
         # 规则引擎
-        self.rule_engine = RuleEngine(self.rules_path)
+        self.rule_engine = RuleEngine(self.rules_path, symbol_universe=config.symbols)
+        self.symbol_profile_overview = self.rule_engine.get_symbol_profile_overview(
+            config.symbols,
+            market_by_symbol={symbol: config.market for symbol in config.symbols},
+        )
         
         # 历史数据
         self.bars_by_symbol: dict[str, list[Bar]] = {}
@@ -498,12 +525,28 @@ class BacktestEngine:
         
         return history
     
-    def execute_trade(self, symbol: str, side: str, quantity: int, 
-                      price: float, timestamp: datetime):
+    def execute_trade(
+        self,
+        symbol: str,
+        side: str,
+        quantity: int,
+        price: float,
+        timestamp: datetime,
+        *,
+        signal=None,
+    ):
         """执行交易"""
         trade = self.order_simulator.simulate_order(
             symbol, side, quantity, price, timestamp
         )
+        if signal is not None:
+            trade.rule_id = getattr(signal, "rule_id", None)
+            trade.primary_rule_id = getattr(signal, "primary_rule_id", None) or getattr(signal, "rule_id", None)
+            trade.base_rule_id = getattr(signal, "base_rule_id", None) or getattr(signal, "rule_id", None)
+            trade.symbol_profile = getattr(signal, "symbol_profile", None)
+            trade.effective_config_hash = getattr(signal, "effective_config_hash", None)
+            trade.source_rule_ids = list(getattr(signal, "source_rule_ids", []) or [])
+            trade.overrides_applied = dict(getattr(signal, "overrides_applied", {}) or {})
         self.trades.append(trade)
         
         if side == 'BUY':
@@ -524,21 +567,35 @@ class BacktestEngine:
                         quantity=quantity,
                         avg_cost=price,
                         entry_time=timestamp,
-                        current_price=price
+                        current_price=price,
+                        entry_rule_id=trade.rule_id,
+                        entry_primary_rule_id=trade.primary_rule_id,
+                        entry_base_rule_id=trade.base_rule_id,
+                        entry_symbol_profile=trade.symbol_profile,
+                        entry_effective_config_hash=trade.effective_config_hash,
+                        entry_source_rule_ids=list(trade.source_rule_ids),
+                        entry_overrides_applied=dict(trade.overrides_applied),
+                        entry_commission=trade.commission,
+                        entry_slippage=trade.slippage,
                     )
         elif side == 'SELL':
             if symbol in self.positions:
                 pos = self.positions[symbol]
+                fraction = quantity / pos.quantity if pos.quantity > 0 else 0.0
                 if quantity >= pos.quantity:
                     # 全部平仓
                     revenue = price * pos.quantity - trade.commission - trade.slippage
                     self.capital += revenue
+                    self._record_closed_trade(pos, trade, quantity=pos.quantity)
                     del self.positions[symbol]
                 else:
                     # 部分平仓
                     revenue = price * quantity - trade.commission - trade.slippage
                     self.capital += revenue
+                    self._record_closed_trade(pos, trade, quantity=quantity)
                     pos.quantity -= quantity
+                    pos.entry_commission *= max(0.0, 1 - fraction)
+                    pos.entry_slippage *= max(0.0, 1 - fraction)
     
     def calculate_position_size(self, symbol: str, price: float) -> int:
         """计算仓位大小"""
@@ -603,15 +660,18 @@ class BacktestEngine:
                 signals = self.rule_engine.evaluate_symbol(symbol, 'US', bars_history, position_dict)
                 
                 for signal in signals:
+                    self._record_signal(signal)
                     if signal.action == 'BUY' and symbol not in self.positions:
                         # 买入
                         quantity = self.calculate_position_size(symbol, bar.close)
-                        self.execute_trade(symbol, 'BUY', quantity, bar.close, bar.timestamp)
+                        self.execute_trade(symbol, 'BUY', quantity, bar.close, bar.timestamp, signal=signal)
+                        self._record_entry(signal)
                     
                     elif signal.action == 'EXIT' and symbol in self.positions:
                         # 卖出
                         pos = self.positions[symbol]
-                        self.execute_trade(symbol, 'SELL', pos.quantity, bar.close, bar.timestamp)
+                        self.execute_trade(symbol, 'SELL', pos.quantity, bar.close, bar.timestamp, signal=signal)
+                        self._record_exit(signal)
             
             # 更新权益曲线
             if i % 10 == 0:  # 每 10 根 K 线记录一次
@@ -629,6 +689,7 @@ class BacktestEngine:
         
         # 计算绩效指标
         result = self.calculate_performance(start_time, end_time, final_equity)
+        result.attribution = self._build_attribution()
         
         print(f"[Backtest] Completed: {result.total_trades} trades, {result.total_return_pct:.2f}% return")
         
@@ -648,27 +709,36 @@ class BacktestEngine:
         total_loss = 0.0
         
         # 简化计算：假设每对买卖交易计算盈亏
-        buy_trades = [t for t in self.trades if t.side == 'BUY']
-        sell_trades = [t for t in self.trades if t.side == 'SELL']
-        
-        for sell in sell_trades:
-            # 找到对应的买入交易
-            matching_buys = [b for b in buy_trades if b.symbol == sell.symbol and b.timestamp < sell.timestamp]
-            if matching_buys:
-                buy = matching_buys[-1]  # 最近的买入
-                pnl = (
-                    (sell.price - buy.price) * sell.quantity
-                    - sell.commission
-                    - buy.commission
-                    - sell.slippage
-                    - buy.slippage
-                )
+        if self.closed_trade_records:
+            for trade_record in self.closed_trade_records:
+                pnl = float(trade_record.get("net_pnl", 0.0) or 0.0)
                 if pnl > 0:
                     winning_trades += 1
                     total_win += pnl
                 else:
                     losing_trades += 1
                     total_loss += abs(pnl)
+        else:
+            buy_trades = [t for t in self.trades if t.side == 'BUY']
+            sell_trades = [t for t in self.trades if t.side == 'SELL']
+
+            for sell in sell_trades:
+                matching_buys = [b for b in buy_trades if b.symbol == sell.symbol and b.timestamp < sell.timestamp]
+                if matching_buys:
+                    buy = matching_buys[-1]
+                    pnl = (
+                        (sell.price - buy.price) * sell.quantity
+                        - sell.commission
+                        - buy.commission
+                        - sell.slippage
+                        - buy.slippage
+                    )
+                    if pnl > 0:
+                        winning_trades += 1
+                        total_win += pnl
+                    else:
+                        losing_trades += 1
+                        total_loss += abs(pnl)
         
         closed_trades = winning_trades + losing_trades
         win_rate = winning_trades / closed_trades if closed_trades > 0 else 0.0
@@ -735,8 +805,204 @@ class BacktestEngine:
             transaction_cost_total=transaction_cost_total,
             fee_drag_pct=fee_drag_pct,
             trades=self.trades,
-            equity_curve=self.equity_curve
+            equity_curve=self.equity_curve,
         )
+
+    def _record_signal(self, signal) -> None:
+        action = str(getattr(signal, "action", "HOLD") or "HOLD").upper()
+        if action not in {"BUY", "EXIT"}:
+            return
+        self._metric_for_signal(signal)["signals"] += 1
+
+    def _record_entry(self, signal) -> None:
+        action = str(getattr(signal, "action", "HOLD") or "HOLD").upper()
+        if action == "BUY":
+            self._metric_for_signal(signal)["entries"] += 1
+
+    def _record_exit(self, signal) -> None:
+        action = str(getattr(signal, "action", "HOLD") or "HOLD").upper()
+        if action == "EXIT":
+            self._metric_for_signal(signal)["exits"] += 1
+
+    def _metric_for_signal(self, signal) -> dict[str, Any]:
+        symbol = str(getattr(signal, "symbol", "") or "")
+        rule_id = str(getattr(signal, "primary_rule_id", None) or getattr(signal, "rule_id", "unknown"))
+        profile = getattr(signal, "symbol_profile", None) or self.symbol_profile_overview.get(symbol, {}).get("profile") or "unknown"
+        return self._ensure_attribution_metric(symbol, rule_id, profile=profile)
+
+    def _ensure_attribution_metric(self, symbol: str, rule_id: str, *, profile: str) -> dict[str, Any]:
+        symbol_bucket = self.signal_attribution.setdefault(symbol, {})
+        metric = symbol_bucket.get(rule_id)
+        if not isinstance(metric, dict):
+            metric = {
+                "profile": profile,
+                "signals": 0,
+                "entries": 0,
+                "exits": 0,
+                "closed_trades": 0,
+                "winning_closed_trades": 0,
+                "gross_pnl": 0.0,
+                "net_pnl": 0.0,
+                "commission_total": 0.0,
+                "slippage_total": 0.0,
+                "transaction_cost_total": 0.0,
+                "drawdown_curve": [],
+            }
+            symbol_bucket[rule_id] = metric
+        return metric
+
+    def _record_closed_trade(self, position: Position, sell_trade: Trade, *, quantity: int) -> None:
+        rule_id = position.entry_primary_rule_id or position.entry_rule_id
+        if not rule_id:
+            self.attribution_unknown.append(
+                {
+                    "kind": "closed_trade_missing_primary_rule_id",
+                    "symbol": position.symbol,
+                    "timestamp": sell_trade.timestamp.isoformat(),
+                }
+            )
+            return
+
+        buy_commission = float(position.entry_commission or 0.0)
+        buy_slippage = float(position.entry_slippage or 0.0)
+        sell_commission = float(sell_trade.commission or 0.0)
+        sell_slippage = float(sell_trade.slippage or 0.0)
+        gross_pnl = (sell_trade.price - position.avg_cost) * quantity
+        transaction_cost_total = buy_commission + buy_slippage + sell_commission + sell_slippage
+        net_pnl = gross_pnl - transaction_cost_total
+
+        metric = self._ensure_attribution_metric(
+            position.symbol,
+            str(rule_id),
+            profile=position.entry_symbol_profile or "unknown",
+        )
+        metric["closed_trades"] += 1
+        metric["winning_closed_trades"] += 1 if net_pnl > 0 else 0
+        metric["gross_pnl"] += gross_pnl
+        metric["net_pnl"] += net_pnl
+        metric["commission_total"] += buy_commission + sell_commission
+        metric["slippage_total"] += buy_slippage + sell_slippage
+        metric["transaction_cost_total"] += transaction_cost_total
+        metric["drawdown_curve"].append(net_pnl)
+
+        self.closed_trade_records.append(
+            {
+                "symbol": position.symbol,
+                "rule_id": position.entry_rule_id,
+                "primary_rule_id": position.entry_primary_rule_id,
+                "base_rule_id": position.entry_base_rule_id,
+                "symbol_profile": position.entry_symbol_profile,
+                "effective_config_hash": position.entry_effective_config_hash,
+                "source_rule_ids": list(position.entry_source_rule_ids),
+                "overrides_applied": dict(position.entry_overrides_applied),
+                "gross_pnl": gross_pnl,
+                "net_pnl": net_pnl,
+                "commission_total": buy_commission + sell_commission,
+                "slippage_total": buy_slippage + sell_slippage,
+                "transaction_cost_total": transaction_cost_total,
+                "entry_time": position.entry_time.isoformat(),
+                "exit_time": sell_trade.timestamp.isoformat(),
+            }
+        )
+
+    def _build_attribution(self) -> dict[str, Any]:
+        symbols_payload: dict[str, Any] = {}
+        rules_payload: dict[str, Any] = {}
+
+        for symbol in self.config.symbols:
+            overview = self.symbol_profile_overview.get(symbol, {})
+            profile = overview.get("profile") or "unknown"
+            rules_meta = overview.get("rules", {}) if isinstance(overview.get("rules"), dict) else {}
+            rule_entries: dict[str, Any] = {}
+
+            for rule_id in rules_meta.keys():
+                metric = self._ensure_attribution_metric(symbol, rule_id, profile=profile)
+                rule_entries[rule_id] = self._finalize_attribution_metric(metric)
+
+            symbols_payload[symbol] = {
+                "profile": profile,
+                "rules": rule_entries,
+            }
+
+        aggregated_by_rule: dict[str, dict[str, Any]] = {}
+        for symbol, rules in self.signal_attribution.items():
+            for rule_id, metric in rules.items():
+                agg = aggregated_by_rule.setdefault(
+                    rule_id,
+                    {
+                        "symbols": [],
+                        "signals": 0,
+                        "entries": 0,
+                        "exits": 0,
+                        "closed_trades": 0,
+                        "winning_closed_trades": 0,
+                        "gross_pnl": 0.0,
+                        "net_pnl": 0.0,
+                        "commission_total": 0.0,
+                        "slippage_total": 0.0,
+                        "transaction_cost_total": 0.0,
+                        "drawdown_curve": [],
+                    },
+                )
+                if symbol not in agg["symbols"]:
+                    agg["symbols"].append(symbol)
+                for key in ("signals", "entries", "exits", "closed_trades", "winning_closed_trades"):
+                    agg[key] += metric.get(key, 0)
+                for key in ("gross_pnl", "net_pnl", "commission_total", "slippage_total", "transaction_cost_total"):
+                    agg[key] += float(metric.get(key, 0.0) or 0.0)
+                agg["drawdown_curve"].extend(metric.get("drawdown_curve", []))
+
+        for rule_id, metric in aggregated_by_rule.items():
+            rules_payload[rule_id] = {
+                "symbols": metric["symbols"],
+                **self._finalize_attribution_metric(metric),
+            }
+
+        attribution = {
+            "symbols": symbols_payload,
+            "rules": rules_payload,
+        }
+        if self.attribution_unknown:
+            attribution["attribution_unknown"] = self.attribution_unknown
+        return attribution
+
+    def _finalize_attribution_metric(self, metric: dict[str, Any]) -> dict[str, Any]:
+        closed_trades = int(metric.get("closed_trades", 0) or 0)
+        winning_closed_trades = int(metric.get("winning_closed_trades", 0) or 0)
+        commission_total = round(float(metric.get("commission_total", 0.0) or 0.0), 6)
+        slippage_total = round(float(metric.get("slippage_total", 0.0) or 0.0), 6)
+        transaction_cost_total = round(float(metric.get("transaction_cost_total", 0.0) or 0.0), 6)
+        gross_pnl = float(metric.get("gross_pnl", 0.0) or 0.0)
+        net_pnl = float(metric.get("net_pnl", 0.0) or 0.0)
+        return {
+            "signals": int(metric.get("signals", 0) or 0),
+            "entries": int(metric.get("entries", 0) or 0),
+            "exits": int(metric.get("exits", 0) or 0),
+            "closed_trades": closed_trades,
+            "winning_closed_trades": winning_closed_trades,
+            "win_rate": (winning_closed_trades / closed_trades) if closed_trades > 0 else None,
+            "gross_return_pct": round((gross_pnl / self.config.initial_capital) * 100, 6) if self.config.initial_capital > 0 else 0.0,
+            "net_return_pct": round((net_pnl / self.config.initial_capital) * 100, 6) if self.config.initial_capital > 0 else 0.0,
+            "commission_total": commission_total,
+            "slippage_total": slippage_total,
+            "transaction_cost_total": transaction_cost_total,
+            "fee_drag_pct": round((transaction_cost_total / self.config.initial_capital) * 100, 6) if self.config.initial_capital > 0 else 0.0,
+            "max_drawdown_pct": round(self._drawdown_pct(metric.get("drawdown_curve", [])), 6),
+        }
+
+    def _drawdown_pct(self, realized_pnl_curve: list[float]) -> float:
+        if not realized_pnl_curve or self.config.initial_capital <= 0:
+            return 0.0
+        peak = self.config.initial_capital
+        equity = self.config.initial_capital
+        max_drawdown = 0.0
+        for delta in realized_pnl_curve:
+            equity += float(delta or 0.0)
+            if equity > peak:
+                peak = equity
+            if peak > 0:
+                max_drawdown = max(max_drawdown, ((peak - equity) / peak) * 100)
+        return max_drawdown
 
 
 def run_backtest(config: BacktestConfig, rules_path: str | Path) -> BacktestResult:

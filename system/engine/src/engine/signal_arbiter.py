@@ -53,7 +53,22 @@ class SignalArbiter:
             "suppressed": suppressed,
             "resolution": resolution,
         }
-        return replace(selected, diagnostics=diagnostics)
+        source_rule_ids = []
+        effective_hashes = []
+        for signal in signals:
+            rule_id = getattr(signal, "rule_id", None)
+            if rule_id and rule_id not in source_rule_ids:
+                source_rule_ids.append(rule_id)
+            effective_hash = getattr(signal, "effective_config_hash", None)
+            if effective_hash and effective_hash not in effective_hashes:
+                effective_hashes.append(effective_hash)
+        return replace(
+            selected,
+            diagnostics=diagnostics,
+            primary_rule_id=getattr(selected, "rule_id", None),
+            source_rule_ids=source_rule_ids,
+            effective_config_hashes=effective_hashes,
+        )
 
     def _sort_candidates(self, signals: list[Any]) -> list[Any]:
         return sorted(

@@ -130,7 +130,10 @@ async def api_rules_update(rules_data: dict):
     if "rules" not in rules_data:
         return JSONResponse({"error": "Missing 'rules' field"}, status_code=400)
 
-    validation = dashboard_main.validate_rules_config(rules_data)
+    validation = dashboard_main.validate_rules_config(
+        rules_data,
+        symbol_universe=dashboard_main._current_symbol_universe(),
+    )
     if not validation["valid"]:
         return JSONResponse(
             {"valid": False, "errors": validation["errors"], "warnings": validation["warnings"]},
@@ -155,7 +158,10 @@ async def api_rules_update(rules_data: dict):
 async def api_rules_validate(rules_data: dict):
     dashboard_main = _dashboard_main()
 
-    validation = dashboard_main.validate_rules_config(rules_data)
+    validation = dashboard_main.validate_rules_config(
+        rules_data,
+        symbol_universe=dashboard_main._current_symbol_universe(),
+    )
     return {
         "valid": validation["valid"],
         "errors": validation["errors"],

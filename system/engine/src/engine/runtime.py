@@ -178,11 +178,7 @@ def _required_bars_for_symbol(
     rule_engine: RuleEngine | None,
 ) -> int:
     if engine_type == "rule_engine" and rule_engine is not None:
-        applicable_rules = [
-            rule
-            for rule in rule_engine.get_enabled_rules()
-            if rule_engine._rule_applies(rule, symbol, market)
-        ]
+        applicable_rules = rule_engine.get_enabled_rules(symbol=symbol, market=market)
         if applicable_rules:
             return max(rule_engine._get_min_bars_required(rule) for rule in applicable_rules)
     return _legacy_required_bars(app)
@@ -492,6 +488,7 @@ def build_strategy_summary(raw: dict[str, Any], app: AppConfig) -> dict[str, Any
     signals = []
     engine_type = 'legacy'
     rule_engine: RuleEngine | None = None
+    symbol_profile_overview: dict[str, Any] = {}
 
     if use_rule_engine and rules_path:
         # Use new rule engine
@@ -499,9 +496,16 @@ def build_strategy_summary(raw: dict[str, Any], app: AppConfig) -> dict[str, Any
             rules_file = Path(rules_path)
             if not rules_file.is_absolute():
                 rules_file = Path(__file__).resolve().parents[2] / rules_file
-            
-            rule_engine = RuleEngine(rules_file)
+
+            rule_engine = RuleEngine(
+                rules_file,
+                symbol_universe=[item["symbol"] for item in app.symbols],
+            )
             engine_type = 'rule_engine'
+            symbol_profile_overview = rule_engine.get_symbol_profile_overview(
+                [item["symbol"] for item in app.symbols],
+                market_by_symbol={item["symbol"]: item["market"] for item in app.symbols},
+            )
             
             for item in app.symbols:
                 symbol = item['symbol']
@@ -525,6 +529,7 @@ def build_strategy_summary(raw: dict[str, Any], app: AppConfig) -> dict[str, Any
         'timeframe': app.timeframe,
         'signals': signals,
         'engine': engine_type,
+        'symbol_profiles': symbol_profile_overview if engine_type == 'rule_engine' else {},
     }
     summary['data_health'] = _build_data_health_report(
         raw,

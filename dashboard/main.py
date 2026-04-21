@@ -119,6 +119,7 @@ from system.engine.src.engine.control import (
     canonical_mode_to_legacy_ui_mode,
     legacy_ui_mode_to_canonical_mode,
 )
+from system.engine.src.engine.rule_profiles import build_symbol_profile_overview
 from system.engine.src.engine.rule_schema import validate_rules_config
 
 # --- App lifecycle ---
@@ -397,6 +398,23 @@ def _app_config_file() -> Path:
 
 def _load_effective_app_config() -> dict[str, Any]:
     return load_app_config_raw(_app_config_file())
+
+
+def _current_symbol_universe() -> list[str]:
+    try:
+        config = _load_effective_app_config()
+    except Exception:
+        return []
+    strategy = config.get("strategy", {}) if isinstance(config, dict) else {}
+    symbols = strategy.get("symbols", []) if isinstance(strategy, dict) else []
+    result: list[str] = []
+    for item in symbols:
+        if not isinstance(item, dict):
+            continue
+        symbol = item.get("symbol")
+        if symbol:
+            result.append(str(symbol).upper())
+    return result
 
 
 def _merge_app_user_settings(updates: dict[str, Any]) -> tuple[dict[str, Any], Path]:
@@ -719,6 +737,16 @@ def _build_strategy_overview() -> dict[str, Any]:
         for item in (config.get("strategy", {}).get("symbols", []) if isinstance(config, dict) else [])
         if isinstance(item, dict) and item.get("symbol")
     }
+    market_by_symbol = {
+        item.get("symbol"): item.get("market", "US")
+        for item in (config.get("strategy", {}).get("symbols", []) if isinstance(config, dict) else [])
+        if isinstance(item, dict) and item.get("symbol")
+    }
+    symbol_profiles = build_symbol_profile_overview(
+        rules_doc if isinstance(rules_doc, dict) else {"rules": []},
+        list(symbol_name_map.keys()),
+        market_by_symbol=market_by_symbol,
+    )
 
     raw_signals = cycle.get("strategy", {}).get("signals", []) if isinstance(cycle, dict) else []
     signal_records: list[dict[str, Any]] = []
@@ -739,6 +767,9 @@ def _build_strategy_overview() -> dict[str, Any]:
         signal_records.append({
             "index": index,
             "rule_id": rule_id,
+            "base_rule_id": signal.get("base_rule_id") or rule_id,
+            "primary_rule_id": signal.get("primary_rule_id") or rule_id,
+            "source_rule_ids": signal.get("source_rule_ids", []),
             "rule_name": rule.get("name"),
             "rule_enabled": bool(rule.get("enabled", True)),
             "rule_priority": rule.get("priority"),
@@ -752,6 +783,10 @@ def _build_strategy_overview() -> dict[str, Any]:
             "order_type": signal.get("order_type"),
             "last_close": signal.get("last_close"),
             "diagnostics": signal.get("diagnostics") if isinstance(signal.get("diagnostics"), dict) else {},
+            "symbol_profile": signal.get("symbol_profile") or symbol_profiles.get(signal.get("symbol"), {}).get("profile"),
+            "effective_config_hash": signal.get("effective_config_hash"),
+            "effective_config_hashes": signal.get("effective_config_hashes", []),
+            "overrides_applied": signal.get("overrides_applied", {}),
         })
 
     signal_records.sort(
@@ -864,6 +899,7 @@ def _build_strategy_overview() -> dict[str, Any]:
         "quote_access": cycle.get("quote_access"),
         "market_state": cycle.get("market_state"),
         "data_health": cycle.get("data_health", {}),
+        "symbol_profiles": cycle.get("strategy", {}).get("symbol_profiles", {}) if isinstance(cycle.get("strategy"), dict) else {},
     }
 
     fee_calibration = _safe_read_json(BROKER_ARTIFACTS_DIR / "fee_calibration_summary.json") or {}
@@ -905,6 +941,7 @@ def _build_strategy_overview() -> dict[str, Any]:
         "data_health": cycle.get("data_health", {}),
         "rules_meta": _file_meta(RULES_FILE),
         "rules_summary": rules_summary,
+        "symbol_profiles": symbol_profiles,
         "signal_records": signal_records,
         "latest_plan": latest_plan_summary,
         "plan_history": plan_history,

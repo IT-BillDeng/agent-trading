@@ -2,6 +2,7 @@ import json
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -20,8 +21,9 @@ def _error_response(message="provider failure", code=1):
 
 def _make_bar(index: int) -> dict:
     close = 100 + index
+    ts = datetime(2026, 4, 18, 10, 0, 0) + timedelta(minutes=30 * index)
     return {
-        "time": f"2026-04-18 09:{index:02d}:00",
+        "time": ts.strftime("%Y-%m-%d %H:%M:%S"),
         "open": close - 0.2,
         "high": close + 0.5,
         "low": close - 0.5,
@@ -103,6 +105,7 @@ class DataHealthReportTests(unittest.TestCase):
             self.assertEqual(health["raw_bars_count"], 0)
             self.assertEqual(health["normalized_bars_count"], 0)
             self.assertEqual(health["contract_status"], "ok")
+            self.assertFalse(health["actionable_ready"])
 
     def test_data_health_reports_insufficient_bars_with_required_count(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -144,8 +147,9 @@ class DataHealthReportTests(unittest.TestCase):
             self.assertEqual(health["reason"], "insufficient_bars")
             self.assertFalse(health["strategy_ready"])
             self.assertEqual(health["required_bars"], 25)
-            self.assertEqual(health["normalized_bars_count"], 12)
-            self.assertEqual(health["latest_bar_time"], "2026-04-18 09:11:00")
+            self.assertEqual(health["normalized_bars_count"], 11)
+            self.assertEqual(health["latest_bar_time"], "2026-04-18T15:30:00-04:00")
+            self.assertFalse(health["latest_regular_bar_is_complete"])
 
     def test_data_health_reports_symbol_disabled_from_control_state(self):
         with tempfile.TemporaryDirectory() as tmpdir:

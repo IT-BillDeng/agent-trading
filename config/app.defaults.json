@@ -10,6 +10,12 @@
   "strategy": {
     "timeframe": "30min",
     "use_rule_engine": true,
+    "market_data": {
+      "include_extended_hours": true,
+      "extended_hours_usage": "context_only",
+      "regular_session_only_for_indicators": true,
+      "require_completed_bar_for_actionable_signal": true
+    },
     "data_provider": {
       "primary": "yfinance",
       "fallback": "tiger",
@@ -25,8 +31,11 @@
     },
     "sessions": {
       "US": {
+        "regular_start": "09:30",
+        "regular_end": "16:00",
         "entry_window_start": "10:00",
-        "entry_window_end": "15:15"
+        "entry_window_end": "15:15",
+        "timezone": "America/New_York"
       }
     },
     "symbols": [

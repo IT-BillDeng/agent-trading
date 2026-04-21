@@ -7,6 +7,12 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from .control import ControlPlane
+from .market_sessions import (
+    market_data_policy,
+    resolve_now_for_market,
+    resolve_trading_day_for_market,
+    session_config,
+)
 from .state import TradeLimitStore
 
 ET_ZONE = ZoneInfo("America/New_York")
@@ -32,6 +38,7 @@ class RiskManager:
     def __init__(self, app_config: dict[str, Any]):
         risk = dict(app_config.get('risk', {}))
         system = dict(app_config.get('system', {}))
+        self.app_config = dict(app_config)
         self.max_order_notional_usd = float(risk.get('max_order_notional_usd', 10000))
         self.max_total_exposure_usd = float(risk.get('max_total_exposure_usd', 1000000))
         self.daily_loss_limit_pct = float(risk.get('daily_loss_limit_pct', 5))
@@ -46,6 +53,8 @@ class RiskManager:
             state_dir = Path(__file__).resolve().parents[2] / state_dir
         self.control = ControlPlane(state_dir)
         self.trade_limits = TradeLimitStore(state_dir)
+        self.market_data_policy = market_data_policy(app_config)
+        self.us_session = session_config(app_config, "US")
 
     def evaluate(
         self,
@@ -55,6 +64,7 @@ class RiskManager:
         contracts: dict[str, dict[str, dict[str, Any]]],
         positions_map: dict[str, dict[str, Any]],
         active_orders_map: dict[str, dict[str, Any]],
+        data_health: dict[str, dict[str, Any]] | None = None,
     ) -> list[RiskDecision]:
         decisions: list[RiskDecision] = []
         risk_state = self._refresh_daily_loss_state(asset_snapshot or {})
@@ -85,6 +95,7 @@ class RiskManager:
                 projected_total_trades=projected_total_trades,
                 projected_symbol_state=projected_symbol_state,
                 now_ts=now_ts,
+                data_health=(data_health or {}).get(signal.get('symbol'), {}),
             )
             decisions.append(decision)
             if decision.allowed and decision.action == 'BUY' and decision.estimated_notional_usd:
@@ -112,6 +123,7 @@ class RiskManager:
         projected_total_trades: int,
         projected_symbol_state: dict[str, dict[str, Any]],
         now_ts: str,
+        data_health: dict[str, Any],
     ) -> RiskDecision:
         symbol = signal['symbol']
         market = signal['market']
@@ -149,6 +161,7 @@ class RiskManager:
             reasons.append('market_not_regular_session')
 
         if action == 'BUY':
+            reasons.extend(self._buy_session_reasons(signal, data_health))
             if risk_state.get('emergency_flatten', False):
                 reasons.append('emergency_flatten_active')
             if risk_state.get('reduce_only', False) and risk_state.get('reduce_only_reason') != 'daily_loss_limit_exceeded':
@@ -226,6 +239,9 @@ class RiskManager:
             )
 
         if action == 'EXIT':
+            technical_exit_reason = self._technical_exit_reason(signal, data_health)
+            if technical_exit_reason:
+                reasons.append(technical_exit_reason)
             quantity = self._position_quantity(position)
             if not position:
                 reasons.append('no_position_to_exit')
@@ -376,35 +392,18 @@ class RiskManager:
         return any(word in status for word in positive) or 'trading' in market_status or 'open' in market_status
 
     def _resolve_trading_day(self, asset_snapshot: dict[str, Any]) -> str:
-        for key in ('trading_day', 'tradingDay', 'date'):
-            value = asset_snapshot.get(key)
-            if value:
-                return str(value)[:10]
-        timestamp = self._resolve_timestamp(asset_snapshot)
-        parsed = self._parse_timestamp(timestamp)
-        if parsed is not None:
-            if parsed.tzinfo is None:
-                parsed = parsed.replace(tzinfo=timezone.utc)
-            return parsed.astimezone(ET_ZONE).date().isoformat()
-        return datetime.now(ET_ZONE).date().isoformat()
+        return resolve_trading_day_for_market(
+            asset_snapshot,
+            [],
+            timezone_name=self.us_session["timezone"],
+        )
 
     def _resolve_timestamp(self, asset_snapshot: dict[str, Any]) -> str:
-        for key in (
-            'trading_timestamp',
-            'tradingTimestamp',
-            'account_timestamp',
-            'accountTimestamp',
-            'broker_timestamp',
-            'brokerTimestamp',
-            'timestamp',
-            'ts',
-            'updated_at',
-            'as_of',
-        ):
-            value = asset_snapshot.get(key)
-            if value:
-                return str(value)
-        return datetime.now(timezone.utc).isoformat()
+        return resolve_now_for_market(
+            asset_snapshot,
+            [],
+            timezone_name=self.us_session["timezone"],
+        ).isoformat()
 
     def _optional_float(self, value: Any) -> float | None:
         if value in (None, ''):
@@ -450,6 +449,33 @@ class RiskManager:
             reasons.append(f'symbol_loss_cooldown_active:{symbol}')
 
         return reasons
+
+    def _buy_session_reasons(self, signal: dict[str, Any], data_health: dict[str, Any]) -> list[str]:
+        if signal.get('market') != 'US' or signal.get('action') != 'BUY':
+            return []
+        if not self.market_data_policy.get('regular_session_only_for_indicators', True):
+            return []
+        reasons: list[str] = []
+        if signal.get('actionable') is False and signal.get('actionable_reason'):
+            reasons.append(str(signal.get('actionable_reason')))
+        block_reason = data_health.get('actionable_block_reason')
+        if block_reason and block_reason not in reasons:
+            reasons.append(str(block_reason))
+        return reasons
+
+    def _technical_exit_reason(self, signal: dict[str, Any], data_health: dict[str, Any]) -> str | None:
+        if signal.get('market') != 'US' or signal.get('action') != 'EXIT':
+            return None
+        if signal.get('actionable') is False and signal.get('actionable_reason') == 'technical_exit_bar_not_ready':
+            return 'technical_exit_bar_not_ready'
+        if data_health.get('actionable_block_reason') in {
+            'first_30m_bar_not_closed',
+            'latest_regular_bar_stale',
+            'first_regular_bar_missing',
+            'extended_context_only',
+        }:
+            return 'technical_exit_bar_not_ready'
+        return None
 
     def _parse_timestamp(self, value: Any):
         if not value:

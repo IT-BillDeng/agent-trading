@@ -12,6 +12,7 @@ from typing import Any, Iterator
 import yfinance as yf
 
 from .broker_fee import estimate_order_fee_breakdown, load_fee_schedule
+from .market_sessions import classify_bar_session, parse_bar_timestamp, session_config
 from .rule_engine import RuleEngine
 
 
@@ -126,6 +127,7 @@ class BacktestConfig:
     fee_model: str = 'broker_default'
     max_position_pct: float = 0.2  # 单标的最大仓位比例
     data_source: str = 'tiger'  # 默认使用当前券商的历史数据提供器（兼容历史 provider 名）
+    include_extended_hours: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -173,7 +175,7 @@ class DataFetcher:
     
     @staticmethod
     def fetch(symbol: str, start_date: str, end_date: str, 
-              interval: str = '30m', source: str = 'yfinance') -> list[Bar]:
+              interval: str = '30m', source: str = 'yfinance', include_extended_hours: bool = False) -> list[Bar]:
         """
         获取历史数据
         
@@ -188,9 +190,10 @@ class DataFetcher:
             Bar 列表
         """
         if source == 'tiger':
-            return DataFetcher._fetch_from_tiger(symbol, start_date, end_date, interval)
+            bars = DataFetcher._fetch_from_tiger(symbol, start_date, end_date, interval)
         else:
-            return DataFetcher._fetch_from_yfinance(symbol, start_date, end_date, interval)
+            bars = DataFetcher._fetch_from_yfinance(symbol, start_date, end_date, interval)
+        return DataFetcher._filter_regular_session_bars(bars) if not include_extended_hours else bars
     
     @staticmethod
     def _fetch_from_yfinance(symbol: str, start_date: str, end_date: str, 
@@ -353,12 +356,31 @@ class DataFetcher:
     
     @staticmethod
     def fetch_multiple(symbols: list[str], start_date: str, end_date: str,
-                       interval: str = '30m', source: str = 'yfinance') -> dict[str, list[Bar]]:
+                       interval: str = '30m', source: str = 'yfinance', include_extended_hours: bool = False) -> dict[str, list[Bar]]:
         """批量获取历史数据"""
         result = {}
         for symbol in symbols:
-            result[symbol] = DataFetcher.fetch(symbol, start_date, end_date, interval, source)
+            result[symbol] = DataFetcher.fetch(
+                symbol,
+                start_date,
+                end_date,
+                interval,
+                source,
+                include_extended_hours=include_extended_hours,
+            )
         return result
+
+    @staticmethod
+    def _filter_regular_session_bars(bars: list[Bar]) -> list[Bar]:
+        session_cfg = session_config({"strategy": {"sessions": {"US": {}}}}, "US")
+        filtered: list[Bar] = []
+        for bar in bars:
+            parsed = parse_bar_timestamp({"time": bar.timestamp.isoformat()}, timezone_name=session_cfg["timezone"])
+            if parsed is None:
+                continue
+            if classify_bar_session(parsed, market="US", session_cfg=session_cfg) == "regular":
+                filtered.append(bar)
+        return filtered
 
 
 class OrderSimulator:
@@ -495,7 +517,8 @@ class BacktestEngine:
             self.config.start_date,
             self.config.end_date,
             interval,
-            source=self.config.data_source
+            source=self.config.data_source,
+            include_extended_hours=self.config.include_extended_hours,
         )
         
         for symbol in self.config.symbols:

@@ -20,6 +20,13 @@ from .rule_engine import RuleEngine
 from .broker_client import BrokerClient
 from .state import TradeLimitStore
 from .data_provider import create_data_provider, fetch_bars_with_fallback
+from .market_sessions import (
+    analyze_symbol_bars,
+    market_data_policy,
+    resolve_now_for_market,
+    resolve_trading_day_for_market,
+    session_config,
+)
 
 ET_ZONE = ZoneInfo("America/New_York")
 
@@ -114,6 +121,49 @@ def _latest_bar_time(bars: list[dict[str, Any]]) -> str | None:
     return None
 
 
+def _decorate_signal_with_bar_context(
+    signal: dict[str, Any],
+    bar_context: dict[str, Any] | None,
+    *,
+    policy: dict[str, Any],
+) -> dict[str, Any]:
+    enriched = dict(signal)
+    diagnostics = dict(enriched.get("diagnostics") or {})
+    block_reason = None
+    actionable = True
+
+    if bar_context:
+        if enriched.get("action") == "BUY":
+            block_reason = bar_context.get("actionable_block_reason")
+            actionable = block_reason is None
+        elif enriched.get("action") == "EXIT":
+            context_block = bar_context.get("actionable_block_reason")
+            if context_block in {
+                "first_30m_bar_not_closed",
+                "latest_regular_bar_stale",
+                "first_regular_bar_missing",
+                "extended_context_only",
+            }:
+                block_reason = "technical_exit_bar_not_ready"
+                actionable = False
+
+    diagnostics["market_data_boundary"] = {
+        "actionable": actionable,
+        "reason": block_reason,
+        "regular_session_only_for_indicators": policy["regular_session_only_for_indicators"],
+        "extended_hours_usage": policy["extended_hours_usage"],
+        "raw_bars_count": int((bar_context or {}).get("raw_bars_count", 0)),
+        "regular_bars_count": int((bar_context or {}).get("regular_bars_count", 0)),
+        "regular_completed_bars_count": int((bar_context or {}).get("regular_completed_bars_count", 0)),
+        "extended_bars_count": int((bar_context or {}).get("extended_bars_count", 0)),
+    }
+    enriched["diagnostics"] = diagnostics
+    enriched["actionable"] = actionable
+    if block_reason:
+        enriched["actionable_reason"] = block_reason
+    return enriched
+
+
 def _market_closed(market_state: Any) -> bool:
     candidates: list[str] = []
     if isinstance(market_state, list):
@@ -191,10 +241,12 @@ def _build_data_health_report(
     *,
     engine_type: str,
     rule_engine: RuleEngine | None,
-    bars_by_symbol: dict[str, list[dict[str, Any]]],
+    raw_bars_by_symbol: dict[str, list[dict[str, Any]]],
+    symbol_bar_contexts: dict[str, dict[str, Any]],
 ) -> dict[str, dict[str, Any]]:
     default_provider = str(raw.get("_provider") or app.signal.get("provider") or app.broker_platform or "unknown")
     report: dict[str, dict[str, Any]] = {}
+    policy = market_data_policy(app.raw)
 
     for item in app.symbols:
         symbol = item["symbol"]
@@ -232,9 +284,18 @@ def _build_data_health_report(
         bars_entry = _find_symbol_entry(bars_resp, symbol)
         raw_items = bars_entry.get("items") if isinstance(bars_entry, dict) else None
         raw_bars_count = int(bars_meta.get("bars_count") or (len(raw_items) if isinstance(raw_items, list) else 0))
-        normalized_bars = list(bars_by_symbol.get(symbol, []))
+        raw_bars = list(raw_bars_by_symbol.get(symbol, []))
+        bar_context = symbol_bar_contexts.get(symbol) or analyze_symbol_bars(
+            raw_bars,
+            asset_snapshot=summary.get("asset_snapshot"),
+            market=market,
+            timeframe=app.timeframe,
+            app_config=app.raw,
+            provider=provider,
+        )
+        normalized_bars = list(bar_context.get("regular_completed_bars", []))
         normalized_bars_count = len(normalized_bars)
-        latest_bar_time = _latest_bar_time(normalized_bars)
+        latest_bar_time = bar_context.get("latest_regular_bar_time")
         required_bars = _required_bars_for_symbol(
             app,
             symbol,
@@ -276,12 +337,28 @@ def _build_data_health_report(
             "quote_status": quote_status,
             "contract_status": contract_status,
             "raw_bars_count": raw_bars_count,
+            "regular_bars_count": int(bar_context.get("regular_bars_count", 0)),
+            "extended_bars_count": int(bar_context.get("extended_bars_count", 0)),
             "normalized_bars_count": normalized_bars_count,
             "required_bars": required_bars,
             "latest_bar_time": latest_bar_time,
+            "latest_raw_bar_time": bar_context.get("latest_raw_bar_time"),
+            "latest_regular_bar_time": latest_bar_time,
+            "latest_regular_bar_is_complete": bool(bar_context.get("latest_regular_bar_is_complete", False)),
+            "latest_regular_bar_is_stale": bool(bar_context.get("latest_regular_bar_is_stale", False)),
+            "first_regular_30m_bar_completed": bool(bar_context.get("first_regular_30m_bar_completed", False)),
             "timeframe": app.timeframe,
             "strategy_ready": reason is None,
             "reason": reason or None,
+            "actionable_ready": bool(bar_context.get("actionable_ready", False)) and reason is None,
+            "actionable_block_reason": bar_context.get("actionable_block_reason"),
+            "extended_context": dict(bar_context.get("extended_context", {})),
+            "market_data_policy": {
+                "include_extended_hours": policy["include_extended_hours"],
+                "extended_hours_usage": policy["extended_hours_usage"],
+                "regular_session_only_for_indicators": policy["regular_session_only_for_indicators"],
+                "require_completed_bar_for_actionable_signal": policy["require_completed_bar_for_actionable_signal"],
+            },
         }
 
     return report
@@ -476,10 +553,31 @@ def run_execution_cycle(client: BrokerClient, app: AppConfig, write_logs: bool =
 
 def build_strategy_summary(raw: dict[str, Any], app: AppConfig) -> dict[str, Any]:
     summary = summarize_cycle(raw)
-    bars_by_symbol: dict[str, list[dict[str, Any]]] = {}
+    raw_bars_by_symbol: dict[str, list[dict[str, Any]]] = {}
     for market in raw['bars'].values():
-        bars_by_symbol.update(_extract_bars_map(market))
+        raw_bars_by_symbol.update(_extract_bars_map(market))
     positions_map = _extract_positions_map(raw['positions'])
+    bars_by_symbol: dict[str, list[dict[str, Any]]] = {}
+    symbol_bar_contexts: dict[str, dict[str, Any]] = {}
+    policy = market_data_policy(app.raw)
+
+    for item in app.symbols:
+        symbol = item["symbol"]
+        market = item["market"]
+        provider = raw.get("_bars_meta", {}).get(market, {}).get("symbols", {}).get(symbol, {}).get("provider") or raw.get("_provider")
+        context = analyze_symbol_bars(
+            raw_bars_by_symbol.get(symbol, []),
+            asset_snapshot=summary.get("asset_snapshot"),
+            market=market,
+            timeframe=app.timeframe,
+            app_config=app.raw,
+            provider=str(provider or app.broker_platform),
+        )
+        symbol_bar_contexts[symbol] = context
+        if policy["regular_session_only_for_indicators"]:
+            bars_by_symbol[symbol] = list(context.get("regular_completed_bars", []))
+        else:
+            bars_by_symbol[symbol] = list(context.get("raw_bars", []))
     
     # Check if rule engine is enabled
     use_rule_engine = app.raw.get('strategy', {}).get('use_rule_engine', False)
@@ -515,7 +613,13 @@ def build_strategy_summary(raw: dict[str, Any], app: AppConfig) -> dict[str, Any
                 
                 rule_signals = rule_engine.evaluate_symbol(symbol, market, bars, position)
                 for signal in rule_signals:
-                    signals.append(signal.to_dict())
+                    signals.append(
+                        _decorate_signal_with_bar_context(
+                            signal.to_dict(),
+                            symbol_bar_contexts.get(symbol),
+                            policy=policy,
+                        )
+                    )
         except Exception as e:
             print(f'[build_strategy_summary] Rule engine failed, falling back to legacy: {e}')
             use_rule_engine = False
@@ -523,13 +627,25 @@ def build_strategy_summary(raw: dict[str, Any], app: AppConfig) -> dict[str, Any
     if not use_rule_engine:
         # Use legacy strategy engine
         engine = StrategyEngine(app)
-        signals = [signal.to_dict() for signal in engine.generate(bars_by_symbol=bars_by_symbol, positions=positions_map)]
+        signals = [
+            _decorate_signal_with_bar_context(
+                signal.to_dict(),
+                symbol_bar_contexts.get(signal.symbol),
+                policy=policy,
+            )
+            for signal in engine.generate(bars_by_symbol=bars_by_symbol, positions=positions_map)
+        ]
 
     summary['strategy'] = {
         'timeframe': app.timeframe,
         'signals': signals,
         'engine': engine_type,
         'symbol_profiles': symbol_profile_overview if engine_type == 'rule_engine' else {},
+        'market_data': {
+            'extended_hours_usage': policy["extended_hours_usage"],
+            'regular_session_only_for_indicators': policy["regular_session_only_for_indicators"],
+            'require_completed_bar_for_actionable_signal': policy["require_completed_bar_for_actionable_signal"],
+        },
     }
     summary['data_health'] = _build_data_health_report(
         raw,
@@ -537,7 +653,8 @@ def build_strategy_summary(raw: dict[str, Any], app: AppConfig) -> dict[str, Any
         app,
         engine_type=engine_type,
         rule_engine=rule_engine,
-        bars_by_symbol=bars_by_symbol,
+        raw_bars_by_symbol=raw_bars_by_symbol,
+        symbol_bar_contexts=symbol_bar_contexts,
     )
     return summary
 
@@ -558,6 +675,7 @@ def build_execution_summary(raw: dict[str, Any], app: AppConfig) -> dict[str, An
         contracts=summary.get('contracts', {}),
         positions_map=_extract_positions_map(raw['positions']),
         active_orders_map=_extract_active_orders_map(raw['active_orders']),
+        data_health=summary.get('data_health', {}),
     )
     decision_dicts = [item.to_dict() for item in decisions]
     previews = [item.to_dict() for item in executor.build_previews(
@@ -566,8 +684,19 @@ def build_execution_summary(raw: dict[str, Any], app: AppConfig) -> dict[str, An
         contracts=summary.get('contracts', {}),
     )]
     trade_limit_store = TradeLimitStore(_state_dir(app))
-    trading_day = _resolve_trading_day(summary.get('asset_snapshot'))
-    recorded_at = _resolve_timestamp(summary.get('asset_snapshot'))
+    first_symbol = app.symbols[0] if app.symbols else {"market": "US", "symbol": None}
+    first_symbol_bars = raw.get("bars", {}).get(first_symbol.get("market"), {})
+    raw_bars_for_day = _extract_bars_map(first_symbol_bars).get(first_symbol.get("symbol"), [])
+    trading_day = resolve_trading_day_for_market(
+        summary.get('asset_snapshot'),
+        raw_bars_for_day,
+        timezone_name=session_config(app.raw, first_symbol.get("market", "US"))["timezone"],
+    )
+    recorded_at = resolve_now_for_market(
+        summary.get('asset_snapshot'),
+        raw_bars_for_day,
+        timezone_name=session_config(app.raw, first_symbol.get("market", "US"))["timezone"],
+    ).isoformat()
     intents = [item.to_dict() for item in intent_builder.build(previews, cycle_id=cycle_id)]
     for intent in intents:
         trade_limit_store.record_trade(
@@ -640,6 +769,16 @@ def summarize_cycle(raw: dict[str, Any]) -> dict[str, Any]:
             'grossPositionValue': item.get('grossPositionValue'),
             'unrealizedPnL': item.get('unrealizedPnL'),
             'realizedPnL': item.get('realizedPnL'),
+            'trading_day': item.get('trading_day'),
+            'tradingDay': item.get('tradingDay'),
+            'timestamp': item.get('timestamp'),
+            'ts': item.get('ts'),
+            'account_timestamp': item.get('account_timestamp'),
+            'accountTimestamp': item.get('accountTimestamp'),
+            'broker_timestamp': item.get('broker_timestamp'),
+            'brokerTimestamp': item.get('brokerTimestamp'),
+            'updated_at': item.get('updated_at'),
+            'as_of': item.get('as_of'),
         }
 
     for market, resp in raw['market_state'].items():

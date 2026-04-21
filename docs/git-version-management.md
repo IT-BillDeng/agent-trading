@@ -66,6 +66,9 @@
 - `memory/`
 - `logs/watcher-*.json`
 - `rules/rules_backup/`
+- `system/artifacts/`
+- `_watcher_run.py`
+- `system/engine/src/engine/src/`
 
 原则上：
 
@@ -177,6 +180,7 @@ python3 -m py_compile <changed files>
 
 - `logs/`
 - `artifacts/`
+- `system/artifacts/`
 - `memory/`
 - `runtime/`
 
@@ -192,6 +196,17 @@ python3 -m py_compile <changed files>
 - 再决定是否应该版本化
 
 不要直接把一次运行结果随手提交进仓库。
+
+另外两类常见脏文件也不应进入版本管理：
+
+- 临时调试脚本，例如 `_watcher_run.py`
+- 意外生成的嵌套源码目录，例如 `system/engine/src/engine/src/`
+
+这类文件应当：
+
+- 先确认不是正式源码
+- 然后从工作区移除
+- 最后补到 `.gitignore`
 
 ---
 
@@ -238,4 +253,3 @@ python3 -m py_compile <changed files>
 - 哪些是临时笔记
 
 再决定是否提交。
-

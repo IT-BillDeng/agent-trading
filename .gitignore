@@ -38,3 +38,6 @@ runtime/tiger_engine/strategist_iterations/
 memory/
 logs/watcher-*.json
 handoff/
+_watcher_run.py
+system/artifacts/
+system/engine/src/engine/src/

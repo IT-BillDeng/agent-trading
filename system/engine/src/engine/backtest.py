@@ -16,6 +16,14 @@ from .market_sessions import classify_bar_session, parse_bar_timestamp, session_
 from .rule_engine import RuleEngine
 
 
+class BacktestDataError(RuntimeError):
+    """Raised when backtest market data is unavailable or internally inconsistent."""
+
+    def __init__(self, message: str, *, diagnostics: dict[str, Any] | None = None):
+        super().__init__(message)
+        self.diagnostics = diagnostics or {}
+
+
 @dataclass
 class Bar:
     """K 线数据"""
@@ -159,6 +167,8 @@ class BacktestResult:
     fee_drag_pct: float
     trades: list[Trade]
     equity_curve: list[dict[str, Any]]
+    data_coverage: dict[str, Any] = field(default_factory=dict)
+    data_warnings: list[str] = field(default_factory=list)
     attribution: dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> dict[str, Any]:
@@ -172,6 +182,9 @@ class BacktestResult:
 
 class DataFetcher:
     """历史数据获取器"""
+
+    TIGER_PAGE_LIMIT = 500
+    TIGER_FALLBACK_SOURCE = 'yfinance'
     
     @staticmethod
     def fetch(symbol: str, start_date: str, end_date: str, 
@@ -189,11 +202,74 @@ class DataFetcher:
         Returns:
             Bar 列表
         """
+        bars, _meta = DataFetcher.fetch_with_metadata(
+            symbol,
+            start_date,
+            end_date,
+            interval=interval,
+            source=source,
+            include_extended_hours=include_extended_hours,
+        )
+        return bars
+
+    @staticmethod
+    def fetch_with_metadata(
+        symbol: str,
+        start_date: str,
+        end_date: str,
+        interval: str = '30m',
+        source: str = 'yfinance',
+        include_extended_hours: bool = False,
+    ) -> tuple[list[Bar], dict[str, Any]]:
+        requested_start = f"{start_date} 00:00:00"
+        requested_end = f"{end_date} 23:59:59"
+        fallback_used = False
+        warnings: list[str] = []
+
         if source == 'tiger':
-            bars = DataFetcher._fetch_from_tiger(symbol, start_date, end_date, interval)
+            try:
+                bars = DataFetcher._fetch_from_tiger(symbol, start_date, end_date, interval)
+                effective_source = 'tiger'
+            except BacktestDataError as exc:
+                warnings.append(str(exc))
+                try:
+                    bars = DataFetcher._fetch_from_yfinance(symbol, start_date, end_date, interval)
+                    effective_source = DataFetcher.TIGER_FALLBACK_SOURCE
+                    fallback_used = True
+                    if bars:
+                        warnings.append('tiger_fetch_failed_fallback_to_yfinance')
+                    else:
+                        raise BacktestDataError(
+                            f"{symbol}: tiger fetch failed and yfinance fallback returned no bars",
+                            diagnostics=exc.diagnostics,
+                        ) from exc
+                except BacktestDataError:
+                    raise
+                except Exception as fallback_exc:
+                    raise BacktestDataError(
+                        f"{symbol}: tiger fetch failed and yfinance fallback also failed: {fallback_exc}",
+                        diagnostics=exc.diagnostics,
+                    ) from fallback_exc
         else:
             bars = DataFetcher._fetch_from_yfinance(symbol, start_date, end_date, interval)
-        return DataFetcher._filter_regular_session_bars(bars) if not include_extended_hours else bars
+            effective_source = source
+
+        filtered_bars = DataFetcher._filter_regular_session_bars(bars) if not include_extended_hours else bars
+        status = 'ok' if filtered_bars else 'empty'
+        if not filtered_bars and not warnings:
+            warnings.append('no_bars_returned')
+        metadata = DataFetcher._build_symbol_fetch_metadata(
+            symbol,
+            filtered_bars,
+            data_source=effective_source,
+            requested_start=requested_start,
+            requested_end=requested_end,
+            interval=interval,
+            fallback_used=fallback_used,
+            warnings=warnings,
+            status=status,
+        )
+        return filtered_bars, metadata
     
     @staticmethod
     def _fetch_from_yfinance(symbol: str, start_date: str, end_date: str, 
@@ -255,16 +331,21 @@ class DataFetcher:
             end_time = f"{end_date} 23:59:59"
             
             # 当前数据源单次最多返回 500 根 K 线
-            # 如果时间跨度大，需要分批获取
+            # 如果时间跨度大，需要分批获取，并确保分页严格前进
             all_bars = []
             current_begin = begin_time
+            current_begin_dt = datetime.strptime(begin_time, '%Y-%m-%d %H:%M:%S')
+            requested_end_dt = datetime.strptime(end_time, '%Y-%m-%d %H:%M:%S')
+            last_page_last_dt: datetime | None = None
+            page_count = 0
             
             while True:
+                page_count += 1
                 print(f"[DataFetcher] Fetching {symbol} from {current_begin} to {end_time}")
                 resp = client.get_bars(
                     symbols=[symbol],
                     period=interval,
-                    limit=500,
+                    limit=DataFetcher.TIGER_PAGE_LIMIT,
                     begin_time=current_begin,
                     end_time=end_time
                 )
@@ -292,67 +373,97 @@ class DataFetcher:
                 
                 if not items:
                     break
-                
-                for item in items:
-                    # 数据源 K 线格式可能是列表或字典
-                    if isinstance(item, dict):
-                        # 字典格式: {'time': timestamp, 'open': ..., 'high': ..., 'low': ..., 'close': ..., 'volume': ...}
-                        bar = Bar(
-                            timestamp=datetime.fromtimestamp(item['time'] / 1000) if item.get('time', 0) > 1e10 else datetime.fromtimestamp(item.get('time', 0)),
-                            open=float(item.get('open', 0)),
-                            high=float(item.get('high', 0)),
-                            low=float(item.get('low', 0)),
-                            close=float(item.get('close', 0)),
-                            volume=int(item.get('volume', 0))
-                        )
-                        all_bars.append(bar)
-                    elif isinstance(item, list) and len(item) >= 6:
-                        # 列表格式: [time, open, high, low, close, volume, ...]
-                        bar = Bar(
-                            timestamp=datetime.fromtimestamp(item[0] / 1000) if item[0] > 1e10 else datetime.fromtimestamp(item[0]),
-                            open=float(item[1]),
-                            high=float(item[2]),
-                            low=float(item[3]),
-                            close=float(item[4]),
-                            volume=int(item[5])
-                        )
-                        all_bars.append(bar)
-                
+
+                page_bars = DataFetcher._parse_tiger_items(symbol, items)
+                if not page_bars:
+                    raise BacktestDataError(
+                        f"{symbol}: tiger returned malformed bar payload on page {page_count}",
+                        diagnostics={
+                            "symbol": symbol,
+                            "data_source": "tiger",
+                            "page": page_count,
+                            "requested_start": begin_time,
+                            "requested_end": end_time,
+                        },
+                    )
+
+                page_bars = DataFetcher._dedupe_sort_bars(page_bars)
+                page_first_dt = page_bars[0].timestamp
+                page_last_dt = page_bars[-1].timestamp
+
+                if last_page_last_dt is not None and page_last_dt <= last_page_last_dt:
+                    raise BacktestDataError(
+                        f"{symbol}: tiger pagination stalled at {page_last_dt.isoformat()}",
+                        diagnostics={
+                            "symbol": symbol,
+                            "data_source": "tiger",
+                            "page": page_count,
+                            "requested_start": begin_time,
+                            "requested_end": end_time,
+                            "page_first_bar_time": page_first_dt.isoformat(),
+                            "page_last_bar_time": page_last_dt.isoformat(),
+                            "previous_last_bar_time": last_page_last_dt.isoformat(),
+                        },
+                    )
+
+                new_page_bars = [
+                    bar for bar in page_bars
+                    if last_page_last_dt is None or bar.timestamp > last_page_last_dt
+                ]
+                if not new_page_bars:
+                    raise BacktestDataError(
+                        f"{symbol}: tiger pagination produced duplicate page at {page_last_dt.isoformat()}",
+                        diagnostics={
+                            "symbol": symbol,
+                            "data_source": "tiger",
+                            "page": page_count,
+                            "requested_start": begin_time,
+                            "requested_end": end_time,
+                        },
+                    )
+
+                all_bars.extend(new_page_bars)
+                last_page_last_dt = new_page_bars[-1].timestamp
+
                 # 检查是否已获取完
-                if len(items) < 500:
+                if len(items) < DataFetcher.TIGER_PAGE_LIMIT or last_page_last_dt >= requested_end_dt:
                     break
-                
-                # 更新起始时间为最后一条K线的时间
-                last_item = items[-1]
-                if isinstance(last_item, dict):
-                    last_time = last_item.get('time', 0)
-                elif isinstance(last_item, list):
-                    last_time = last_item[0] if last_item else 0
-                else:
-                    last_time = 0
-                
-                if last_time > 1e10:
-                    current_begin = datetime.fromtimestamp(last_time / 1000).strftime('%Y-%m-%d %H:%M:%S')
-                else:
-                    current_begin = datetime.fromtimestamp(last_time).strftime('%Y-%m-%d %H:%M:%S')
-            
-            # 去重并排序
-            seen = set()
-            unique_bars = []
-            for bar in all_bars:
-                key = bar.timestamp.isoformat()
-                if key not in seen:
-                    seen.add(key)
-                    unique_bars.append(bar)
-            
-            unique_bars.sort(key=lambda b: b.timestamp)
+
+                next_begin_dt = last_page_last_dt + timedelta(seconds=1)
+                if next_begin_dt <= current_begin_dt:
+                    raise BacktestDataError(
+                        f"{symbol}: tiger pagination cursor did not advance",
+                        diagnostics={
+                            "symbol": symbol,
+                            "data_source": "tiger",
+                            "page": page_count,
+                            "requested_start": begin_time,
+                            "requested_end": end_time,
+                            "current_begin": current_begin_dt.isoformat(),
+                            "next_begin": next_begin_dt.isoformat(),
+                        },
+                    )
+                current_begin_dt = next_begin_dt
+                current_begin = current_begin_dt.strftime('%Y-%m-%d %H:%M:%S')
+
+            unique_bars = DataFetcher._dedupe_sort_bars(all_bars)
             
             print(f"[DataFetcher] Broker: {len(unique_bars)} bars for {symbol}")
             return unique_bars
             
+        except BacktestDataError:
+            raise
         except Exception as e:
             print(f"[DataFetcher] Broker failed for {symbol}: {e}")
-            return []
+            raise BacktestDataError(
+                f"{symbol}: tiger fetch failed: {e}",
+                diagnostics={
+                    "symbol": symbol,
+                    "data_source": "tiger",
+                    "requested_start": start_date,
+                    "requested_end": end_date,
+                },
+            ) from e
     
     @staticmethod
     def fetch_multiple(symbols: list[str], start_date: str, end_date: str,
@@ -371,6 +482,47 @@ class DataFetcher:
         return result
 
     @staticmethod
+    def fetch_multiple_with_metadata(
+        symbols: list[str],
+        start_date: str,
+        end_date: str,
+        interval: str = '30m',
+        source: str = 'yfinance',
+        include_extended_hours: bool = False,
+    ) -> tuple[dict[str, list[Bar]], dict[str, dict[str, Any]]]:
+        result: dict[str, list[Bar]] = {}
+        metadata: dict[str, dict[str, Any]] = {}
+        for symbol in symbols:
+            try:
+                bars, symbol_meta = DataFetcher.fetch_with_metadata(
+                    symbol,
+                    start_date,
+                    end_date,
+                    interval=interval,
+                    source=source,
+                    include_extended_hours=include_extended_hours,
+                )
+                result[symbol] = bars
+                metadata[symbol] = symbol_meta
+            except BacktestDataError as exc:
+                result[symbol] = []
+                symbol_meta = dict(exc.diagnostics or {})
+                symbol_meta.update(
+                    DataFetcher._build_symbol_fetch_metadata(
+                        symbol,
+                        [],
+                        data_source=source,
+                        requested_start=f"{start_date} 00:00:00",
+                        requested_end=f"{end_date} 23:59:59",
+                        interval=interval,
+                        status='error',
+                        error=str(exc),
+                    )
+                )
+                metadata[symbol] = symbol_meta
+        return result, metadata
+
+    @staticmethod
     def _filter_regular_session_bars(bars: list[Bar]) -> list[Bar]:
         session_cfg = session_config({"strategy": {"sessions": {"US": {}}}}, "US")
         filtered: list[Bar] = []
@@ -381,6 +533,72 @@ class DataFetcher:
             if classify_bar_session(parsed, market="US", session_cfg=session_cfg) == "regular":
                 filtered.append(bar)
         return filtered
+
+    @staticmethod
+    def _parse_tiger_items(symbol: str, items: list[Any]) -> list[Bar]:
+        bars: list[Bar] = []
+        for item in items:
+            if isinstance(item, dict):
+                raw_time = item.get('time', 0)
+                bar = Bar(
+                    timestamp=datetime.fromtimestamp(raw_time / 1000) if raw_time > 1e10 else datetime.fromtimestamp(raw_time),
+                    open=float(item.get('open', 0)),
+                    high=float(item.get('high', 0)),
+                    low=float(item.get('low', 0)),
+                    close=float(item.get('close', 0)),
+                    volume=int(item.get('volume', 0)),
+                )
+                bars.append(bar)
+            elif isinstance(item, list) and len(item) >= 6:
+                raw_time = item[0]
+                bar = Bar(
+                    timestamp=datetime.fromtimestamp(raw_time / 1000) if raw_time > 1e10 else datetime.fromtimestamp(raw_time),
+                    open=float(item[1]),
+                    high=float(item[2]),
+                    low=float(item[3]),
+                    close=float(item[4]),
+                    volume=int(item[5]),
+                )
+                bars.append(bar)
+            else:
+                print(f"[DataFetcher] Skipping malformed tiger item for {symbol}: {item!r}")
+        return bars
+
+    @staticmethod
+    def _dedupe_sort_bars(bars: list[Bar]) -> list[Bar]:
+        by_ts: dict[str, Bar] = {}
+        for bar in bars:
+            by_ts[bar.timestamp.isoformat()] = bar
+        return [by_ts[key] for key in sorted(by_ts)]
+
+    @staticmethod
+    def _build_symbol_fetch_metadata(
+        symbol: str,
+        bars: list[Bar],
+        *,
+        data_source: str,
+        requested_start: str,
+        requested_end: str,
+        interval: str,
+        fallback_used: bool = False,
+        warnings: list[str] | None = None,
+        status: str = 'ok',
+        error: str | None = None,
+    ) -> dict[str, Any]:
+        return {
+            "symbol": symbol,
+            "bars_count": len(bars),
+            "first_bar_time": bars[0].timestamp.isoformat() if bars else None,
+            "last_bar_time": bars[-1].timestamp.isoformat() if bars else None,
+            "data_source": data_source,
+            "requested_start": requested_start,
+            "requested_end": requested_end,
+            "requested_interval": interval,
+            "fallback_used": fallback_used,
+            "status": status,
+            "warnings": list(warnings or []),
+            "error": error,
+        }
 
 
 class OrderSimulator:
@@ -485,6 +703,8 @@ class BacktestEngine:
         # 历史数据
         self.bars_by_symbol: dict[str, list[Bar]] = {}
         self.current_index: dict[str, int] = {}
+        self.data_coverage: dict[str, dict[str, Any]] = {}
+        self.data_warnings: list[str] = []
 
     @staticmethod
     def _load_fee_schedule(broker_platform: str) -> dict[str, Any]:
@@ -512,7 +732,7 @@ class BacktestEngine:
             }
             interval = interval_map.get(self.config.timeframe, '30m')
         
-        self.bars_by_symbol = DataFetcher.fetch_multiple(
+        self.bars_by_symbol, self.data_coverage = DataFetcher.fetch_multiple_with_metadata(
             self.config.symbols,
             self.config.start_date,
             self.config.end_date,
@@ -520,10 +740,41 @@ class BacktestEngine:
             source=self.config.data_source,
             include_extended_hours=self.config.include_extended_hours,
         )
-        
+        self.data_warnings = []
+
         for symbol in self.config.symbols:
             self.current_index[symbol] = -1
-            print(f"[Backtest] {symbol}: {len(self.bars_by_symbol.get(symbol, []))} bars loaded")
+            symbol_meta = self.data_coverage.get(symbol, {})
+            bars_count = int(symbol_meta.get("bars_count", len(self.bars_by_symbol.get(symbol, []))))
+            print(
+                f"[Backtest] {symbol}: bars={bars_count}, "
+                f"first={symbol_meta.get('first_bar_time')}, "
+                f"last={symbol_meta.get('last_bar_time')}, "
+                f"source={symbol_meta.get('data_source')}, "
+                f"requested={symbol_meta.get('requested_start')} -> {symbol_meta.get('requested_end')}"
+            )
+            if symbol_meta.get("warnings"):
+                self.data_warnings.extend([f"{symbol}: {item}" for item in symbol_meta["warnings"]])
+            if symbol_meta.get("error"):
+                self.data_warnings.append(f"{symbol}: {symbol_meta['error']}")
+
+            required_bars = self._required_bars_for_symbol(symbol)
+            symbol_meta["required_bars"] = required_bars
+            symbol_meta["has_sufficient_bars"] = bars_count >= required_bars
+            if bars_count < required_bars:
+                self.data_warnings.append(f"{symbol}: insufficient_bars ({bars_count}/{required_bars})")
+
+        if all(int(meta.get("bars_count", 0)) == 0 for meta in self.data_coverage.values()):
+            raise BacktestDataError(
+                "No valid bars loaded for any symbol in backtest window",
+                diagnostics={"symbols": self.data_coverage},
+            )
+
+        if not any(bool(meta.get("has_sufficient_bars")) for meta in self.data_coverage.values()):
+            raise BacktestDataError(
+                "Bars loaded but insufficient for all symbols in backtest window",
+                diagnostics={"symbols": self.data_coverage},
+            )
     
     def get_current_bar(self, symbol: str) -> Bar | None:
         """获取当前 K 线"""
@@ -713,10 +964,18 @@ class BacktestEngine:
         # 计算绩效指标
         result = self.calculate_performance(start_time, end_time, final_equity)
         result.attribution = self._build_attribution()
+        result.data_coverage = self.data_coverage
+        result.data_warnings = self.data_warnings
         
         print(f"[Backtest] Completed: {result.total_trades} trades, {result.total_return_pct:.2f}% return")
         
         return result
+
+    def _required_bars_for_symbol(self, symbol: str) -> int:
+        enabled_rules = self.rule_engine.get_enabled_rules(symbol=symbol, market=self.config.market)
+        if not enabled_rules:
+            return 10
+        return max(self.rule_engine._get_min_bars_required(rule) for rule in enabled_rules)
     
     def calculate_performance(self, start_time: datetime, end_time: datetime, 
                               final_capital: float) -> BacktestResult:

@@ -353,6 +353,7 @@ NEWSWIRE_ARTIFACTS_DIR = ARTIFACTS_ROOT / "newswire"
 EXECUTOR_ARTIFACTS_DIR = ARTIFACTS_ROOT / "executor"
 SCOUT_ARTIFACTS_DIR = ARTIFACTS_ROOT / "scout"
 CLOSER_ARTIFACTS_DIR = ARTIFACTS_ROOT / "closer"
+FACTOR_ARTIFACTS_DIR = ARTIFACTS_ROOT / "factors"
 AUDIT_LOG_DIR = LOGS_ROOT / "audit"
 SERVICE_LOG_DIR = LOGS_ROOT / "service"
 LATEST_LOG_DIR = LOGS_ROOT / "latest"
@@ -386,6 +387,7 @@ def _ensure_artifacts_layout():
         STRATEGIST_ARTIFACTS_DIR,
         STRATEGIST_MEMORY_DIR,
         STRATEGIST_ITERATIONS_ARTIFACT_DIR,
+        FACTOR_ARTIFACTS_DIR,
         EXECUTOR_ARTIFACTS_DIR,
         SCOUT_ARTIFACTS_DIR,
         CLOSER_ARTIFACTS_DIR,
@@ -508,6 +510,136 @@ def _safe_read_json(path: Path) -> dict[str, Any] | list[Any] | None:
 def _write_json_file(path: Path, payload: dict[str, Any] | list[Any]):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False))
+
+
+def _resolve_factor_registry_path(config: dict[str, Any]) -> Path | None:
+    factor_engine = config.get("factor_engine")
+    if not isinstance(factor_engine, dict):
+        return None
+    registry_path = factor_engine.get("registry_path")
+    if not registry_path:
+        return None
+    path = Path(str(registry_path))
+    if path.is_absolute():
+        return path
+    return (Path(__file__).parent.parent / path).resolve()
+
+
+def _load_factor_registry_meta(config: dict[str, Any]) -> tuple[dict[str, dict[str, Any]], dict[str, Any] | None]:
+    registry_path = _resolve_factor_registry_path(config)
+    if registry_path is None:
+        return {}, None
+
+    payload = _safe_read_json(registry_path)
+    if not isinstance(payload, dict):
+        return {}, _file_meta(registry_path)
+
+    result: dict[str, dict[str, Any]] = {}
+    factors = payload.get("factors")
+    if isinstance(factors, dict):
+        for factor_id, entry in factors.items():
+            if not isinstance(entry, dict):
+                continue
+            result[str(factor_id)] = {
+                "type": entry.get("type"),
+                "session": entry.get("session"),
+                "timeframe": entry.get("timeframe"),
+                "implementation": entry.get("implementation"),
+                "usage": entry.get("usage", []) if isinstance(entry.get("usage"), list) else [],
+                "actionable": bool(entry.get("actionable", False)),
+            }
+    return result, _file_meta(registry_path)
+
+
+def _build_factor_engine_overview(config: dict[str, Any], cycle: dict[str, Any]) -> dict[str, Any]:
+    configured = config.get("factor_engine") if isinstance(config.get("factor_engine"), dict) else {}
+    cycle_factor = cycle.get("factor_engine") if isinstance(cycle.get("factor_engine"), dict) else {}
+    latest_snapshot_path = _first_existing_path(
+        FACTOR_ARTIFACTS_DIR / "latest.json",
+        RUNTIME_DIR / "factors" / "latest.json",
+    )
+    latest_snapshot = _safe_read_json(latest_snapshot_path)
+    snapshot_symbols = latest_snapshot.get("symbols", {}) if isinstance(latest_snapshot, dict) else {}
+    cycle_symbols = cycle_factor.get("symbols", {}) if isinstance(cycle_factor, dict) else {}
+    registry_meta, registry_file = _load_factor_registry_meta(config)
+
+    factor_engine = {
+        "enabled": bool(cycle_factor.get("enabled", configured.get("enabled", False))),
+        "mode": cycle_factor.get("mode") or configured.get("mode"),
+        "allow_actionable_consumption": bool(
+            cycle_factor.get(
+                "allow_actionable_consumption",
+                configured.get("allow_actionable_consumption", False),
+            )
+        ),
+        "registry_hash": cycle_factor.get("registry_hash")
+        or (latest_snapshot.get("registry_hash") if isinstance(latest_snapshot, dict) else None),
+        "error": cycle_factor.get("error"),
+        "message": cycle_factor.get("message"),
+        "store_error": cycle_factor.get("store_error"),
+        "latest_snapshot": _file_meta(latest_snapshot_path),
+        "registry_file": registry_file,
+        "symbols": {},
+        "factor_rows": [],
+    }
+
+    configured_symbols = []
+    strategy = config.get("strategy")
+    if isinstance(strategy, dict) and isinstance(strategy.get("symbols"), list):
+        configured_symbols = [
+            str(item.get("symbol"))
+            for item in strategy.get("symbols")
+            if isinstance(item, dict) and item.get("symbol")
+        ]
+    symbol_order = list(dict.fromkeys(configured_symbols + list(cycle_symbols.keys()) + list(snapshot_symbols.keys())))
+
+    for symbol in symbol_order:
+        cycle_entry = cycle_symbols.get(symbol) if isinstance(cycle_symbols, dict) else {}
+        if not isinstance(cycle_entry, dict):
+            cycle_entry = {}
+        snapshot_entry = snapshot_symbols.get(symbol) if isinstance(snapshot_symbols, dict) else {}
+        if not isinstance(snapshot_entry, dict):
+            snapshot_entry = {}
+        snapshot_factors = snapshot_entry.get("factors") if isinstance(snapshot_entry.get("factors"), dict) else {}
+
+        symbol_factors: dict[str, Any] = {}
+        for factor_id, payload in sorted(snapshot_factors.items()):
+            if not isinstance(payload, dict):
+                continue
+            factor_meta = registry_meta.get(str(factor_id), {})
+            factor_payload = {
+                "factor_id": str(factor_id),
+                "value": payload.get("value"),
+                "ready": bool(payload.get("ready")),
+                "reason": payload.get("reason"),
+                "actionable": bool(payload.get("actionable", factor_meta.get("actionable", False))),
+                "source": payload.get("source"),
+                "session": factor_meta.get("session"),
+                "timeframe": factor_meta.get("timeframe"),
+                "usage": factor_meta.get("usage", []),
+                "type": factor_meta.get("type"),
+                "implementation": factor_meta.get("implementation"),
+                "config_hash": payload.get("config_hash"),
+            }
+            symbol_factors[str(factor_id)] = factor_payload
+            factor_engine["factor_rows"].append({
+                "symbol": symbol,
+                **factor_payload,
+            })
+
+        factor_engine["symbols"][symbol] = {
+            "factors_ready": cycle_entry.get(
+                "factors_ready",
+                sum(1 for item in symbol_factors.values() if item.get("ready")),
+            ),
+            "factors_total": cycle_entry.get("factors_total", len(symbol_factors)),
+            "blocking": bool(cycle_entry.get("blocking", False)),
+            "reasons": cycle_entry.get("reasons", []),
+            "timestamp": snapshot_entry.get("timestamp"),
+            "factors": symbol_factors,
+        }
+
+    return factor_engine
 
 
 def _tail_jsonl_info(path: Path) -> dict[str, Any]:
@@ -901,7 +1033,9 @@ def _build_strategy_overview() -> dict[str, Any]:
         "market_state": cycle.get("market_state"),
         "data_health": cycle.get("data_health", {}),
         "symbol_profiles": cycle.get("strategy", {}).get("symbol_profiles", {}) if isinstance(cycle.get("strategy"), dict) else {},
+        "factor_engine": cycle.get("factor_engine", {}) if isinstance(cycle.get("factor_engine"), dict) else {},
     }
+    factor_engine = _build_factor_engine_overview(config, cycle)
 
     fee_calibration = _safe_read_json(BROKER_ARTIFACTS_DIR / "fee_calibration_summary.json") or {}
     if not isinstance(fee_calibration, dict) or not fee_calibration:
@@ -956,6 +1090,7 @@ def _build_strategy_overview() -> dict[str, Any]:
             "reason": control.get("reason"),
         },
         "latest_cycle": latest_cycle,
+        "factor_engine": factor_engine,
         "data_health": cycle.get("data_health", {}),
         "rules_meta": _file_meta(RULES_FILE),
         "rules_summary": rules_summary,

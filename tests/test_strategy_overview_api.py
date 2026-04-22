@@ -3,6 +3,7 @@ import sys
 import tempfile
 import types
 import unittest
+import asyncio
 from pathlib import Path
 from unittest import mock
 
@@ -107,6 +108,7 @@ with mock.patch.dict(
     },
 ):
     from dashboard import main as dashboard_main
+    from dashboard.api import strategy as dashboard_strategy_api
 
 
 class StrategyOverviewApiTests(unittest.TestCase):
@@ -120,7 +122,9 @@ class StrategyOverviewApiTests(unittest.TestCase):
             latest_dir = logs_root / "latest"
             strategist_logs_dir = logs_root / "agents" / "strategist" / "iterations"
             broker_artifacts_dir = root / "artifacts" / "broker"
+            factor_artifacts_dir = root / "artifacts" / "factors"
             strategist_artifacts_dir = root / "artifacts" / "strategist"
+            registry_path = root / "factor-registry.json"
 
             (config_dir).mkdir(parents=True)
             (runtime_dir / "state").mkdir(parents=True)
@@ -129,7 +133,32 @@ class StrategyOverviewApiTests(unittest.TestCase):
             latest_dir.mkdir(parents=True)
             strategist_logs_dir.mkdir(parents=True)
             broker_artifacts_dir.mkdir(parents=True)
+            (factor_artifacts_dir / "history").mkdir(parents=True)
             strategist_artifacts_dir.mkdir(parents=True)
+
+            registry_path.write_text(json.dumps({
+                "schema_version": 1,
+                "defaults": {
+                    "mode": "shadow",
+                    "allow_actionable_consumption": False,
+                    "regular_session_only_for_indicators": True,
+                    "default_timezone": "America/New_York",
+                },
+                "factors": {
+                    "rsi_14_30m": {
+                        "type": "technical",
+                        "implementation": "builtin:rsi",
+                        "inputs": ["regular_session_30m_bars"],
+                        "params": {"period": 14},
+                        "session": "regular",
+                        "timeframe": "30min",
+                        "output": "numeric",
+                        "usage": ["shadow", "rule_condition_candidate"],
+                        "actionable": False,
+                        "version": 1,
+                    }
+                },
+            }, ensure_ascii=False))
 
             (config_dir / "app_config.docker.json").write_text(json.dumps({
                 "mode": "paper",
@@ -142,6 +171,12 @@ class StrategyOverviewApiTests(unittest.TestCase):
                         {"symbol": "AAPL", "name": "Apple"},
                         {"symbol": "MSFT", "name": "Microsoft"},
                     ],
+                },
+                "factor_engine": {
+                    "enabled": True,
+                    "mode": "shadow",
+                    "registry_path": str(registry_path),
+                    "allow_actionable_consumption": False,
                 },
             }, ensure_ascii=False))
 
@@ -205,6 +240,44 @@ class StrategyOverviewApiTests(unittest.TestCase):
                 },
                 "quote_access": {"US": True},
                 "market_state": {"US": {"state": "OPEN"}},
+                "factor_engine": {
+                    "enabled": True,
+                    "mode": "shadow",
+                    "allow_actionable_consumption": False,
+                    "registry_hash": "registry-hash-1",
+                    "symbols": {
+                        "AAPL": {
+                            "factors_ready": 1,
+                            "factors_total": 1,
+                            "blocking": False,
+                            "reasons": [],
+                        }
+                    },
+                },
+            }, ensure_ascii=False))
+
+            (factor_artifacts_dir / "latest.json").write_text(json.dumps({
+                "timestamp": "2026-04-16T10:00:00+00:00",
+                "registry_hash": "registry-hash-1",
+                "mode": "shadow",
+                "symbols": {
+                    "AAPL": {
+                        "symbol": "AAPL",
+                        "timestamp": "2026-04-16T10:00:00-04:00",
+                        "registry_hash": "registry-hash-1",
+                        "mode": "shadow",
+                        "factors": {
+                            "rsi_14_30m": {
+                                "value": 42.1,
+                                "ready": True,
+                                "actionable": False,
+                                "reason": "ok",
+                                "source": "regular_session_completed_bars",
+                                "config_hash": "factor-hash-1",
+                            }
+                        },
+                    }
+                },
             }, ensure_ascii=False))
 
             (runtime_dir / "strategy_plan_latest.json").write_text(json.dumps({
@@ -269,6 +342,7 @@ class StrategyOverviewApiTests(unittest.TestCase):
                 mock.patch.object(dashboard_main, "LOGS_ROOT", logs_root), \
                 mock.patch.object(dashboard_main, "LATEST_LOG_DIR", latest_dir), \
                 mock.patch.object(dashboard_main, "BROKER_ARTIFACTS_DIR", broker_artifacts_dir), \
+                mock.patch.object(dashboard_main, "FACTOR_ARTIFACTS_DIR", factor_artifacts_dir), \
                 mock.patch.object(dashboard_main, "STRATEGIST_ARTIFACTS_DIR", strategist_artifacts_dir), \
                 mock.patch.object(dashboard_main, "STRATEGIST_MEMORY_DIR", strategist_artifacts_dir / "memory"), \
                 mock.patch.object(dashboard_main, "STRATEGIST_ITERATIONS_ARTIFACT_DIR", strategist_artifacts_dir / "iterations"), \
@@ -293,6 +367,15 @@ class StrategyOverviewApiTests(unittest.TestCase):
             self.assertEqual(overview["fee_calibration"]["trust"]["label"], "观察")
             self.assertIn("AAPL", overview["data_health"])
             self.assertEqual(overview["data_health"]["AAPL"]["reason"], "bars_empty")
+            self.assertIn("factor_engine", overview)
+            self.assertTrue(overview["factor_engine"]["enabled"])
+            self.assertEqual(overview["factor_engine"]["mode"], "shadow")
+            self.assertFalse(overview["factor_engine"]["allow_actionable_consumption"])
+            self.assertEqual(overview["latest_cycle"]["factor_engine"]["registry_hash"], "registry-hash-1")
+            self.assertEqual(overview["factor_engine"]["symbols"]["AAPL"]["factors_ready"], 1)
+            self.assertEqual(overview["factor_engine"]["symbols"]["AAPL"]["factors"]["rsi_14_30m"]["session"], "regular")
+            self.assertEqual(len(overview["factor_engine"]["factor_rows"]), 1)
+            self.assertEqual(overview["factor_engine"]["factor_rows"][0]["source"], "regular_session_completed_bars")
             self.assertEqual(overview["control"]["legacy_mode"], "signals")
             self.assertEqual(overview["control"]["canonical_mode"], "signal_only")
             self.assertTrue(overview["control"]["signal_generation_enabled"])
@@ -300,6 +383,14 @@ class StrategyOverviewApiTests(unittest.TestCase):
             self.assertFalse(overview["control"]["live_execution_enabled"])
             self.assertFalse(overview["control"]["live_submission_ready"])
             self.assertTrue((latest_dir / "strategy_overview.json").exists())
+
+    def test_strategy_api_returns_factor_engine_field(self):
+        expected = {"factor_engine": {"enabled": True, "mode": "shadow"}}
+        with mock.patch.object(dashboard_main, "_build_strategy_overview", return_value=expected):
+            dashboard_strategy_api.set_dashboard_main_module(dashboard_main)
+            result = asyncio.run(dashboard_strategy_api.api_strategy_overview())
+        self.assertEqual(result["factor_engine"]["mode"], "shadow")
+        self.assertTrue(result["factor_engine"]["enabled"])
 
 
 if __name__ == "__main__":

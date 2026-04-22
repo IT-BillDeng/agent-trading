@@ -362,6 +362,49 @@
         </section>
 
         <section class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div class="card">
+                <div class="flex items-center justify-between gap-3 mb-3">
+                    <div>
+                        <div class="card-title mb-0">🧪 Factor Engine Shadow</div>
+                        <div id="factor-engine-meta" class="text-xs text-gray-500 mt-1">只读展示 shadow factor snapshot / registry hash / readiness</div>
+                    </div>
+                    <div class="text-xs text-gray-500">read-only</div>
+                </div>
+                <div id="factor-engine-summary" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                    <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-4 text-sm text-gray-500">加载中...</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="flex items-center justify-between gap-3 mb-3">
+                    <div>
+                        <div class="card-title mb-0">📐 Factor Health Matrix</div>
+                        <div class="text-xs text-gray-500 mt-1">symbol / factor_id / value / ready / reason / actionable=false / source or session</div>
+                    </div>
+                    <div class="text-xs text-gray-500">no registry write endpoint</div>
+                </div>
+                <div class="overflow-auto max-h-[24rem]">
+                    <table class="w-full min-w-max text-sm">
+                        <thead class="sticky top-0 z-10" style="background:#2a2a3c">
+                            <tr class="text-gray-500 border-b border-gray-700/50">
+                                <th class="px-3 py-2 text-left">Symbol</th>
+                                <th class="px-3 py-2 text-left">Factor</th>
+                                <th class="px-3 py-2 text-right">Value</th>
+                                <th class="px-3 py-2 text-center">Ready</th>
+                                <th class="px-3 py-2 text-left">Reason</th>
+                                <th class="px-3 py-2 text-center">Actionable</th>
+                                <th class="px-3 py-2 text-left">Source / Session</th>
+                            </tr>
+                        </thead>
+                        <tbody id="factor-health-body">
+                            <tr><td colspan="7" class="py-4 text-center text-gray-500">加载中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <div class="card flex flex-col h-[34rem] min-h-0">
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                     <div>
@@ -455,6 +498,13 @@
             const n = Number(value);
             if (!Number.isFinite(n)) return '--';
             return (n * 100).toFixed(digits) + '%';
+        }
+
+        function fmtFactorValue(value) {
+            if (value == null || value === '') return '--';
+            const n = Number(value);
+            if (Number.isFinite(n)) return n.toFixed(4);
+            return String(value);
         }
 
         function pnlClass(value) {
@@ -889,6 +939,79 @@
             }).join('');
         }
 
+        function renderFactorEngine(data) {
+            const factorEngine = data?.factor_engine || {};
+            const symbolEntries = Object.entries(factorEngine.symbols || {});
+            const factorRows = Array.isArray(factorEngine.factor_rows) ? factorEngine.factor_rows : [];
+            const meta = document.getElementById('factor-engine-meta');
+            const summary = document.getElementById('factor-engine-summary');
+            const body = document.getElementById('factor-health-body');
+            const readySymbols = symbolEntries.filter(([, item]) => {
+                const total = Number(item?.factors_total || 0);
+                return total > 0 && Number(item?.factors_ready || 0) >= total;
+            }).length;
+            const registryHash = factorEngine.registry_hash
+                ? String(factorEngine.registry_hash).slice(0, 12)
+                : '--';
+            const latestSnapshot = factorEngine.latest_snapshot || {};
+            const metaParts = [
+                factorEngine.enabled ? `mode: ${factorEngine.mode || '--'}` : 'disabled',
+                `symbols: ${symbolEntries.length}`,
+                `rows: ${factorRows.length}`,
+            ];
+            if (factorEngine.error) metaParts.push(`error: ${factorEngine.error}`);
+            meta.textContent = metaParts.join(' | ');
+
+            summary.innerHTML = `
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Engine</div>
+                    <div class="text-lg font-semibold">${factorEngine.enabled ? 'shadow enabled' : 'disabled'}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(factorEngine.message || factorEngine.store_error || '--')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Registry Hash</div>
+                    <div class="text-lg font-semibold mono">${escapeHtml(registryHash)}</div>
+                    <div class="text-xs text-gray-500 mt-1">${factorEngine.allow_actionable_consumption ? 'actionable allowed' : 'allow_actionable_consumption=false'}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Symbol Health</div>
+                    <div class="text-lg font-semibold">${readySymbols}/${symbolEntries.length || 0}</div>
+                    <div class="text-xs text-gray-500 mt-1">all factors ready</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Latest Snapshot</div>
+                    <div class="text-lg font-semibold">${latestSnapshot.exists ? 'present' : 'missing'}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(latestSnapshot.modified || '--')}</div>
+                </div>
+            `;
+
+            if (!factorRows.length) {
+                body.innerHTML = `<tr><td colspan="7" class="py-4 text-center text-gray-500">${escapeHtml(factorEngine.error || '暂无 factor snapshot')}</td></tr>`;
+                return;
+            }
+
+            body.innerHTML = factorRows.map(row => {
+                const sourceBits = [row.source, row.session].filter(Boolean).join(' / ') || '--';
+                return `
+                    <tr class="border-b border-gray-700/30 hover:bg-dark-800/40">
+                        <td class="px-3 py-2 font-medium text-gray-100">${escapeHtml(row.symbol || '--')}</td>
+                        <td class="px-3 py-2">
+                            <div class="font-medium text-gray-100">${escapeHtml(row.factor_id || '--')}</div>
+                            <div class="text-xs text-gray-500 mt-1">${escapeHtml(row.timeframe || '--')} · ${escapeHtml(row.type || '--')}</div>
+                        </td>
+                        <td class="px-3 py-2 text-right text-gray-200 mono">${escapeHtml(fmtFactorValue(row.value))}</td>
+                        <td class="px-3 py-2 text-center">${healthBadge(!!row.ready)}</td>
+                        <td class="px-3 py-2 text-gray-300">${escapeHtml(row.reason || '--')}</td>
+                        <td class="px-3 py-2 text-center">${smallBadge(String(!!row.actionable), row.actionable ? 'bad' : 'good')}</td>
+                        <td class="px-3 py-2 text-gray-300">
+                            <div>${escapeHtml(sourceBits)}</div>
+                            <div class="text-xs text-gray-500 mt-1">${escapeHtml(row.implementation || '--')}</div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
         function renderDataHealth(data) {
             const health = data?.data_health || data?.latest_cycle?.data_health || {};
             const entries = Object.entries(health);
@@ -1232,6 +1355,7 @@
                 renderSignals(data);
                 renderStrategist(data);
                 renderFeeCalibration(data);
+                renderFactorEngine(data);
                 renderDataHealth(data);
                 renderBacktestAttribution(currentBacktestResult);
                 await refreshProposals();

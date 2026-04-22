@@ -33,11 +33,25 @@ class StrategyPageStructureTests(unittest.TestCase):
         self.assertIn("symbol-profiles-body", html)
         self.assertIn("attribution-body", html)
 
+    def test_strategy_page_contains_factor_shadow_sections(self):
+        html = STRATEGY_PAGE.read_text(encoding="utf-8")
+        self.assertIn("Factor Engine Shadow", html)
+        self.assertIn("Factor Health Matrix", html)
+        self.assertIn("factor-engine-meta", html)
+        self.assertIn("factor-health-body", html)
+
     def test_strategy_page_does_not_expose_direct_rules_edit_controls(self):
         html = STRATEGY_PAGE.read_text(encoding="utf-8")
         self.assertNotIn("updateRules(", html)
         self.assertNotIn("fetch(API_BASE + '/api/rules'", html)
         self.assertIn("proposal / hot apply only", html)
+
+    def test_strategy_page_does_not_expose_direct_factor_registry_write_controls(self):
+        html = STRATEGY_PAGE.read_text(encoding="utf-8")
+        self.assertNotIn("updateFactorRegistry(", html)
+        self.assertNotIn("/api/factor-registry", html)
+        self.assertNotIn("factors/registry.json", html)
+        self.assertNotIn("rules/rules.json", html)
 
 
 if __name__ == "__main__":

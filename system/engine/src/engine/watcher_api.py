@@ -129,6 +129,14 @@ class TigerWatcherAPI:
     def _save_state(self):
         self.state_file.parent.mkdir(parents=True, exist_ok=True)
         self.state_file.write_text(json.dumps(self.state, indent=2))
+
+    @staticmethod
+    def _normalize_lock_reason(reason: Any) -> str:
+        return str(reason or "unknown").strip().lower()
+
+    def _is_manual_lock_reason(self, reason: Any) -> bool:
+        normalized = self._normalize_lock_reason(reason)
+        return normalized == "manual_lock" or normalized.startswith("manual_lock")
     
     def check_health(self) -> HealthCheck:
         """检查基本健康状态"""
@@ -196,15 +204,34 @@ class TigerWatcherAPI:
         
         control = data.get("control_state", {})
         locked = control.get("locked", False)
-        mode = control.get("trading_mode", "off")
+        mode = control.get("canonical_mode") or control.get("trading_mode", "off")
         
         if locked:
             reason = control.get("reason", "unknown")
+            if self._is_manual_lock_reason(reason):
+                return HealthCheck(
+                    name="engine_state",
+                    status="warning",
+                    message=f"引擎处于人工锁定状态: {reason}",
+                    details={
+                        "locked": True,
+                        "reason": reason,
+                        "mode": mode,
+                        "lock_kind": "manual",
+                        "fault": False,
+                    }
+                )
             return HealthCheck(
                 name="engine_state",
                 status="error",
-                message=f"引擎已锁定: {reason}",
-                details={"locked": True, "reason": reason, "mode": mode}
+                message=f"引擎异常锁定: {reason}",
+                details={
+                    "locked": True,
+                    "reason": reason,
+                    "mode": mode,
+                    "lock_kind": "abnormal",
+                    "fault": True,
+                }
             )
         
         return HealthCheck(
@@ -362,6 +389,9 @@ class TigerWatcherAPI:
                 ))
             elif check.status == "warning" and level == AlertLevel.INFO:
                 level = AlertLevel.WARNING
+
+        engine_state_check = next((check for check in checks if check.name == "engine_state"), None)
+        engine_already_locked = bool((engine_state_check.details or {}).get("locked")) if engine_state_check else False
         
         # 检查连续错误次数
         if level == AlertLevel.CRITICAL:
@@ -377,7 +407,7 @@ class TigerWatcherAPI:
                 source="watcher",
                 message=f"连续错误 {self.state['consecutive_errors']} 次，升级为 Emergency",
                 timestamp=datetime.now().isoformat(),
-                action_taken="建议自动锁定引擎"
+                action_taken="引擎已锁定，无需重复锁定" if engine_already_locked else "建议自动锁定引擎",
             ))
         
         # 更新状态

@@ -245,6 +245,7 @@ def queue_approval_request(proposal_id: str, record: dict[str, Any], base_dir: s
         "errors": validation["errors"],
         "warnings": validation["warnings"],
         "proposal_type": validation["proposal_type"],
+        "quality_summary": validation.get("quality_summary"),
     }
     write_json(queue_path, queue_record)
     return queue_path

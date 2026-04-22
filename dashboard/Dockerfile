@@ -27,6 +27,7 @@ COPY dashboard/static/ /app/dashboard/static/
 
 # Engine 源码（调度器导入使用）
 COPY system/engine/src/ /app/system/engine/src/
+COPY factors/ /app/factors/
 
 # Runtime / logs 目录
 RUN mkdir -p /app/runtime/logs /app/runtime/state /app/logs/audit /app/logs/service /app/logs/agents /app/logs/latest /app/logs/manifests

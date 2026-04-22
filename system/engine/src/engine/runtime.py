@@ -20,6 +20,8 @@ from .rule_engine import RuleEngine
 from .broker_client import BrokerClient
 from .state import TradeLimitStore
 from .data_provider import create_data_provider, fetch_bars_with_fallback
+from .factors import FactorEngine
+from .factors.store import FactorStore
 from .market_sessions import (
     analyze_symbol_bars,
     market_data_policy,
@@ -29,6 +31,15 @@ from .market_sessions import (
 )
 
 ET_ZONE = ZoneInfo("America/New_York")
+
+FACTOR_ENGINE_DEFAULTS = {
+    "enabled": False,
+    "mode": "shadow",
+    "registry_path": "factors/registry.json",
+    "write_artifacts": False,
+    "allow_actionable_consumption": False,
+    "regular_session_only_for_indicators": True,
+}
 
 
 SUPPORTED_PROVIDER_TIMEFRAMES: dict[str, set[str]] = {
@@ -368,11 +379,168 @@ def _cycle_id() -> str:
     return datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
 
 
+def _project_root() -> Path:
+    return Path(__file__).resolve().parents[4]
+
+
 def _state_dir(app: AppConfig) -> Path:
     state_dir = Path(app.raw.get('system', {}).get('state_dir', './state'))
     if not state_dir.is_absolute():
         state_dir = Path(__file__).resolve().parents[2] / state_dir
     return state_dir
+
+
+def _runtime_dir(app: AppConfig) -> Path:
+    return _state_dir(app).parent
+
+
+def _factor_engine_config(app: AppConfig) -> dict[str, Any]:
+    config = dict(FACTOR_ENGINE_DEFAULTS)
+    raw_config = app.raw.get("factor_engine")
+    if isinstance(raw_config, dict):
+        config.update(raw_config)
+
+    config["enabled"] = bool(config.get("enabled", False))
+    config["mode"] = str(config.get("mode", "shadow"))
+    config["registry_path"] = str(config.get("registry_path", "factors/registry.json"))
+    config["write_artifacts"] = bool(config.get("write_artifacts", False))
+    config["allow_actionable_consumption"] = bool(config.get("allow_actionable_consumption", False))
+    config["regular_session_only_for_indicators"] = bool(
+        config.get("regular_session_only_for_indicators", True)
+    )
+    return config
+
+
+def _resolve_factor_registry_path(registry_path: str | Path) -> Path:
+    path = Path(registry_path)
+    if path.is_absolute():
+        return path
+    return (_project_root() / path).resolve()
+
+
+def _factor_symbol_summary(factor_snapshot: dict[str, Any] | None = None, *, error_reason: str | None = None) -> dict[str, Any]:
+    if error_reason is not None:
+        return {
+            "factors_ready": 0,
+            "factors_total": 0,
+            "blocking": False,
+            "reasons": [error_reason],
+        }
+
+    factors = dict((factor_snapshot or {}).get("factors", {}))
+    reasons = sorted(
+        {
+            str(payload.get("reason"))
+            for payload in factors.values()
+            if isinstance(payload, dict) and payload.get("reason") not in (None, "", "ok")
+        }
+    )
+    return {
+        "factors_ready": sum(
+            1
+            for payload in factors.values()
+            if isinstance(payload, dict) and bool(payload.get("ready"))
+        ),
+        "factors_total": len(factors),
+        "blocking": False,
+        "reasons": reasons,
+    }
+
+
+def _record_factor_shadow_error(summary: dict[str, Any], symbol: str, reason: str) -> None:
+    data_health = summary.get("data_health")
+    if not isinstance(data_health, dict):
+        return
+    symbol_health = data_health.get(symbol)
+    if not isinstance(symbol_health, dict):
+        return
+    symbol_health["factor_shadow_error"] = reason
+
+
+def _attach_factor_shadow(
+    summary: dict[str, Any],
+    raw: dict[str, Any],
+    app: AppConfig,
+    *,
+    raw_bars_by_symbol: dict[str, list[dict[str, Any]]],
+) -> None:
+    config = _factor_engine_config(app)
+    if not config["enabled"]:
+        return
+
+    factor_summary: dict[str, Any] = {
+        "enabled": True,
+        "mode": config["mode"],
+        "allow_actionable_consumption": config["allow_actionable_consumption"],
+        "registry_hash": None,
+        "symbols": {},
+    }
+    summary["factor_engine"] = factor_summary
+
+    symbol_items = list(app.symbols)
+    if config["mode"] != "shadow":
+        error_reason = "invalid_mode"
+        factor_summary["error"] = error_reason
+        for item in symbol_items:
+            symbol = item["symbol"]
+            factor_summary["symbols"][symbol] = _factor_symbol_summary(error_reason=error_reason)
+            _record_factor_shadow_error(summary, symbol, error_reason)
+        return
+    if config["allow_actionable_consumption"]:
+        error_reason = "allow_actionable_consumption_must_be_false"
+        factor_summary["error"] = error_reason
+        for item in symbol_items:
+            symbol = item["symbol"]
+            factor_summary["symbols"][symbol] = _factor_symbol_summary(error_reason=error_reason)
+            _record_factor_shadow_error(summary, symbol, error_reason)
+        return
+
+    try:
+        engine = FactorEngine(_resolve_factor_registry_path(config["registry_path"]))
+        factor_summary["registry_hash"] = engine.registry.config_hash
+        snapshot = {
+            "timestamp": _resolve_timestamp(summary.get("asset_snapshot")),
+            "registry_hash": engine.registry.config_hash,
+            "mode": engine.mode,
+            "symbols": {},
+        }
+
+        for item in symbol_items:
+            symbol = item["symbol"]
+            market = item["market"]
+            provider = (
+                raw.get("_bars_meta", {}).get(market, {}).get("symbols", {}).get(symbol, {}).get("provider")
+                or raw.get("_provider")
+                or app.broker_platform
+            )
+            symbol_snapshot = engine.evaluate_symbol(
+                symbol,
+                raw_bars_by_symbol.get(symbol, []),
+                evaluation_time=snapshot["timestamp"],
+                market=market,
+                asset_snapshot=summary.get("asset_snapshot"),
+                provider=str(provider),
+            )
+            snapshot["symbols"][symbol] = symbol_snapshot
+            factor_summary["symbols"][symbol] = _factor_symbol_summary(symbol_snapshot)
+
+        if config["write_artifacts"]:
+            try:
+                paths = FactorStore(base_dir=_runtime_dir(app)).write_snapshot(snapshot)
+                factor_summary["artifacts"] = {
+                    "latest": str(paths["latest"]),
+                    "history": str(paths["history"]),
+                }
+            except Exception as exc:
+                factor_summary["store_error"] = f"{type(exc).__name__}:{exc}"
+    except Exception as exc:
+        error_reason = f"factor_shadow_error:{type(exc).__name__}"
+        factor_summary["error"] = error_reason
+        factor_summary["message"] = str(exc)
+        for item in symbol_items:
+            symbol = item["symbol"]
+            factor_summary["symbols"][symbol] = _factor_symbol_summary(error_reason=error_reason)
+            _record_factor_shadow_error(summary, symbol, error_reason)
 
 
 def _resolve_trading_day(asset_snapshot: dict[str, Any] | None) -> str:
@@ -655,6 +823,12 @@ def build_strategy_summary(raw: dict[str, Any], app: AppConfig) -> dict[str, Any
         rule_engine=rule_engine,
         raw_bars_by_symbol=raw_bars_by_symbol,
         symbol_bar_contexts=symbol_bar_contexts,
+    )
+    _attach_factor_shadow(
+        summary,
+        raw,
+        app,
+        raw_bars_by_symbol=raw_bars_by_symbol,
     )
     return summary
 

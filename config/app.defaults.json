@@ -102,6 +102,14 @@
     "live_submit": false,
     "live_cancel": false
   },
+  "factor_engine": {
+    "enabled": true,
+    "mode": "shadow",
+    "registry_path": "factors/registry.json",
+    "write_artifacts": true,
+    "allow_actionable_consumption": false,
+    "regular_session_only_for_indicators": true
+  },
   "notify": {
     "telegram": true,
     "telegram_preview_only": false,

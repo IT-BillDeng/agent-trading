@@ -33,11 +33,14 @@ config/secrets*
 
 rules/rules_backup/
 rules/rules.json
+rules/
 learning_log/
 runtime/tiger_engine/strategist_iterations/
 memory/
 logs/watcher-*.json
 handoff/
 _watcher_run.py
+.tmp_*.js
+tmp/
 system/artifacts/
 system/engine/src/engine/src/

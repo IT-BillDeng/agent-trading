@@ -12,6 +12,7 @@ from typing import Any, Iterator
 import yfinance as yf
 
 from .broker_fee import estimate_order_fee_breakdown, load_fee_schedule
+from .factors.attribution import build_factor_attribution
 from .market_sessions import classify_bar_session, parse_bar_timestamp, session_config
 from .rule_engine import RuleEngine
 
@@ -170,6 +171,7 @@ class BacktestResult:
     data_coverage: dict[str, Any] = field(default_factory=dict)
     data_warnings: list[str] = field(default_factory=list)
     attribution: dict[str, Any] = field(default_factory=dict)
+    factor_attribution: dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
@@ -964,6 +966,7 @@ class BacktestEngine:
         # 计算绩效指标
         result = self.calculate_performance(start_time, end_time, final_equity)
         result.attribution = self._build_attribution()
+        result.factor_attribution = self._build_factor_attribution()
         result.data_coverage = self.data_coverage
         result.data_warnings = self.data_warnings
         
@@ -976,6 +979,30 @@ class BacktestEngine:
         if not enabled_rules:
             return 10
         return max(self.rule_engine._get_min_bars_required(rule) for rule in enabled_rules)
+
+    def _build_factor_attribution(self) -> dict[str, Any]:
+        registry_path = Path(__file__).resolve().parents[4] / "factors" / "registry.json"
+        if not registry_path.exists():
+            return {
+                "enabled": False,
+                "factors": {},
+                "reason": "registry_missing",
+            }
+
+        try:
+            return build_factor_attribution(
+                self.bars_by_symbol,
+                factor_engine=registry_path,
+                market_by_symbol={symbol: self.config.market for symbol in self.config.symbols},
+                timeframe=self.config.timeframe,
+            )
+        except Exception as exc:
+            print(f"[Backtest] Failed to build factor attribution: {exc}")
+            return {
+                "enabled": False,
+                "factors": {},
+                "error": str(exc),
+            }
     
     def calculate_performance(self, start_time: datetime, end_time: datetime, 
                               final_capital: float) -> BacktestResult:

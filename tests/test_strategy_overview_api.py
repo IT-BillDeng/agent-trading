@@ -135,6 +135,20 @@ class StrategyOverviewApiTests(unittest.TestCase):
             broker_artifacts_dir.mkdir(parents=True)
             (factor_artifacts_dir / "history").mkdir(parents=True)
             strategist_artifacts_dir.mkdir(parents=True)
+            (strategist_artifacts_dir / "deployment_records.jsonl").write_text(
+                json.dumps(
+                    {
+                        "proposal_id": "factor_config_hot_1",
+                        "proposal_type": "factor_config",
+                        "apply_action": "apply_factor_registry_only",
+                        "success": True,
+                        "applied_at": "2026-04-16T10:05:00",
+                        "registry_hash": "registry-hash-1",
+                        "changed_factors": ["rsi_14_30m"],
+                    },
+                    ensure_ascii=False,
+                ) + "\n"
+            )
 
             registry_path.write_text(json.dumps({
                 "schema_version": 1,
@@ -245,6 +259,15 @@ class StrategyOverviewApiTests(unittest.TestCase):
                     "mode": "shadow",
                     "allow_actionable_consumption": False,
                     "registry_hash": "registry-hash-1",
+                    "registry_hash_source": "runtime_registry",
+                    "schema_valid": True,
+                    "schema_errors": [],
+                    "schema_warnings": [],
+                    "implementation_summary": {
+                        "available_count": 1,
+                        "total_count": 1,
+                        "missing_count": 0,
+                    },
                     "symbols": {
                         "AAPL": {
                             "factors_ready": 1,
@@ -259,6 +282,15 @@ class StrategyOverviewApiTests(unittest.TestCase):
             (factor_artifacts_dir / "latest.json").write_text(json.dumps({
                 "timestamp": "2026-04-16T10:00:00+00:00",
                 "registry_hash": "registry-hash-1",
+                "registry_hash_source": "runtime_registry",
+                "schema_valid": True,
+                "schema_errors": [],
+                "schema_warnings": [],
+                "implementation_summary": {
+                    "available_count": 1,
+                    "total_count": 1,
+                    "missing_count": 0
+                },
                 "mode": "shadow",
                 "symbols": {
                     "AAPL": {
@@ -274,6 +306,7 @@ class StrategyOverviewApiTests(unittest.TestCase):
                                 "reason": "ok",
                                 "source": "regular_session_completed_bars",
                                 "config_hash": "factor-hash-1",
+                                "implementation_available": True,
                             }
                         },
                     }
@@ -372,10 +405,15 @@ class StrategyOverviewApiTests(unittest.TestCase):
             self.assertEqual(overview["factor_engine"]["mode"], "shadow")
             self.assertFalse(overview["factor_engine"]["allow_actionable_consumption"])
             self.assertEqual(overview["latest_cycle"]["factor_engine"]["registry_hash"], "registry-hash-1")
+            self.assertEqual(overview["factor_engine"]["registry_hash_source"], "runtime_registry")
+            self.assertTrue(overview["factor_engine"]["schema_valid"])
+            self.assertEqual(overview["factor_engine"]["implementation_summary"]["missing_count"], 0)
             self.assertEqual(overview["factor_engine"]["symbols"]["AAPL"]["factors_ready"], 1)
             self.assertEqual(overview["factor_engine"]["symbols"]["AAPL"]["factors"]["rsi_14_30m"]["session"], "regular")
+            self.assertTrue(overview["factor_engine"]["symbols"]["AAPL"]["factors"]["rsi_14_30m"]["implementation_available"])
             self.assertEqual(len(overview["factor_engine"]["factor_rows"]), 1)
             self.assertEqual(overview["factor_engine"]["factor_rows"][0]["source"], "regular_session_completed_bars")
+            self.assertEqual(overview["factor_engine"]["last_apply"]["proposal_id"], "factor_config_hot_1")
             self.assertEqual(overview["control"]["legacy_mode"], "signals")
             self.assertEqual(overview["control"]["canonical_mode"], "signal_only")
             self.assertTrue(overview["control"]["signal_generation_enabled"])

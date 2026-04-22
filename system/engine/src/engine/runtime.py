@@ -20,7 +20,7 @@ from .rule_engine import RuleEngine
 from .broker_client import BrokerClient
 from .state import TradeLimitStore
 from .data_provider import create_data_provider, fetch_bars_with_fallback
-from .factors import FactorEngine
+from .factors import FactorEngine, available_builtin_implementations
 from .factors.store import FactorStore
 from .market_sessions import (
     analyze_symbol_bars,
@@ -447,6 +447,29 @@ def _factor_symbol_summary(factor_snapshot: dict[str, Any] | None = None, *, err
     }
 
 
+def _factor_implementation_summary(engine: FactorEngine) -> dict[str, Any]:
+    available = set(available_builtin_implementations())
+    factor_implementations = sorted(
+        {
+            str(factor.implementation)
+            for factor in engine.registry.factors.values()
+        }
+    )
+    missing_factor_ids = sorted(
+        factor_id
+        for factor_id, factor in engine.registry.factors.items()
+        if str(factor.implementation) not in available
+    )
+    return {
+        "available_builtin_implementations": sorted(available),
+        "factor_implementations": factor_implementations,
+        "available_count": len(factor_implementations) - len(sorted(set(missing_factor_ids))),
+        "total_count": len(factor_implementations),
+        "missing_count": len(missing_factor_ids),
+        "missing_factor_ids": missing_factor_ids,
+    }
+
+
 def _record_factor_shadow_error(summary: dict[str, Any], symbol: str, reason: str) -> None:
     data_health = summary.get("data_health")
     if not isinstance(data_health, dict):
@@ -472,7 +495,13 @@ def _attach_factor_shadow(
         "enabled": True,
         "mode": config["mode"],
         "allow_actionable_consumption": config["allow_actionable_consumption"],
+        "registry_path": str(_resolve_factor_registry_path(config["registry_path"])),
         "registry_hash": None,
+        "registry_hash_source": None,
+        "schema_valid": None,
+        "schema_errors": [],
+        "schema_warnings": [],
+        "implementation_summary": None,
         "symbols": {},
     }
     summary["factor_engine"] = factor_summary
@@ -498,9 +527,20 @@ def _attach_factor_shadow(
     try:
         engine = FactorEngine(_resolve_factor_registry_path(config["registry_path"]))
         factor_summary["registry_hash"] = engine.registry.config_hash
+        factor_summary["registry_hash_source"] = "runtime_registry"
+        factor_summary["schema_valid"] = True
+        factor_summary["schema_errors"] = []
+        factor_summary["schema_warnings"] = list(engine.registry.warnings)
+        factor_summary["implementation_summary"] = _factor_implementation_summary(engine)
         snapshot = {
             "timestamp": _resolve_timestamp(summary.get("asset_snapshot")),
             "registry_hash": engine.registry.config_hash,
+            "registry_hash_source": "runtime_registry",
+            "registry_path": str(_resolve_factor_registry_path(config["registry_path"])),
+            "schema_valid": True,
+            "schema_errors": [],
+            "schema_warnings": list(engine.registry.warnings),
+            "implementation_summary": _factor_implementation_summary(engine),
             "mode": engine.mode,
             "symbols": {},
         }

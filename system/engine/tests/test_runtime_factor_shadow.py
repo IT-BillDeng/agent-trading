@@ -281,6 +281,10 @@ class RuntimeFactorShadowTests(unittest.TestCase):
             self.assertEqual(factor_engine["mode"], "shadow")
             self.assertFalse(factor_engine["allow_actionable_consumption"])
             self.assertTrue(factor_engine["registry_hash"])
+            self.assertEqual(factor_engine["registry_hash_source"], "runtime_registry")
+            self.assertTrue(factor_engine["schema_valid"])
+            self.assertEqual(factor_engine["schema_errors"], [])
+            self.assertEqual(factor_engine["implementation_summary"]["missing_count"], 0)
             self.assertEqual(factor_engine["symbols"]["AAPL"]["factors_total"], 4)
             self.assertEqual(factor_engine["symbols"]["AAPL"]["factors_ready"], 4)
 
@@ -290,7 +294,13 @@ class RuntimeFactorShadowTests(unittest.TestCase):
             self.assertTrue(history.exists())
             latest_payload = json.loads(latest.read_text())
             self.assertEqual(latest_payload["mode"], "shadow")
+            self.assertEqual(latest_payload["registry_hash_source"], "runtime_registry")
+            self.assertTrue(latest_payload["schema_valid"])
+            self.assertEqual(latest_payload["implementation_summary"]["missing_count"], 0)
             self.assertIn("AAPL", latest_payload["symbols"])
+            self.assertTrue(
+                latest_payload["symbols"]["AAPL"]["factors"]["rsi_14_30m"]["implementation_available"]
+            )
 
     def test_shadow_factor_failure_does_not_change_trading_outputs(self):
         with tempfile.TemporaryDirectory() as tmpdir:

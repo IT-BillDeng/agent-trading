@@ -16,6 +16,7 @@ class FactorComputation:
     source: str
     reason: str
     config_hash: str
+    implementation_available: bool
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -35,6 +36,7 @@ def compute_builtin_factor(
             source="registry",
             reason="implementation_not_available",
             config_hash=factor.config_hash,
+            implementation_available=False,
         )
     return handler(factor, analysis=analysis)
 
@@ -136,6 +138,7 @@ def _ready(
         source=source,
         reason="ok",
         config_hash=factor.config_hash,
+        implementation_available=True,
     )
 
 
@@ -152,6 +155,7 @@ def _not_ready(
         source=source,
         reason=reason,
         config_hash=factor.config_hash,
+        implementation_available=True,
     )
 
 

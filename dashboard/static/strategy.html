@@ -370,7 +370,7 @@
                     </div>
                     <div class="text-xs text-gray-500">read-only</div>
                 </div>
-                <div id="factor-engine-summary" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                <div id="factor-engine-summary" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
                     <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-4 text-sm text-gray-500">加载中...</div>
                 </div>
             </div>
@@ -954,11 +954,20 @@
                 ? String(factorEngine.registry_hash).slice(0, 12)
                 : '--';
             const latestSnapshot = factorEngine.latest_snapshot || {};
+            const implementationSummary = factorEngine.implementation_summary || {};
+            const lastApply = factorEngine.last_apply || {};
+            const schemaStatus = factorEngine.schema_valid === true
+                ? 'valid'
+                : factorEngine.schema_valid === false
+                    ? 'invalid'
+                    : '--';
             const metaParts = [
                 factorEngine.enabled ? `mode: ${factorEngine.mode || '--'}` : 'disabled',
                 `symbols: ${symbolEntries.length}`,
                 `rows: ${factorRows.length}`,
             ];
+            if (schemaStatus !== '--') metaParts.push(`schema: ${schemaStatus}`);
+            if (typeof implementationSummary.missing_count === 'number') metaParts.push(`impl missing: ${implementationSummary.missing_count}`);
             if (factorEngine.error) metaParts.push(`error: ${factorEngine.error}`);
             meta.textContent = metaParts.join(' | ');
 
@@ -971,12 +980,27 @@
                 <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
                     <div class="text-xs text-gray-500 mb-1">Registry Hash</div>
                     <div class="text-lg font-semibold mono">${escapeHtml(registryHash)}</div>
-                    <div class="text-xs text-gray-500 mt-1">${factorEngine.allow_actionable_consumption ? 'actionable allowed' : 'allow_actionable_consumption=false'}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(factorEngine.registry_hash_source || '--')} · ${factorEngine.allow_actionable_consumption ? 'actionable allowed' : 'allow_actionable_consumption=false'}</div>
                 </div>
                 <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
                     <div class="text-xs text-gray-500 mb-1">Symbol Health</div>
                     <div class="text-lg font-semibold">${readySymbols}/${symbolEntries.length || 0}</div>
                     <div class="text-xs text-gray-500 mt-1">all factors ready</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Registry Validation</div>
+                    <div class="text-lg font-semibold">${escapeHtml(schemaStatus)}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml((factorEngine.schema_warnings || [])[0] || (factorEngine.schema_errors || [])[0] || factorEngine.registry_path || '--')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Builtin Coverage</div>
+                    <div class="text-lg font-semibold">${escapeHtml(`${implementationSummary.available_count ?? '--'}/${implementationSummary.total_count ?? '--'}`)}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(`missing ${implementationSummary.missing_count ?? '--'}`)}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Last Apply</div>
+                    <div class="text-lg font-semibold">${escapeHtml(lastApply.proposal_id || '--')}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(lastApply.apply_action || '--')} · ${escapeHtml(lastApply.timestamp || '--')}</div>
                 </div>
                 <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
                     <div class="text-xs text-gray-500 mb-1">Latest Snapshot</div>
@@ -1006,6 +1030,7 @@
                         <td class="px-3 py-2 text-gray-300">
                             <div>${escapeHtml(sourceBits)}</div>
                             <div class="text-xs text-gray-500 mt-1">${escapeHtml(row.implementation || '--')}</div>
+                            <div class="text-xs text-gray-500 mt-1">impl ${escapeHtml(row.implementation_available ? 'available' : 'missing')}</div>
                         </td>
                     </tr>
                 `;

@@ -37,6 +37,8 @@ class StrategyPageStructureTests(unittest.TestCase):
         html = STRATEGY_PAGE.read_text(encoding="utf-8")
         self.assertIn("Factor Engine Shadow", html)
         self.assertIn("Factor Health Matrix", html)
+        self.assertIn("Registry Validation", html)
+        self.assertIn("Last Apply", html)
         self.assertIn("factor-engine-meta", html)
         self.assertIn("factor-health-body", html)
 

@@ -121,6 +121,7 @@ from system.engine.src.engine.control import (
 )
 from system.engine.src.engine.rule_profiles import build_symbol_profile_overview
 from system.engine.src.engine.rule_schema import validate_rules_config
+from system.engine.src.engine.factors import available_builtin_implementations
 
 # --- App lifecycle ---
 
@@ -535,6 +536,7 @@ def _load_factor_registry_meta(config: dict[str, Any]) -> tuple[dict[str, dict[s
         return {}, _file_meta(registry_path)
 
     result: dict[str, dict[str, Any]] = {}
+    available = set(available_builtin_implementations())
     factors = payload.get("factors")
     if isinstance(factors, dict):
         for factor_id, entry in factors.items():
@@ -547,8 +549,41 @@ def _load_factor_registry_meta(config: dict[str, Any]) -> tuple[dict[str, dict[s
                 "implementation": entry.get("implementation"),
                 "usage": entry.get("usage", []) if isinstance(entry.get("usage"), list) else [],
                 "actionable": bool(entry.get("actionable", False)),
+                "implementation_available": str(entry.get("implementation")) in available,
             }
     return result, _file_meta(registry_path)
+
+
+def _last_factor_apply_summary() -> dict[str, Any] | None:
+    path = STRATEGIST_ARTIFACTS_DIR / "deployment_records.jsonl"
+    if not path.exists():
+        return None
+    try:
+        lines = path.read_text().splitlines()
+    except Exception:
+        return None
+
+    for line in reversed(lines):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        proposal_type = str(entry.get("proposal_type") or "")
+        if proposal_type not in {"factor_config", "factor_rule_link", "factor_code"} and not entry.get("changed_factors"):
+            continue
+        return {
+            "proposal_id": entry.get("proposal_id"),
+            "proposal_type": entry.get("proposal_type"),
+            "apply_action": entry.get("apply_action"),
+            "success": bool(entry.get("success")),
+            "timestamp": entry.get("applied_at") or entry.get("recorded_at"),
+            "registry_hash": entry.get("registry_hash"),
+            "changed_factors": entry.get("changed_factors", []),
+        }
+    return None
 
 
 def _build_factor_engine_overview(config: dict[str, Any], cycle: dict[str, Any]) -> dict[str, Any]:
@@ -572,13 +607,29 @@ def _build_factor_engine_overview(config: dict[str, Any], cycle: dict[str, Any])
                 configured.get("allow_actionable_consumption", False),
             )
         ),
+        "registry_path": cycle_factor.get("registry_path")
+        or (latest_snapshot.get("registry_path") if isinstance(latest_snapshot, dict) else None)
+        or (registry_file.get("path") if isinstance(registry_file, dict) else None),
         "registry_hash": cycle_factor.get("registry_hash")
         or (latest_snapshot.get("registry_hash") if isinstance(latest_snapshot, dict) else None),
+        "registry_hash_source": cycle_factor.get("registry_hash_source")
+        or (latest_snapshot.get("registry_hash_source") if isinstance(latest_snapshot, dict) else None)
+        or ("latest_snapshot" if isinstance(latest_snapshot, dict) and latest_snapshot.get("registry_hash") else None),
+        "schema_valid": cycle_factor.get("schema_valid")
+        if "schema_valid" in cycle_factor
+        else (latest_snapshot.get("schema_valid") if isinstance(latest_snapshot, dict) else None),
+        "schema_errors": cycle_factor.get("schema_errors", [])
+        or (latest_snapshot.get("schema_errors", []) if isinstance(latest_snapshot, dict) else []),
+        "schema_warnings": cycle_factor.get("schema_warnings", [])
+        or (latest_snapshot.get("schema_warnings", []) if isinstance(latest_snapshot, dict) else []),
+        "implementation_summary": cycle_factor.get("implementation_summary")
+        or (latest_snapshot.get("implementation_summary") if isinstance(latest_snapshot, dict) else None),
         "error": cycle_factor.get("error"),
         "message": cycle_factor.get("message"),
         "store_error": cycle_factor.get("store_error"),
         "latest_snapshot": _file_meta(latest_snapshot_path),
         "registry_file": registry_file,
+        "last_apply": _last_factor_apply_summary(),
         "symbols": {},
         "factor_rows": [],
     }
@@ -619,6 +670,9 @@ def _build_factor_engine_overview(config: dict[str, Any], cycle: dict[str, Any])
                 "usage": factor_meta.get("usage", []),
                 "type": factor_meta.get("type"),
                 "implementation": factor_meta.get("implementation"),
+                "implementation_available": bool(
+                    payload.get("implementation_available", factor_meta.get("implementation_available", False))
+                ),
                 "config_hash": payload.get("config_hash"),
             }
             symbol_factors[str(factor_id)] = factor_payload

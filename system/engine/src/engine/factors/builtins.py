@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Any, Callable
 
-from ..indicators import bollinger, rsi, volume_ratio
+from ..indicators import atr, bollinger, rsi, volume_ratio
 from .catalog import BUILTIN_FACTOR_IMPLEMENTATIONS
 from .schema import FactorDefinition
 
@@ -125,6 +125,81 @@ def _compute_premarket_gap_pct(
     return _ready(factor, value=value, source=source)
 
 
+def _compute_afterhours_move_pct(
+    factor: FactorDefinition,
+    *,
+    analysis: dict[str, Any],
+) -> FactorComputation:
+    source = "extended_hours_context"
+    value = (
+        analysis.get("extended_context", {}).get("afterhours_move_pct")
+        if isinstance(analysis.get("extended_context"), dict)
+        else None
+    )
+    if value is None:
+        return _not_ready(factor, source=source, reason="no_afterhours_context")
+    return _ready(factor, value=value, source=source)
+
+
+def _compute_overnight_return_pct(
+    factor: FactorDefinition,
+    *,
+    analysis: dict[str, Any],
+) -> FactorComputation:
+    source = "extended_hours_context"
+    value = (
+        analysis.get("extended_context", {}).get("overnight_return_pct")
+        if isinstance(analysis.get("extended_context"), dict)
+        else None
+    )
+    if value is None:
+        return _not_ready(factor, source=source, reason="no_overnight_context")
+    return _ready(factor, value=value, source=source)
+
+
+def _compute_atr_pct(
+    factor: FactorDefinition,
+    *,
+    analysis: dict[str, Any],
+) -> FactorComputation:
+    bars = list(analysis.get("regular_completed_bars") or [])
+    source = "regular_session_completed_bars"
+    period = int(factor.params.get("period", 14))
+    min_required = max(int(factor.required_bars), period + 1)
+    if len(bars) < min_required:
+        return _not_ready(factor, source=source, reason="insufficient_bars")
+
+    highs = [float(bar["high"]) for bar in bars]
+    lows = [float(bar["low"]) for bar in bars]
+    closes = [float(bar["close"]) for bar in bars]
+    atr_value = atr(highs, lows, closes, period)
+    latest_close = closes[-1] if closes else None
+    if atr_value is None:
+        return _not_ready(factor, source=source, reason="insufficient_bars")
+    if latest_close in (None, 0):
+        return _not_ready(factor, source=source, reason="zero_close")
+    return _ready(factor, value=float(atr_value) / float(latest_close), source=source)
+
+
+def _compute_return(
+    factor: FactorDefinition,
+    *,
+    analysis: dict[str, Any],
+) -> FactorComputation:
+    bars = list(analysis.get("regular_completed_bars") or [])
+    source = "regular_session_completed_bars"
+    period = int(factor.params.get("period", 1))
+    min_required = max(int(factor.required_bars), period + 1)
+    if len(bars) < min_required:
+        return _not_ready(factor, source=source, reason="insufficient_bars")
+
+    closes = [float(bar["close"]) for bar in bars]
+    base_close = closes[-(period + 1)]
+    if base_close == 0:
+        return _not_ready(factor, source=source, reason="zero_base")
+    return _ready(factor, value=(closes[-1] / base_close) - 1.0, source=source)
+
+
 def _ready(
     factor: FactorDefinition,
     *,
@@ -160,10 +235,14 @@ def _not_ready(
 
 
 _BUILTIN_HANDLERS: dict[str, Callable[[FactorDefinition], FactorComputation]] = {
+    "builtin:afterhours_move_pct": _compute_afterhours_move_pct,
+    "builtin:atr_pct": _compute_atr_pct,
     "builtin:rsi": _compute_rsi,
     "builtin:bollinger_zscore": _compute_bollinger_zscore,
+    "builtin:overnight_return_pct": _compute_overnight_return_pct,
     "builtin:volume_ratio": _compute_volume_ratio,
     "builtin:premarket_gap_pct": _compute_premarket_gap_pct,
+    "builtin:return": _compute_return,
 }
 
 if set(BUILTIN_FACTOR_IMPLEMENTATIONS) != set(_BUILTIN_HANDLERS):

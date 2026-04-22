@@ -1,11 +1,13 @@
 # Factors Directory
 
 `factors/` stores reviewed factor metadata and future factor implementation
-assets. In FR-01 this directory is documentation-first and registry-first only.
+assets. The checked-in registry remains shadow-first and non-actionable by
+default.
 
 ## Files
 
-- `registry.json`: approved factor metadata contract for shadow-mode factors
+- `registry.json`: approved factor metadata contract for shadow-mode factors,
+  including technical, risk, and extended-hours context factors
 
 ## FR-01 Rules
 

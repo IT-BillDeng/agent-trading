@@ -95,6 +95,78 @@ def _registry_payload() -> dict:
                 "no_lookahead": True,
                 "version": 1,
             },
+            "afterhours_move_pct": {
+                "type": "session",
+                "implementation": "builtin:afterhours_move_pct",
+                "inputs": ["extended_hours_bars", "latest_regular_close"],
+                "params": {},
+                "session": "afterhours",
+                "timeframe": "30min",
+                "output": "numeric",
+                "usage": ["shadow", "context_only", "risk_hint_candidate"],
+                "actionable": False,
+                "point_in_time": True,
+                "required_bars": 1,
+                "lookback_bars": 1,
+                "horizon_bars": 1,
+                "timezone": "America/New_York",
+                "no_lookahead": True,
+                "version": 1,
+            },
+            "overnight_return_pct": {
+                "type": "session",
+                "implementation": "builtin:overnight_return_pct",
+                "inputs": ["extended_hours_bars", "previous_regular_close", "current_regular_open"],
+                "params": {},
+                "session": "premarket",
+                "timeframe": "30min",
+                "output": "numeric",
+                "usage": ["shadow", "context_only", "risk_hint_candidate"],
+                "actionable": False,
+                "point_in_time": True,
+                "required_bars": 1,
+                "lookback_bars": 1,
+                "horizon_bars": 1,
+                "timezone": "America/New_York",
+                "no_lookahead": True,
+                "version": 1,
+            },
+            "atr_pct_14_30m": {
+                "type": "risk",
+                "implementation": "builtin:atr_pct",
+                "inputs": ["regular_session_30m_bars"],
+                "params": {"period": 14},
+                "session": "regular",
+                "timeframe": "30min",
+                "output": "numeric",
+                "usage": ["shadow", "risk_hint_candidate"],
+                "actionable": False,
+                "point_in_time": True,
+                "required_bars": 15,
+                "lookback_bars": 15,
+                "horizon_bars": 1,
+                "timezone": "America/New_York",
+                "no_lookahead": True,
+                "version": 1,
+            },
+            "return_5_30m": {
+                "type": "technical",
+                "implementation": "builtin:return",
+                "inputs": ["regular_session_30m_bars"],
+                "params": {"period": 5},
+                "session": "regular",
+                "timeframe": "30min",
+                "output": "numeric",
+                "usage": ["shadow", "rule_condition_candidate"],
+                "actionable": False,
+                "point_in_time": True,
+                "required_bars": 6,
+                "lookback_bars": 6,
+                "horizon_bars": 1,
+                "timezone": "America/New_York",
+                "no_lookahead": True,
+                "version": 1,
+            },
         },
     }
 
@@ -131,6 +203,48 @@ def _make_regular_day(date: str, *, start_close: float, volume_base: int = 1000)
     return bars
 
 
+def _make_afterhours_session(date: str, *, start_close: float, volume_base: int = 3000) -> list[dict]:
+    bars: list[dict] = []
+    hour = 16
+    minute = 0
+    close = start_close
+    for index in range(3):
+        bars.append(
+            _make_bar(
+                f"{date} {hour:02d}:{minute:02d}:00",
+                close,
+                volume=volume_base + index * 250,
+            )
+        )
+        close += 0.5
+        minute += 30
+        if minute >= 60:
+            hour += 1
+            minute -= 60
+    return bars
+
+
+def _make_premarket_session(date: str, *, start_close: float, volume_base: int = 5000) -> list[dict]:
+    bars: list[dict] = []
+    hour = 8
+    minute = 0
+    close = start_close
+    for index in range(3):
+        bars.append(
+            _make_bar(
+                f"{date} {hour:02d}:{minute:02d}:00",
+                close,
+                volume=volume_base + index * 500,
+            )
+        )
+        close += 0.5
+        minute += 30
+        if minute >= 60:
+            hour += 1
+            minute -= 60
+    return bars
+
+
 class FactorEngineShadowTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -149,10 +263,13 @@ class FactorEngineShadowTests(unittest.TestCase):
             "2026-04-18",
             start_close=109.0,
         )
+        previous_close = float(bars[-1]["close"])
+        bars = bars + _make_afterhours_session("2026-04-18", start_close=previous_close * 1.02)
+        bars = bars + _make_premarket_session("2026-04-20", start_close=previous_close * 1.04)
         result = self.engine.evaluate_symbol(
             "AAPL",
             bars,
-            evaluation_time="2026-04-20T14:30:00+00:00",
+            evaluation_time="2026-04-20T13:15:00+00:00",
         )
 
         self.assertEqual(result["symbol"], "AAPL")
@@ -160,12 +277,18 @@ class FactorEngineShadowTests(unittest.TestCase):
         self.assertEqual(result["registry_hash"], self.registry.config_hash)
         self.assertTrue(result["timestamp"])
         self.assertIn("rsi_14_30m", result["factors"])
+        self.assertIn("afterhours_move_pct", result["factors"])
+        self.assertIn("overnight_return_pct", result["factors"])
+        self.assertIn("atr_pct_14_30m", result["factors"])
+        self.assertIn("return_5_30m", result["factors"])
         rsi_factor = result["factors"]["rsi_14_30m"]
         self.assertIn("ready", rsi_factor)
         self.assertIn("reason", rsi_factor)
         self.assertIn("source", rsi_factor)
         self.assertIn("config_hash", rsi_factor)
         self.assertEqual(rsi_factor["config_hash"], self.registry.factors["rsi_14_30m"].config_hash)
+        self.assertTrue(result["factors"]["afterhours_move_pct"]["ready"])
+        self.assertTrue(result["factors"]["overnight_return_pct"]["ready"])
         for factor_id, payload in result["factors"].items():
             self.assertNotEqual(
                 payload["reason"],
@@ -189,7 +312,7 @@ class FactorEngineShadowTests(unittest.TestCase):
         self.assertEqual(bars, original)
 
     def test_missing_required_bars_returns_not_ready(self):
-        bars = _make_regular_day("2026-04-18", start_close=100.0)[:10]
+        bars = _make_regular_day("2026-04-18", start_close=100.0)[:5]
 
         result = self.engine.evaluate_symbol(
             "AAPL",
@@ -201,6 +324,8 @@ class FactorEngineShadowTests(unittest.TestCase):
         self.assertEqual(result["factors"]["rsi_14_30m"]["reason"], "insufficient_bars")
         self.assertFalse(result["factors"]["bollinger_zscore_20_2_30m"]["ready"])
         self.assertFalse(result["factors"]["volume_ratio_20_30m"]["ready"])
+        self.assertFalse(result["factors"]["atr_pct_14_30m"]["ready"])
+        self.assertFalse(result["factors"]["return_5_30m"]["ready"])
 
     def test_incomplete_regular_bar_is_excluded_from_technical_factor_input(self):
         base_bars = _make_regular_day("2026-04-17", start_close=100.0) + _make_regular_day(
@@ -231,6 +356,14 @@ class FactorEngineShadowTests(unittest.TestCase):
         self.assertEqual(
             base_result["factors"]["volume_ratio_20_30m"]["value"],
             with_incomplete_result["factors"]["volume_ratio_20_30m"]["value"],
+        )
+        self.assertEqual(
+            base_result["factors"]["atr_pct_14_30m"]["value"],
+            with_incomplete_result["factors"]["atr_pct_14_30m"]["value"],
+        )
+        self.assertEqual(
+            base_result["factors"]["return_5_30m"]["value"],
+            with_incomplete_result["factors"]["return_5_30m"]["value"],
         )
 
 

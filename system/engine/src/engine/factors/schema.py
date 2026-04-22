@@ -304,6 +304,8 @@ def _validate_params(implementation: str, params: dict[str, Any], *, prefix: str
         errors.extend(_validate_positive_int(params.get("period"), path=f"{prefix}.params.period"))
     elif implementation == "builtin:atr_pct":
         errors.extend(_validate_positive_int(params.get("period"), path=f"{prefix}.params.period"))
+    elif implementation == "builtin:return":
+        errors.extend(_validate_positive_int(params.get("period"), path=f"{prefix}.params.period"))
 
     return errors
 

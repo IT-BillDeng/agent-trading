@@ -96,6 +96,78 @@ def _registry_payload() -> dict:
                 "no_lookahead": True,
                 "version": 1,
             },
+            "afterhours_move_pct": {
+                "type": "session",
+                "implementation": "builtin:afterhours_move_pct",
+                "inputs": ["extended_hours_bars", "latest_regular_close"],
+                "params": {},
+                "session": "afterhours",
+                "timeframe": "30min",
+                "output": "numeric",
+                "usage": ["shadow", "context_only", "risk_hint_candidate"],
+                "actionable": False,
+                "point_in_time": True,
+                "required_bars": 1,
+                "lookback_bars": 1,
+                "horizon_bars": 1,
+                "timezone": "America/New_York",
+                "no_lookahead": True,
+                "version": 1,
+            },
+            "overnight_return_pct": {
+                "type": "session",
+                "implementation": "builtin:overnight_return_pct",
+                "inputs": ["extended_hours_bars", "previous_regular_close", "current_regular_open"],
+                "params": {},
+                "session": "premarket",
+                "timeframe": "30min",
+                "output": "numeric",
+                "usage": ["shadow", "context_only", "risk_hint_candidate"],
+                "actionable": False,
+                "point_in_time": True,
+                "required_bars": 1,
+                "lookback_bars": 1,
+                "horizon_bars": 1,
+                "timezone": "America/New_York",
+                "no_lookahead": True,
+                "version": 1,
+            },
+            "atr_pct_14_30m": {
+                "type": "risk",
+                "implementation": "builtin:atr_pct",
+                "inputs": ["regular_session_30m_bars"],
+                "params": {"period": 14},
+                "session": "regular",
+                "timeframe": "30min",
+                "output": "numeric",
+                "usage": ["shadow", "risk_hint_candidate"],
+                "actionable": False,
+                "point_in_time": True,
+                "required_bars": 15,
+                "lookback_bars": 15,
+                "horizon_bars": 1,
+                "timezone": "America/New_York",
+                "no_lookahead": True,
+                "version": 1,
+            },
+            "return_5_30m": {
+                "type": "technical",
+                "implementation": "builtin:return",
+                "inputs": ["regular_session_30m_bars"],
+                "params": {"period": 5},
+                "session": "regular",
+                "timeframe": "30min",
+                "output": "numeric",
+                "usage": ["shadow", "rule_condition_candidate"],
+                "actionable": False,
+                "point_in_time": True,
+                "required_bars": 6,
+                "lookback_bars": 6,
+                "horizon_bars": 1,
+                "timezone": "America/New_York",
+                "no_lookahead": True,
+                "version": 1,
+            },
         },
     }
 
@@ -254,14 +326,18 @@ class RuntimeFactorShadowTests(unittest.TestCase):
             "2026-04-18",
             start_close=108.0,
         )
-        current_day = [
-            _make_bar("2026-04-20 08:00:00", 116.0, volume=5000),
-            _make_bar("2026-04-20 08:30:00", 117.0, volume=6000),
-            _make_bar("2026-04-20 09:00:00", 118.0, volume=7000),
-            _make_bar("2026-04-20 09:30:00", 119.0, volume=8000),
-            _make_bar("2026-04-20 10:00:00", 120.0, volume=9000),
+        previous_close = float(previous_regular[-1]["close"])
+        afterhours = [
+            _make_bar("2026-04-18 16:00:00", previous_close * 1.01, volume=3500),
+            _make_bar("2026-04-18 16:30:00", previous_close * 1.02, volume=3750),
+            _make_bar("2026-04-18 17:00:00", previous_close * 1.03, volume=4000),
         ]
-        return previous_regular + current_day
+        premarket = [
+            _make_bar("2026-04-20 08:00:00", previous_close * 1.03, volume=5000),
+            _make_bar("2026-04-20 08:30:00", previous_close * 1.04, volume=6000),
+            _make_bar("2026-04-20 09:00:00", previous_close * 1.05, volume=7000),
+        ]
+        return previous_regular + afterhours + premarket
 
     def test_runtime_shadow_writes_factor_summary_and_artifacts(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -269,7 +345,7 @@ class RuntimeFactorShadowTests(unittest.TestCase):
             registry_path = root / "registry.json"
             registry_path.write_text(json.dumps(_registry_payload(), ensure_ascii=False))
             artifacts_dir = root / "artifacts"
-            raw = _make_cycle_raw("AAPL", self._bars(), timestamp="2026-04-20T14:30:00+00:00")
+            raw = _make_cycle_raw("AAPL", self._bars(), timestamp="2026-04-20T13:15:00+00:00")
             app = self._app(tmpdir, registry_path=str(registry_path), enabled=True, write_artifacts=True)
 
             with patch.dict(os.environ, {"ENGINE_ARTIFACTS_DIR": str(artifacts_dir)}, clear=False), \
@@ -285,8 +361,8 @@ class RuntimeFactorShadowTests(unittest.TestCase):
             self.assertTrue(factor_engine["schema_valid"])
             self.assertEqual(factor_engine["schema_errors"], [])
             self.assertEqual(factor_engine["implementation_summary"]["missing_count"], 0)
-            self.assertEqual(factor_engine["symbols"]["AAPL"]["factors_total"], 4)
-            self.assertEqual(factor_engine["symbols"]["AAPL"]["factors_ready"], 4)
+            self.assertEqual(factor_engine["symbols"]["AAPL"]["factors_total"], 8)
+            self.assertEqual(factor_engine["symbols"]["AAPL"]["factors_ready"], 8)
 
             latest = artifacts_dir / "factors" / "latest.json"
             history = artifacts_dir / "factors" / "history" / "2026-04-20.jsonl"
@@ -307,7 +383,7 @@ class RuntimeFactorShadowTests(unittest.TestCase):
             root = Path(tmpdir)
             valid_registry = root / "valid_registry.json"
             valid_registry.write_text(json.dumps(_registry_payload(), ensure_ascii=False))
-            raw = _make_cycle_raw("AAPL", self._bars(), timestamp="2026-04-20T14:30:00+00:00")
+            raw = _make_cycle_raw("AAPL", self._bars(), timestamp="2026-04-20T13:15:00+00:00")
             baseline_app = self._app(
                 str(root / "baseline"),
                 registry_path=str(valid_registry),

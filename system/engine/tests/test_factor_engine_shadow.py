@@ -166,6 +166,12 @@ class FactorEngineShadowTests(unittest.TestCase):
         self.assertIn("source", rsi_factor)
         self.assertIn("config_hash", rsi_factor)
         self.assertEqual(rsi_factor["config_hash"], self.registry.factors["rsi_14_30m"].config_hash)
+        for factor_id, payload in result["factors"].items():
+            self.assertNotEqual(
+                payload["reason"],
+                "implementation_not_available",
+                msg=f"{factor_id} unexpectedly missing builtin handler",
+            )
 
     def test_engine_does_not_mutate_input_bars(self):
         bars = _make_regular_day("2026-04-17", start_close=100.0) + _make_regular_day(

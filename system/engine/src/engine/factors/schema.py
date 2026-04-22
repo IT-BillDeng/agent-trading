@@ -7,6 +7,8 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from .catalog import BUILTIN_FACTOR_IMPLEMENTATIONS
+
 
 FACTOR_ID_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
 
@@ -28,16 +30,7 @@ SUPPORTED_USAGES = {
     "risk_hint_candidate",
     "actionable",
 }
-SUPPORTED_IMPLEMENTATIONS = {
-    "builtin:rsi",
-    "builtin:bollinger_zscore",
-    "builtin:volume_ratio",
-    "builtin:premarket_gap_pct",
-    "builtin:afterhours_move_pct",
-    "builtin:overnight_return_pct",
-    "builtin:atr_pct",
-    "builtin:return",
-}
+SUPPORTED_IMPLEMENTATIONS = set(BUILTIN_FACTOR_IMPLEMENTATIONS)
 EXTENDED_HOURS_SESSIONS = {"premarket", "afterhours"}
 REQUIRED_DEFAULT_FIELDS = {
     "mode",

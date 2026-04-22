@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass
 from typing import Any, Callable
 
 from ..indicators import bollinger, rsi, volume_ratio
+from .catalog import BUILTIN_FACTOR_IMPLEMENTATIONS
 from .schema import FactorDefinition
 
 
@@ -36,6 +37,10 @@ def compute_builtin_factor(
             config_hash=factor.config_hash,
         )
     return handler(factor, analysis=analysis)
+
+
+def available_builtin_implementations() -> tuple[str, ...]:
+    return tuple(sorted(_BUILTIN_HANDLERS))
 
 
 def _compute_rsi(
@@ -156,3 +161,10 @@ _BUILTIN_HANDLERS: dict[str, Callable[[FactorDefinition], FactorComputation]] = 
     "builtin:volume_ratio": _compute_volume_ratio,
     "builtin:premarket_gap_pct": _compute_premarket_gap_pct,
 }
+
+if set(BUILTIN_FACTOR_IMPLEMENTATIONS) != set(_BUILTIN_HANDLERS):
+    raise RuntimeError(
+        "builtin factor catalog does not match registered handlers: "
+        f"catalog={sorted(BUILTIN_FACTOR_IMPLEMENTATIONS)!r} "
+        f"handlers={sorted(_BUILTIN_HANDLERS)!r}"
+    )

@@ -9,8 +9,10 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from engine.factors.builtins import available_builtin_implementations
+from engine.factors.catalog import BUILTIN_FACTOR_IMPLEMENTATIONS
 from engine.factors.registry import FactorRegistryValidationError, load_factor_registry
-from engine.factors.schema import validate_factor_registry
+from engine.factors.schema import SUPPORTED_IMPLEMENTATIONS, validate_factor_registry
 
 
 def _registry_payload() -> dict:
@@ -104,6 +106,10 @@ def _valid_registry_payload() -> dict:
 
 
 class FactorRegistrySchemaTests(unittest.TestCase):
+    def test_schema_supported_implementations_match_builtin_catalog(self):
+        self.assertEqual(set(SUPPORTED_IMPLEMENTATIONS), set(BUILTIN_FACTOR_IMPLEMENTATIONS))
+        self.assertEqual(set(SUPPORTED_IMPLEMENTATIONS), set(available_builtin_implementations()))
+
     def test_current_registry_file_loads_successfully(self):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as handle:
             json.dump(_valid_registry_payload(), handle)
@@ -121,6 +127,11 @@ class FactorRegistrySchemaTests(unittest.TestCase):
         self.assertIn("rsi_14_30m", registry.factors)
         self.assertEqual(registry.factors["rsi_14_30m"].factor_id, "rsi_14_30m")
         self.assertTrue(registry.factors["rsi_14_30m"].config_hash)
+        self.assertTrue(
+            set(factor.implementation for factor in registry.factors.values()).issubset(
+                set(available_builtin_implementations())
+            )
+        )
 
     def test_missing_required_field_is_rejected(self):
         payload = _valid_registry_payload()

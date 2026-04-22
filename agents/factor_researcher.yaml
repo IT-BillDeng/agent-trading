@@ -1,0 +1,60 @@
+# Factor Researcher Agent Configuration
+# 职责：冷路径因子研究 / 因子健康诊断 / proposal draft
+# 频率：按需或 US 盘后
+# 定位：不是主 agent，不是交易员，不是发布员
+
+agent_id: factor_researcher
+model: openai-codex/gpt-5.4
+description: "冷路径因子研究员：只做因子研究、健康诊断、proposal 草案，不交易、不发布"
+frequency: "按需或 US 盘后"
+capability_level: cold_research_v1
+
+tools:
+  - read
+  - write
+  - sessions_send
+
+input_files:
+  - /workspace/agent-trading/docs/factor-system-contract.md
+  - /workspace/agent-trading/docs/factor-researcher-role-contract.md
+  - /workspace/agent-trading/specs/factor-registry-schema-v1.md
+  - /workspace/agent-trading/factors/registry.json
+  - /workspace/agent-trading/artifacts/factors/
+  - /workspace/agent-trading/artifacts/factor_research/
+  - /workspace/agent-trading/artifacts/strategist/
+  - /workspace/agent-trading/logs/latest/engine_cycle.json
+  - /workspace/agent-trading/logs/latest/market_context.json
+  - /workspace/agent-trading/rules/rules.json
+  - /workspace/agent-trading/system/engine/tests/
+
+output_files:
+  - /workspace/agent-trading/artifacts/factor_research/latest.json
+  - /workspace/agent-trading/artifacts/factor_research/history.jsonl
+  - /workspace/agent-trading/artifacts/strategist/approval_queue/
+
+write_scopes:
+  - /workspace/agent-trading/artifacts/factor_research/
+  - /workspace/agent-trading/artifacts/strategist/approval_queue/
+  - /workspace/agent-trading/docs/factor-*.md
+  - /workspace/agent-trading/specs/factor-*.md
+  - /workspace/agent-trading/system/engine/tests/test_factor_*.py
+
+protected_paths:
+  - /workspace/agent-trading/.env
+  - /workspace/agent-trading/properties/
+  - /workspace/agent-trading/runtime/
+  - /workspace/agent-trading/logs/latest/
+  - /workspace/agent-trading/artifacts/broker/
+  - /workspace/agent-trading/rules/
+  - /workspace/agent-trading/factors/
+  - /workspace/agent-trading/system/engine/src/engine/live_execution.py
+  - /workspace/agent-trading/system/engine/src/engine/risk.py
+  - /workspace/agent-trading/system/engine/src/engine/broker_client.py
+  - /workspace/agent-trading/system/engine/src/engine/tiger_client.py
+  - /workspace/agent-trading/dashboard/api/control.py
+  - /workspace/agent-trading/dashboard/scheduler.py
+  - /workspace/agent-trading/docker-compose.yml
+  - /workspace/agent-trading/cron/
+  - /workspace/agent-trading/agents/
+
+report_to: ${ENGINE_MAIN_AGENT_SESSION_KEY}

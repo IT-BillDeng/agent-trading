@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .artifacts import append_jsonl, resolve_artifacts_root, write_json
+from .proposal_schema import validate_proposal_record
 
 
 APPROVAL_STATUSES = {
@@ -77,6 +78,7 @@ def strategist_paths(base_dir: str | Path | None = None) -> dict[str, Path]:
         "rollback_notes": root / "rollback_notes.jsonl",
         "approval_decisions": root / "approval_decisions.jsonl",
         "deployment_records": root / "deployment_records.jsonl",
+        "failure_records": root / "failure_records.jsonl",
     }
 
 
@@ -231,7 +233,20 @@ def queue_approval_request(proposal_id: str, record: dict[str, Any], base_dir: s
     status = record.get("status", "draft")
     if status not in APPROVAL_STATUSES:
         raise ValueError(f"unknown approval status: {status}")
-    write_json(queue_path, record)
+    if str(record.get("proposal_id") or proposal_id) != proposal_id:
+        raise ValueError(f"proposal_id mismatch: expected {proposal_id}, got {record.get('proposal_id')}")
+    validation = validate_proposal_record(record)
+    if not validation["valid"]:
+        raise ValueError("invalid proposal payload: " + "; ".join(validation["errors"]))
+    queue_record = dict(record)
+    queue_record["proposal_id"] = proposal_id
+    queue_record["proposal_validation"] = {
+        "valid": validation["valid"],
+        "errors": validation["errors"],
+        "warnings": validation["warnings"],
+        "proposal_type": validation["proposal_type"],
+    }
+    write_json(queue_path, queue_record)
     return queue_path
 
 
@@ -247,6 +262,8 @@ def _proposal_validation_summary(record: dict[str, Any], base_dir: str | Path | 
     validation = record.get("validation", {})
     if not isinstance(validation, dict):
         validation = {}
+    if not validation and isinstance(record.get("validation_results"), dict):
+        validation = dict(record.get("validation_results") or {})
 
     tests = validation.get("tests")
     if not isinstance(tests, list):
@@ -275,6 +292,7 @@ def _proposal_validation_summary(record: dict[str, Any], base_dir: str | Path | 
         "backtest": backtest,
         "risk": risk,
         "fee_confidence": fee_confidence,
+        "proposal_validation": record.get("proposal_validation"),
     }
 
 
@@ -288,6 +306,7 @@ def build_proposal_review_record(record: dict[str, Any], base_dir: str | Path | 
 
     return {
         "proposal_id": proposal_id,
+        "proposal_type": record.get("proposal_type"),
         "status": record.get("status", "draft"),
         "target_files": record.get("target_files", []),
         "recommended_update_mode": recommended_mode,
@@ -330,6 +349,14 @@ def list_proposal_review_records(
 
 
 def infer_update_mode(record: dict[str, Any]) -> str:
+    proposal_type = str(record.get("proposal_type") or "").strip().lower()
+    if proposal_type == "factor_config":
+        return "hot"
+    if proposal_type == "factor_rule_link":
+        return "hot"
+    if proposal_type == "factor_code":
+        return "cold"
+
     target_files = record.get("target_files") or []
     if not target_files:
         return "cold"
@@ -362,6 +389,10 @@ def resolve_apply_gate(proposal_id: str, base_dir: str | Path | None = None) -> 
     if inferred_mode == "cold" and recommended_mode == "hot":
         raise ValueError("code-changing proposal cannot be applied as hot update")
 
+    proposal_type = str(record.get("proposal_type") or "").strip().lower()
+    if proposal_type == "factor_code" and recommended_mode != "cold":
+        raise ValueError("factor_code proposal must remain cold/manual")
+
     requires_restart = record.get("requires_restart")
     if requires_restart is None:
         requires_restart = recommended_mode == "cold"
@@ -377,10 +408,11 @@ def resolve_apply_gate(proposal_id: str, base_dir: str | Path | None = None) -> 
 
     return {
         "proposal_id": proposal_id,
+        "proposal_type": proposal_type or None,
         "approved": True,
         "update_mode": recommended_mode,
         "requires_restart": bool(requires_restart),
-        "apply_action": "apply_rules_only" if recommended_mode == "hot" else "require_restart",
+        "apply_action": _apply_action_for_record(record, recommended_mode),
         "target_files": record.get("target_files", []),
         "fee_confidence_snapshot": fee_confidence_snapshot,
         "fee_confidence_gate": fee_gate,
@@ -421,6 +453,12 @@ def record_deployment_record(record: dict[str, Any], base_dir: str | Path | None
     paths = ensure_strategist_dirs(base_dir)
     append_jsonl(paths["deployment_records"], record)
     return paths["deployment_records"]
+
+
+def record_failure_record(record: dict[str, Any], base_dir: str | Path | None = None) -> Path:
+    paths = ensure_strategist_dirs(base_dir)
+    append_jsonl(paths["failure_records"], record)
+    return paths["failure_records"]
 
 
 def approve_request(
@@ -481,3 +519,12 @@ def mark_request_applied(
         base_dir=base_dir,
     )
     return queue_path, deployment_path
+
+
+def _apply_action_for_record(record: dict[str, Any], update_mode: str) -> str:
+    proposal_type = str(record.get("proposal_type") or "").strip().lower()
+    if update_mode != "hot":
+        return "manual_code_apply_required" if proposal_type == "factor_code" else "require_restart"
+    if proposal_type == "factor_config":
+        return "apply_factor_registry_only"
+    return "apply_rules_only"

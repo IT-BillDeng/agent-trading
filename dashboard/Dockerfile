@@ -34,6 +34,17 @@ RUN mkdir -p /app/runtime/logs /app/runtime/state /app/logs/audit /app/logs/serv
 
 FROM base AS runtime
 
+RUN pip install --no-cache-dir pytest
+
+COPY tests/ /app/tests/
+COPY system/engine/tests/ /app/system/engine/tests/
+COPY scripts/ /app/scripts/
+COPY specs/ /app/specs/
+COPY agents/ /app/agents/
+COPY cron/ /app/cron/
+COPY docs/ /app/docs/
+COPY README.md /app/README.md
+
 EXPOSE 8088
 
 CMD ["uvicorn", "dashboard.main:app", "--host", "0.0.0.0", "--port", "8088"]

@@ -7,6 +7,7 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any, Callable
 
+from .factors.registry import FactorRegistry, load_factor_registry
 from .indicators import (
     sma,
     ema,
@@ -160,11 +161,31 @@ class IndicatorCalculator:
 class ConditionEvaluator:
     """条件评估器 - 评估规则条件"""
     
-    def __init__(self, indicator_calc: IndicatorCalculator):
+    def __init__(
+        self,
+        indicator_calc: IndicatorCalculator,
+        *,
+        factor_registry: FactorRegistry | None = None,
+        allow_actionable_consumption: bool | None = None,
+    ):
         self.indicator_calc = indicator_calc
+        self.factor_registry = factor_registry
+        if allow_actionable_consumption is None:
+            allow_actionable_consumption = bool(
+                factor_registry.defaults.get("allow_actionable_consumption", False)
+            ) if factor_registry is not None else False
+        self.allow_actionable_consumption = bool(allow_actionable_consumption)
     
-    def evaluate(self, condition: dict[str, Any], bars: list[dict[str, Any]], 
-                 position: dict[str, Any] | None = None) -> tuple[bool, dict[str, Any]]:
+    def evaluate(
+        self,
+        condition: dict[str, Any],
+        bars: list[dict[str, Any]],
+        position: dict[str, Any] | None = None,
+        *,
+        factor_snapshot: dict[str, Any] | None = None,
+        previous_factor_snapshot: dict[str, Any] | None = None,
+        intent_action: str | None = None,
+    ) -> tuple[bool, dict[str, Any]]:
         """
         评估单个条件
         返回 (是否满足, 诊断信息)
@@ -172,6 +193,13 @@ class ConditionEvaluator:
         cond_type = condition.get('type')
         
         if cond_type == 'indicator':
+            if condition.get('indicator') == 'factor':
+                return self._eval_factor(
+                    condition,
+                    factor_snapshot=factor_snapshot,
+                    previous_factor_snapshot=previous_factor_snapshot,
+                    intent_action=intent_action,
+                )
             return self._eval_indicator(condition, bars)
         elif cond_type == 'price':
             return self._eval_price(condition, bars)
@@ -185,7 +213,14 @@ class ConditionEvaluator:
             return self._eval_time(condition, bars)
         elif 'operator' in condition and 'items' in condition:
             # 组合条件 (AND/OR)
-            return self._eval_compound(condition, bars, position)
+            return self._eval_compound(
+                condition,
+                bars,
+                position,
+                factor_snapshot=factor_snapshot,
+                previous_factor_snapshot=previous_factor_snapshot,
+                intent_action=intent_action,
+            )
         
         return False, {'error': f'unknown condition type: {cond_type}'}
     
@@ -278,6 +313,101 @@ class ConditionEvaluator:
             'result': result
         }
         
+        return result, diagnostics
+
+    def _eval_factor(
+        self,
+        condition: dict[str, Any],
+        *,
+        factor_snapshot: dict[str, Any] | None,
+        previous_factor_snapshot: dict[str, Any] | None,
+        intent_action: str | None,
+    ) -> tuple[bool, dict[str, Any]]:
+        factor_id = str(condition.get('factor_id') or '')
+        compare = condition.get('compare', {})
+        operator = compare.get('operator', 'above')
+        compare_value = compare.get('value')
+        factor_def = self.factor_registry.factors.get(factor_id) if self.factor_registry is not None else None
+        payload = self._factor_payload(factor_snapshot, factor_id)
+        diagnostics = {
+            'indicator': 'factor',
+            'factor_id': factor_id,
+            'operator': operator,
+            'compare_value': compare_value,
+            'value': payload.get('value') if isinstance(payload, dict) else None,
+            'prev_value': None,
+            'prev_compare_value': compare_value if operator in {'cross_above', 'cross_below'} else None,
+            'ready': bool(payload.get('ready')) if isinstance(payload, dict) else False,
+            'actionable': bool(payload.get('actionable')) if isinstance(payload, dict) else (
+                bool(factor_def.actionable) if factor_def is not None else False
+            ),
+            'source': payload.get('source') if isinstance(payload, dict) else None,
+            'config_hash': payload.get('config_hash') if isinstance(payload, dict) else (
+                factor_def.config_hash if factor_def is not None else None
+            ),
+        }
+
+        if factor_def is None:
+            diagnostics['reason'] = 'unknown_factor'
+            diagnostics['result'] = False
+            return False, diagnostics
+
+        if intent_action == 'BUY':
+            allowed, gate_reason = self._factor_allowed_for_actionable_buy(factor_def)
+            if not allowed:
+                diagnostics['reason'] = gate_reason
+                diagnostics['result'] = False
+                return False, diagnostics
+
+        if not isinstance(payload, dict):
+            diagnostics['reason'] = 'factor_unavailable'
+            diagnostics['result'] = False
+            return False, diagnostics
+
+        if not payload.get('ready'):
+            diagnostics['reason'] = 'factor_not_ready'
+            diagnostics['factor_reason'] = payload.get('reason')
+            diagnostics['result'] = False
+            return False, diagnostics
+
+        value = payload.get('value')
+        if value is None:
+            diagnostics['reason'] = 'factor_value_missing'
+            diagnostics['result'] = False
+            return False, diagnostics
+
+        prev_value = None
+        prev_compare_value = None
+        if operator in {'cross_above', 'cross_below'}:
+            previous_payload = self._factor_payload(previous_factor_snapshot, factor_id)
+            if not isinstance(previous_payload, dict) or not previous_payload.get('ready'):
+                diagnostics['reason'] = 'insufficient_factor_history'
+                diagnostics['result'] = False
+                diagnostics['prev_value'] = None
+                diagnostics['prev_compare_value'] = compare_value
+                return False, diagnostics
+            prev_value = previous_payload.get('value')
+            prev_compare_value = compare_value
+            if prev_value is None:
+                diagnostics['reason'] = 'insufficient_factor_history'
+                diagnostics['result'] = False
+                diagnostics['prev_value'] = None
+                diagnostics['prev_compare_value'] = compare_value
+                return False, diagnostics
+
+        result = self._compare(
+            value,
+            compare_value,
+            operator,
+            [],
+            'factor',
+            prev_value=prev_value,
+            prev_compare_value=prev_compare_value,
+        )
+        diagnostics['prev_value'] = prev_value
+        diagnostics['prev_compare_value'] = prev_compare_value
+        diagnostics['reason'] = 'ok' if result else 'condition_false'
+        diagnostics['result'] = result
         return result, diagnostics
     
     def _compare(
@@ -450,8 +580,16 @@ class ConditionEvaluator:
         # 简化实现，实际需要考虑市场时间
         return True, {'result': True, 'reason': 'time_check_simplified'}
     
-    def _eval_compound(self, condition: dict[str, Any], bars: list[dict[str, Any]], 
-                       position: dict[str, Any] | None) -> tuple[bool, dict[str, Any]]:
+    def _eval_compound(
+        self,
+        condition: dict[str, Any],
+        bars: list[dict[str, Any]],
+        position: dict[str, Any] | None,
+        *,
+        factor_snapshot: dict[str, Any] | None,
+        previous_factor_snapshot: dict[str, Any] | None,
+        intent_action: str | None,
+    ) -> tuple[bool, dict[str, Any]]:
         """评估组合条件 (AND/OR)"""
         operator = condition.get('operator', 'AND')
         items = condition.get('items', [])
@@ -460,7 +598,14 @@ class ConditionEvaluator:
         diagnostics = []
         
         for item in items:
-            result, diag = self.evaluate(item, bars, position)
+            result, diag = self.evaluate(
+                item,
+                bars,
+                position,
+                factor_snapshot=factor_snapshot,
+                previous_factor_snapshot=previous_factor_snapshot,
+                intent_action=intent_action,
+            )
             results.append(result)
             diagnostics.append(diag)
         
@@ -478,6 +623,25 @@ class ConditionEvaluator:
             'final_result': final_result
         }
 
+    def _factor_payload(self, factor_snapshot: dict[str, Any] | None, factor_id: str) -> dict[str, Any] | None:
+        if not isinstance(factor_snapshot, dict):
+            return None
+        factors = factor_snapshot.get('factors')
+        if not isinstance(factors, dict):
+            return None
+        payload = factors.get(factor_id)
+        return payload if isinstance(payload, dict) else None
+
+    def _factor_allowed_for_actionable_buy(self, factor_def: FactorRegistry | Any) -> tuple[bool, str]:
+        if not self.allow_actionable_consumption:
+            return False, 'factor_actionable_consumption_disabled'
+        if not getattr(factor_def, 'actionable', False):
+            return False, 'factor_not_actionable'
+        usage = set(getattr(factor_def, 'usage', ()) or ())
+        if 'context_only' in usage or getattr(factor_def, 'session', None) == 'context_only':
+            return False, 'factor_context_only'
+        return True, 'ok'
+
 
 class RuleEngine:
     """规则引擎 - 加载配置并评估规则"""
@@ -487,11 +651,16 @@ class RuleEngine:
         rules_path: str | Path,
         *,
         symbol_universe: list[str] | set[str] | tuple[str, ...] | None = None,
+        factor_registry: FactorRegistry | str | Path | None = None,
     ):
         self.rules_path = Path(rules_path)
         self.symbol_universe = list(symbol_universe) if symbol_universe is not None else None
+        self.factor_registry = self._load_factor_registry(factor_registry)
         self.indicator_calc = IndicatorCalculator()
-        self.condition_eval = ConditionEvaluator(self.indicator_calc)
+        self.condition_eval = ConditionEvaluator(
+            self.indicator_calc,
+            factor_registry=self.factor_registry,
+        )
         self.signal_arbiter = SignalArbiter()
         self.rules_config = self._load_rules()
     
@@ -502,7 +671,11 @@ class RuleEngine:
         
         try:
             data = json.loads(self.rules_path.read_text())
-            validation = validate_rules_config(data, symbol_universe=self.symbol_universe)
+            validation = validate_rules_config(
+                data,
+                symbol_universe=self.symbol_universe,
+                factor_registry=self.factor_registry,
+            )
             if not validation["valid"]:
                 print(f"[RuleEngine] Loaded rules with validation errors: {validation['errors']}")
             normalized = dict(data)
@@ -519,6 +692,26 @@ class RuleEngine:
         except Exception as e:
             print(f"[RuleEngine] Failed to load rules: {e}")
             return {'rules': [], 'global_settings': {}}
+
+    def _load_factor_registry(
+        self,
+        factor_registry: FactorRegistry | str | Path | None,
+    ) -> FactorRegistry | None:
+        registry_ref = factor_registry
+        if registry_ref is None:
+            default_registry = Path(__file__).resolve().parents[4] / 'factors' / 'registry.json'
+            if not default_registry.exists():
+                return None
+            registry_ref = default_registry
+
+        if isinstance(registry_ref, FactorRegistry):
+            return registry_ref
+
+        try:
+            return load_factor_registry(registry_ref)
+        except Exception as exc:
+            print(f"[RuleEngine] Failed to load factor registry: {exc}")
+            return None
     
     def reload(self):
         """重新加载规则配置"""
@@ -559,8 +752,16 @@ class RuleEngine:
             market_by_symbol=market_by_symbol,
         )
     
-    def evaluate_symbol(self, symbol: str, market: str, bars: list[dict[str, Any]], 
-                        position: dict[str, Any] | None = None) -> list[RuleSignal]:
+    def evaluate_symbol(
+        self,
+        symbol: str,
+        market: str,
+        bars: list[dict[str, Any]],
+        position: dict[str, Any] | None = None,
+        *,
+        factor_snapshot: dict[str, Any] | None = None,
+        previous_factor_snapshot: dict[str, Any] | None = None,
+    ) -> list[RuleSignal]:
         """
         评估标的的所有适用规则
         返回信号列表
@@ -569,7 +770,18 @@ class RuleEngine:
         enabled_rules = self.get_enabled_rules(symbol=symbol, market=market)
         
         for rule in enabled_rules:
-            signal = self._evaluate_rule(rule, symbol, market, bars, position)
+            if factor_snapshot is None and previous_factor_snapshot is None:
+                signal = self._evaluate_rule(rule, symbol, market, bars, position)
+            else:
+                signal = self._evaluate_rule(
+                    rule,
+                    symbol,
+                    market,
+                    bars,
+                    position,
+                    factor_snapshot=factor_snapshot,
+                    previous_factor_snapshot=previous_factor_snapshot,
+                )
             if signal:
                 signals.append(signal)
         
@@ -580,8 +792,17 @@ class RuleEngine:
         """检查规则是否适用于标的"""
         return rule_applies_to_symbol(rule, symbol, market)
     
-    def _evaluate_rule(self, rule: dict[str, Any], symbol: str, market: str,
-                       bars: list[dict[str, Any]], position: dict[str, Any] | None) -> RuleSignal | None:
+    def _evaluate_rule(
+        self,
+        rule: dict[str, Any],
+        symbol: str,
+        market: str,
+        bars: list[dict[str, Any]],
+        position: dict[str, Any] | None,
+        *,
+        factor_snapshot: dict[str, Any] | None = None,
+        previous_factor_snapshot: dict[str, Any] | None = None,
+    ) -> RuleSignal | None:
         """评估单条规则"""
         rule_id = rule.get('rule_id', 'unknown')
         profile_meta = rule.get("__rule_profile__") if isinstance(rule.get("__rule_profile__"), dict) else {}
@@ -623,7 +844,14 @@ class RuleEngine:
             exit_config = rule.get('exit', {})
             if exit_config:
                 exit_conditions = exit_config.get('conditions', {})
-                exit_result, exit_diag = self.condition_eval.evaluate(exit_conditions, bars, position)
+                exit_result, exit_diag = self.condition_eval.evaluate(
+                    exit_conditions,
+                    bars,
+                    position,
+                    factor_snapshot=factor_snapshot,
+                    previous_factor_snapshot=previous_factor_snapshot,
+                    intent_action='EXIT',
+                )
                 
                 if exit_result:
                     return RuleSignal(
@@ -638,7 +866,7 @@ class RuleEngine:
                         stop_loss=None,
                         take_profit=None,
                         last_close=last_close,
-                        diagnostics={'exit': exit_diag},
+                        diagnostics=self._with_factor_diagnostics({'exit': exit_diag}),
                         base_rule_id=base_rule_id,
                         primary_rule_id=str(rule_id),
                         source_rule_ids=[str(rule_id)],
@@ -653,7 +881,14 @@ class RuleEngine:
             entry_config = rule.get('entry', {})
             if entry_config:
                 entry_conditions = entry_config.get('conditions', {})
-                entry_result, entry_diag = self.condition_eval.evaluate(entry_conditions, bars, None)
+                entry_result, entry_diag = self.condition_eval.evaluate(
+                    entry_conditions,
+                    bars,
+                    None,
+                    factor_snapshot=factor_snapshot,
+                    previous_factor_snapshot=previous_factor_snapshot,
+                    intent_action='BUY',
+                )
                 
                 if entry_result:
                     stop_loss_pct = entry_config.get('stop_loss_pct', 0.03)
@@ -668,6 +903,8 @@ class RuleEngine:
                     max_qty = int(100000 / last_close) if last_close > 0 else None
                     if max_qty and suggested_qty:
                         suggested_qty = min(suggested_qty, max_qty)
+                    signal_diag = self._with_factor_diagnostics({'entry': entry_diag})
+                    signal_diag.update({'risk_budget': risk_budget, 'suggested_qty': suggested_qty})
                     
                     return RuleSignal(
                         rule_id=rule_id,
@@ -683,7 +920,7 @@ class RuleEngine:
                         last_close=last_close,
                         suggested_quantity=suggested_qty,
                         risk_per_share=risk_per_share,
-                        diagnostics={'entry': entry_diag, 'risk_budget': risk_budget, 'suggested_qty': suggested_qty},
+                        diagnostics=signal_diag,
                         base_rule_id=base_rule_id,
                         primary_rule_id=str(rule_id),
                         source_rule_ids=[str(rule_id)],
@@ -694,6 +931,34 @@ class RuleEngine:
                     )
         
         # 默认 HOLD
+        hold_diag: dict[str, Any] = {}
+        if position:
+            exit_conditions = rule.get('exit', {}).get('conditions', {}) if isinstance(rule.get('exit'), dict) else {}
+            if self._condition_uses_factor(exit_conditions):
+                exit_result, exit_diag = self.condition_eval.evaluate(
+                    exit_conditions,
+                    bars,
+                    position,
+                    factor_snapshot=factor_snapshot,
+                    previous_factor_snapshot=previous_factor_snapshot,
+                    intent_action='EXIT',
+                )
+                if not exit_result:
+                    hold_diag = self._with_factor_diagnostics({'exit': exit_diag})
+        else:
+            entry_conditions = rule.get('entry', {}).get('conditions', {}) if isinstance(rule.get('entry'), dict) else {}
+            if self._condition_uses_factor(entry_conditions):
+                entry_result, entry_diag = self.condition_eval.evaluate(
+                    entry_conditions,
+                    bars,
+                    None,
+                    factor_snapshot=factor_snapshot,
+                    previous_factor_snapshot=previous_factor_snapshot,
+                    intent_action='BUY',
+                )
+                if not entry_result:
+                    hold_diag = self._with_factor_diagnostics({'entry': entry_diag})
+
         return RuleSignal(
             rule_id=rule_id,
             symbol=symbol,
@@ -706,7 +971,7 @@ class RuleEngine:
             stop_loss=None,
             take_profit=None,
             last_close=last_close,
-            diagnostics={},
+            diagnostics=hold_diag,
             base_rule_id=base_rule_id,
             primary_rule_id=str(rule_id),
             source_rule_ids=[str(rule_id)],
@@ -723,6 +988,9 @@ class RuleEngine:
         def scan_periods(conditions: dict[str, Any]):
             nonlocal max_period
             
+            if conditions.get('indicator') == 'factor':
+                return
+
             if 'indicator' in conditions:
                 params = conditions.get('params', {})
                 period = params.get('period', 20)
@@ -740,3 +1008,50 @@ class RuleEngine:
         scan_periods(exit_conditions)
         
         return max(max_period + 5, 10)  # 最少10根，额外buffer=5
+
+    def _with_factor_diagnostics(self, diagnostics: dict[str, Any]) -> dict[str, Any]:
+        payload = json.loads(json.dumps(diagnostics))
+        factor_diags = self._collect_factor_diags(payload)
+        if not factor_diags:
+            return payload
+
+        used_factors: list[str] = []
+        factor_values: dict[str, Any] = {}
+        factor_readiness: dict[str, bool] = {}
+        for diag in factor_diags:
+            factor_id = diag.get('factor_id')
+            if not factor_id:
+                continue
+            if factor_id not in used_factors:
+                used_factors.append(str(factor_id))
+            factor_values[str(factor_id)] = diag.get('value')
+            factor_readiness[str(factor_id)] = bool(diag.get('ready'))
+
+        payload['used_factors'] = used_factors
+        payload['factor_values'] = factor_values
+        payload['factor_readiness'] = factor_readiness
+        return payload
+
+    def _collect_factor_diags(self, payload: Any) -> list[dict[str, Any]]:
+        items: list[dict[str, Any]] = []
+        if isinstance(payload, dict):
+            if payload.get('indicator') == 'factor' and payload.get('factor_id'):
+                items.append(payload)
+            for key, value in payload.items():
+                if key in {'used_factors', 'factor_values', 'factor_readiness'}:
+                    continue
+                items.extend(self._collect_factor_diags(value))
+        elif isinstance(payload, list):
+            for value in payload:
+                items.extend(self._collect_factor_diags(value))
+        return items
+
+    def _condition_uses_factor(self, condition: Any) -> bool:
+        if not isinstance(condition, dict):
+            return False
+        if condition.get('indicator') == 'factor':
+            return True
+        items = condition.get('items')
+        if isinstance(items, list):
+            return any(self._condition_uses_factor(item) for item in items)
+        return False

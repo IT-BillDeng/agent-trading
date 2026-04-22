@@ -13,6 +13,69 @@ from engine.rule_schema import validate_rules_config
 
 
 class RuleSchemaValidationTests(unittest.TestCase):
+    def test_unknown_factor_id_is_rejected(self):
+        rules_data = {
+            "rules": [
+                {
+                    "rule_id": "factor_rule",
+                    "enabled": True,
+                    "priority": 1,
+                    "symbols": ["*"],
+                    "markets": ["US"],
+                    "entry": {
+                        "action": "BUY",
+                        "conditions": {
+                            "type": "indicator",
+                            "indicator": "factor",
+                            "factor_id": "missing_factor",
+                            "compare": {"operator": "above", "value": 30},
+                        },
+                    },
+                }
+            ]
+        }
+        registry_payload = {
+            "schema_version": 1,
+            "defaults": {
+                "mode": "shadow",
+                "allow_actionable_consumption": True,
+                "regular_session_only_for_indicators": True,
+                "default_timezone": "America/New_York",
+            },
+            "factors": {
+                "rsi_14_30m": {
+                    "type": "technical",
+                    "implementation": "builtin:rsi",
+                    "inputs": ["regular_session_30m_bars"],
+                    "params": {"period": 14},
+                    "session": "regular",
+                    "timeframe": "30min",
+                    "output": "numeric",
+                    "usage": ["shadow", "rule_condition_candidate", "actionable"],
+                    "actionable": True,
+                    "point_in_time": True,
+                    "required_bars": 14,
+                    "lookback_bars": 14,
+                    "horizon_bars": 1,
+                    "timezone": "America/New_York",
+                    "no_lookahead": True,
+                    "version": 1,
+                }
+            },
+        }
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as handle:
+            json.dump(registry_payload, handle)
+            registry_path = handle.name
+
+        try:
+            result = validate_rules_config(rules_data, factor_registry=registry_path)
+        finally:
+            Path(registry_path).unlink()
+
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("unknown factor_id" in item for item in result["errors"]))
+
     def test_current_rules_file_is_schema_valid(self):
         rules_path = Path(__file__).resolve().parents[3] / "rules" / "rules.json"
         rules_data = json.loads(rules_path.read_text())

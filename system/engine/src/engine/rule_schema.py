@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import copy
+from pathlib import Path
 from typing import Any
 
+from .factors.registry import FactorRegistry, load_factor_registry
 from .rule_profiles import (
     ALLOWED_ENTRY_OVERRIDE_KEYS,
     ALLOWED_EXIT_OVERRIDE_KEYS,
@@ -49,9 +51,15 @@ def validate_rules_config(
     rules_data: dict[str, Any],
     *,
     symbol_universe: list[str] | set[str] | tuple[str, ...] | None = None,
+    factor_registry: FactorRegistry | str | Path | None = None,
 ) -> dict[str, Any]:
     errors: list[str] = []
     warnings: list[str] = []
+    resolved_factor_registry = _resolve_factor_registry(factor_registry)
+    factor_registry_error = None
+    if isinstance(resolved_factor_registry, Exception):
+        factor_registry_error = str(resolved_factor_registry)
+        resolved_factor_registry = None
 
     if not isinstance(rules_data, dict):
         return {"valid": False, "errors": ["rules payload must be an object"], "warnings": [], "valid_rules": []}
@@ -65,7 +73,13 @@ def validate_rules_config(
     valid_rule_ids: set[str] = set()
 
     for index, rule in enumerate(rules):
-        rule_errors = _validate_rule(rule, index=index, seen_rule_ids=seen_rule_ids)
+        rule_errors = _validate_rule(
+            rule,
+            index=index,
+            seen_rule_ids=seen_rule_ids,
+            factor_registry=resolved_factor_registry,
+            factor_registry_error=factor_registry_error,
+        )
         if rule_errors:
             errors.extend(rule_errors)
         else:
@@ -89,7 +103,14 @@ def validate_rules_config(
     }
 
 
-def _validate_rule(rule: Any, *, index: int, seen_rule_ids: set[str]) -> list[str]:
+def _validate_rule(
+    rule: Any,
+    *,
+    index: int,
+    seen_rule_ids: set[str],
+    factor_registry: FactorRegistry | None,
+    factor_registry_error: str | None,
+) -> list[str]:
     prefix = f"Rule {index}"
     errors: list[str] = []
 
@@ -117,7 +138,14 @@ def _validate_rule(rule: Any, *, index: int, seen_rule_ids: set[str]) -> list[st
         else:
             if entry.get("action") != "BUY":
                 errors.append(f"{prefix}: entry.action must be BUY")
-            errors.extend(_validate_condition_block(entry.get("conditions"), f"{prefix}.entry.conditions"))
+            errors.extend(
+                _validate_condition_block(
+                    entry.get("conditions"),
+                    f"{prefix}.entry.conditions",
+                    factor_registry=factor_registry,
+                    factor_registry_error=factor_registry_error,
+                )
+            )
 
     exit_cfg = rule.get("exit")
     if exit_cfg is not None:
@@ -126,7 +154,14 @@ def _validate_rule(rule: Any, *, index: int, seen_rule_ids: set[str]) -> list[st
         else:
             if exit_cfg.get("action") != "EXIT":
                 errors.append(f"{prefix}: exit.action must be EXIT")
-            errors.extend(_validate_condition_block(exit_cfg.get("conditions"), f"{prefix}.exit.conditions"))
+            errors.extend(
+                _validate_condition_block(
+                    exit_cfg.get("conditions"),
+                    f"{prefix}.exit.conditions",
+                    factor_registry=factor_registry,
+                    factor_registry_error=factor_registry_error,
+                )
+            )
 
     search_space = rule.get("search_space")
     if search_space is not None:
@@ -149,7 +184,13 @@ def _validate_rule(rule: Any, *, index: int, seen_rule_ids: set[str]) -> list[st
     return errors
 
 
-def _validate_condition_block(condition: Any, path: str) -> list[str]:
+def _validate_condition_block(
+    condition: Any,
+    path: str,
+    *,
+    factor_registry: FactorRegistry | None,
+    factor_registry_error: str | None,
+) -> list[str]:
     errors: list[str] = []
     if not isinstance(condition, dict):
         return [f"{path}: conditions must be object"]
@@ -163,7 +204,14 @@ def _validate_condition_block(condition: Any, path: str) -> list[str]:
             errors.append(f"{path}: compound items must be non-empty list")
             return errors
         for idx, item in enumerate(items):
-            errors.extend(_validate_condition_block(item, f"{path}.items[{idx}]"))
+            errors.extend(
+                _validate_condition_block(
+                    item,
+                    f"{path}.items[{idx}]",
+                    factor_registry=factor_registry,
+                    factor_registry_error=factor_registry_error,
+                )
+            )
         return errors
 
     cond_type = condition.get("type")
@@ -172,6 +220,16 @@ def _validate_condition_block(condition: Any, path: str) -> list[str]:
 
     if cond_type == "indicator":
         indicator = condition.get("indicator")
+        if indicator == "factor":
+            errors.extend(
+                _validate_factor_condition(
+                    condition,
+                    path,
+                    factor_registry=factor_registry,
+                    factor_registry_error=factor_registry_error,
+                )
+            )
+            return errors
         if indicator not in SUPPORTED_INDICATORS:
             errors.append(f"{path}: unsupported indicator '{indicator}'")
         compare = condition.get("compare")
@@ -219,6 +277,54 @@ def _validate_condition_block(condition: Any, path: str) -> list[str]:
     if cond_type == "take_profit":
         errors.extend(_validate_range(condition.get("threshold_pct"), min_value=0.0001, max_value=0.5, path=f"{path}.threshold_pct"))
         return errors
+
+    return errors
+
+
+def _validate_factor_condition(
+    condition: dict[str, Any],
+    path: str,
+    *,
+    factor_registry: FactorRegistry | None,
+    factor_registry_error: str | None,
+) -> list[str]:
+    errors: list[str] = []
+    factor_id = condition.get("factor_id")
+    if not isinstance(factor_id, str) or not factor_id.strip():
+        errors.append(f"{path}: factor condition missing factor_id")
+
+    compare = condition.get("compare")
+    if not isinstance(compare, dict):
+        errors.append(f"{path}: factor compare must be object")
+        return errors
+
+    operator = compare.get("operator")
+    if operator not in {"above", "below", "equal", "cross_above", "cross_below"}:
+        errors.append(f"{path}: unsupported factor operator '{operator}'")
+
+    if "value" not in compare:
+        errors.append(f"{path}: factor compare must provide numeric value")
+    elif not isinstance(compare.get("value"), (int, float)) or isinstance(compare.get("value"), bool):
+        errors.append(f"{path}: factor compare value must be numeric")
+
+    if compare.get("indicator") is not None or compare.get("field") is not None:
+        errors.append(f"{path}: factor compare only supports constant value in FR-06")
+
+    if factor_registry_error is not None:
+        errors.append(f"{path}: factor registry unavailable ({factor_registry_error})")
+        return errors
+
+    if factor_registry is None:
+        errors.append(f"{path}: factor registry is required for factor conditions")
+        return errors
+
+    factor = factor_registry.factors.get(str(factor_id))
+    if factor is None:
+        errors.append(f"{path}: unknown factor_id '{factor_id}'")
+        return errors
+
+    if factor.output != "numeric":
+        errors.append(f"{path}: factor '{factor_id}' must have numeric output")
 
     return errors
 
@@ -346,6 +452,19 @@ def _validate_range(
     if numeric < min_value or numeric > max_value:
         return [f"{path} out of range [{min_value}, {max_value}]"]
     return []
+
+
+def _resolve_factor_registry(
+    factor_registry: FactorRegistry | str | Path | None,
+) -> FactorRegistry | Exception | None:
+    if factor_registry is None:
+        return None
+    if isinstance(factor_registry, FactorRegistry):
+        return factor_registry
+    try:
+        return load_factor_registry(factor_registry)
+    except Exception as exc:  # pragma: no cover - defensive glue
+        return exc
 
 
 def _normalize_symbol_universe(
@@ -559,7 +678,15 @@ def _validate_profile_effective_rules(
         except Exception as exc:
             errors.append(f"{scope}.{owner}.rule_overrides.{rule_id} invalid: {exc}")
             continue
-        errors.extend(_validate_rule(copy.deepcopy(effective_rule), index=-1, seen_rule_ids=set()))
+        errors.extend(
+            _validate_rule(
+                copy.deepcopy(effective_rule),
+                index=-1,
+                seen_rule_ids=set(),
+                factor_registry=None,
+                factor_registry_error=None,
+            )
+        )
         prefix = f"{scope}.{owner}.rule_overrides.{rule_id}"
         errors.extend(_validate_rule_numeric_ranges(effective_rule, prefix))
 

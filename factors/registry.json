@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "defaults": {
+    "mode": "shadow",
+    "allow_actionable_consumption": false,
+    "regular_session_only_for_indicators": true,
+    "default_timezone": "America/New_York"
+  },
+  "factors": {
+    "rsi_14_30m": {
+      "type": "technical",
+      "implementation": "builtin:rsi",
+      "inputs": ["regular_session_30m_bars"],
+      "params": {
+        "period": 14
+      },
+      "session": "regular",
+      "timeframe": "30min",
+      "output": "numeric",
+      "usage": ["shadow", "rule_condition_candidate"],
+      "actionable": false,
+      "point_in_time": true,
+      "required_bars": 14,
+      "lookback_bars": 14,
+      "horizon_bars": 1,
+      "timezone": "America/New_York",
+      "no_lookahead": true,
+      "version": 1
+    },
+    "bollinger_zscore_20_2_30m": {
+      "type": "technical",
+      "implementation": "builtin:bollinger_zscore",
+      "inputs": ["regular_session_30m_bars"],
+      "params": {
+        "period": 20,
+        "std_dev": 2.0
+      },
+      "session": "regular",
+      "timeframe": "30min",
+      "output": "numeric",
+      "usage": ["shadow", "rule_condition_candidate"],
+      "actionable": false,
+      "point_in_time": true,
+      "required_bars": 20,
+      "lookback_bars": 20,
+      "horizon_bars": 1,
+      "timezone": "America/New_York",
+      "no_lookahead": true,
+      "version": 1
+    },
+    "volume_ratio_20_30m": {
+      "type": "technical",
+      "implementation": "builtin:volume_ratio",
+      "inputs": ["regular_session_30m_bars"],
+      "params": {
+        "period": 20
+      },
+      "session": "regular",
+      "timeframe": "30min",
+      "output": "numeric",
+      "usage": ["shadow", "rule_condition_candidate"],
+      "actionable": false,
+      "point_in_time": true,
+      "required_bars": 20,
+      "lookback_bars": 20,
+      "horizon_bars": 1,
+      "timezone": "America/New_York",
+      "no_lookahead": true,
+      "version": 1
+    },
+    "premarket_gap_pct": {
+      "type": "session",
+      "implementation": "builtin:premarket_gap_pct",
+      "inputs": ["extended_hours_bars", "previous_regular_close"],
+      "params": {},
+      "session": "premarket",
+      "timeframe": "30min",
+      "output": "numeric",
+      "usage": ["shadow", "context_only", "risk_hint_candidate"],
+      "actionable": false,
+      "point_in_time": true,
+      "required_bars": 1,
+      "lookback_bars": 1,
+      "horizon_bars": 1,
+      "timezone": "America/New_York",
+      "no_lookahead": true,
+      "version": 1
+    }
+  }
+}

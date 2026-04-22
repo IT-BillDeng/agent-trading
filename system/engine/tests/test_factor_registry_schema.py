@@ -13,16 +13,106 @@ from engine.factors.registry import FactorRegistryValidationError, load_factor_r
 from engine.factors.schema import validate_factor_registry
 
 
+def _registry_payload() -> dict:
+    return {
+        "schema_version": 1,
+        "defaults": {
+            "mode": "shadow",
+            "allow_actionable_consumption": False,
+            "regular_session_only_for_indicators": True,
+            "default_timezone": "America/New_York",
+        },
+        "factors": {
+            "rsi_14_30m": {
+                "type": "technical",
+                "implementation": "builtin:rsi",
+                "inputs": ["regular_session_30m_bars"],
+                "params": {"period": 14},
+                "session": "regular",
+                "timeframe": "30min",
+                "output": "numeric",
+                "usage": ["shadow", "rule_condition_candidate"],
+                "actionable": False,
+                "point_in_time": True,
+                "required_bars": 14,
+                "lookback_bars": 14,
+                "horizon_bars": 1,
+                "timezone": "America/New_York",
+                "no_lookahead": True,
+                "version": 1,
+            },
+            "bollinger_zscore_20_2_30m": {
+                "type": "technical",
+                "implementation": "builtin:bollinger_zscore",
+                "inputs": ["regular_session_30m_bars"],
+                "params": {"period": 20, "std_dev": 2.0},
+                "session": "regular",
+                "timeframe": "30min",
+                "output": "numeric",
+                "usage": ["shadow", "rule_condition_candidate"],
+                "actionable": False,
+                "point_in_time": True,
+                "required_bars": 20,
+                "lookback_bars": 20,
+                "horizon_bars": 1,
+                "timezone": "America/New_York",
+                "no_lookahead": True,
+                "version": 1,
+            },
+            "volume_ratio_20_30m": {
+                "type": "technical",
+                "implementation": "builtin:volume_ratio",
+                "inputs": ["regular_session_30m_bars"],
+                "params": {"period": 20},
+                "session": "regular",
+                "timeframe": "30min",
+                "output": "numeric",
+                "usage": ["shadow", "rule_condition_candidate"],
+                "actionable": False,
+                "point_in_time": True,
+                "required_bars": 20,
+                "lookback_bars": 20,
+                "horizon_bars": 1,
+                "timezone": "America/New_York",
+                "no_lookahead": True,
+                "version": 1,
+            },
+            "premarket_gap_pct": {
+                "type": "session",
+                "implementation": "builtin:premarket_gap_pct",
+                "inputs": ["extended_hours_bars", "previous_regular_close"],
+                "params": {},
+                "session": "premarket",
+                "timeframe": "30min",
+                "output": "numeric",
+                "usage": ["shadow", "context_only", "risk_hint_candidate"],
+                "actionable": False,
+                "point_in_time": True,
+                "required_bars": 1,
+                "lookback_bars": 1,
+                "horizon_bars": 1,
+                "timezone": "America/New_York",
+                "no_lookahead": True,
+                "version": 1,
+            },
+        },
+    }
+
+
 def _valid_registry_payload() -> dict:
-    registry_path = Path(__file__).resolve().parents[3] / "factors" / "registry.json"
-    return json.loads(registry_path.read_text())
+    return _registry_payload()
 
 
 class FactorRegistrySchemaTests(unittest.TestCase):
     def test_current_registry_file_loads_successfully(self):
-        registry_path = Path(__file__).resolve().parents[3] / "factors" / "registry.json"
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as handle:
+            json.dump(_valid_registry_payload(), handle)
+            registry_path = Path(handle.name)
 
-        registry = load_factor_registry(registry_path)
+        try:
+            registry = load_factor_registry(registry_path)
+        finally:
+            registry_path.unlink()
 
         self.assertEqual(registry.schema_version, 1)
         self.assertEqual(registry.defaults["mode"], "shadow")

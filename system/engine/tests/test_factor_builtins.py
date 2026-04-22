@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import tempfile
 import unittest
 from pathlib import Path
 import sys
@@ -10,6 +12,92 @@ from engine.factors.builtins import compute_builtin_factor
 from engine.factors.registry import load_factor_registry
 from engine.indicators import bollinger, rsi, volume_ratio
 from engine.market_sessions import analyze_symbol_bars
+
+
+def _registry_payload() -> dict:
+    return {
+        "schema_version": 1,
+        "defaults": {
+            "mode": "shadow",
+            "allow_actionable_consumption": False,
+            "regular_session_only_for_indicators": True,
+            "default_timezone": "America/New_York",
+        },
+        "factors": {
+            "rsi_14_30m": {
+                "type": "technical",
+                "implementation": "builtin:rsi",
+                "inputs": ["regular_session_30m_bars"],
+                "params": {"period": 14},
+                "session": "regular",
+                "timeframe": "30min",
+                "output": "numeric",
+                "usage": ["shadow", "rule_condition_candidate"],
+                "actionable": False,
+                "point_in_time": True,
+                "required_bars": 14,
+                "lookback_bars": 14,
+                "horizon_bars": 1,
+                "timezone": "America/New_York",
+                "no_lookahead": True,
+                "version": 1,
+            },
+            "bollinger_zscore_20_2_30m": {
+                "type": "technical",
+                "implementation": "builtin:bollinger_zscore",
+                "inputs": ["regular_session_30m_bars"],
+                "params": {"period": 20, "std_dev": 2.0},
+                "session": "regular",
+                "timeframe": "30min",
+                "output": "numeric",
+                "usage": ["shadow", "rule_condition_candidate"],
+                "actionable": False,
+                "point_in_time": True,
+                "required_bars": 20,
+                "lookback_bars": 20,
+                "horizon_bars": 1,
+                "timezone": "America/New_York",
+                "no_lookahead": True,
+                "version": 1,
+            },
+            "volume_ratio_20_30m": {
+                "type": "technical",
+                "implementation": "builtin:volume_ratio",
+                "inputs": ["regular_session_30m_bars"],
+                "params": {"period": 20},
+                "session": "regular",
+                "timeframe": "30min",
+                "output": "numeric",
+                "usage": ["shadow", "rule_condition_candidate"],
+                "actionable": False,
+                "point_in_time": True,
+                "required_bars": 20,
+                "lookback_bars": 20,
+                "horizon_bars": 1,
+                "timezone": "America/New_York",
+                "no_lookahead": True,
+                "version": 1,
+            },
+            "premarket_gap_pct": {
+                "type": "session",
+                "implementation": "builtin:premarket_gap_pct",
+                "inputs": ["extended_hours_bars", "previous_regular_close"],
+                "params": {},
+                "session": "premarket",
+                "timeframe": "30min",
+                "output": "numeric",
+                "usage": ["shadow", "context_only", "risk_hint_candidate"],
+                "actionable": False,
+                "point_in_time": True,
+                "required_bars": 1,
+                "lookback_bars": 1,
+                "horizon_bars": 1,
+                "timezone": "America/New_York",
+                "no_lookahead": True,
+                "version": 1,
+            },
+        },
+    }
 
 
 def _make_bar(ts: str, close: float, *, volume: int = 1000) -> dict:
@@ -69,8 +157,14 @@ def _app_config() -> dict:
 class FactorBuiltinsTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        registry_path = Path(__file__).resolve().parents[3] / "factors" / "registry.json"
-        cls.registry = load_factor_registry(registry_path)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as handle:
+            json.dump(_registry_payload(), handle)
+            cls._registry_path = Path(handle.name)
+        cls.registry = load_factor_registry(cls._registry_path)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._registry_path.unlink(missing_ok=True)
 
     def _analysis(self, bars: list[dict], *, evaluation_time: str) -> dict:
         return analyze_symbol_bars(

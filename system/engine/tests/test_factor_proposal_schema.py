@@ -45,6 +45,7 @@ def _valid_factor_rule_link_proposal() -> dict:
     payload["proposal_type"] = "factor_rule_link"
     payload["target_files"] = ["rules/rules.json"]
     payload["paper_shadow_required_days"] = 20
+    payload["binding_mode"] = "disabled_rule"
     return payload
 
 
@@ -124,6 +125,42 @@ class FactorProposalSchemaTests(unittest.TestCase):
             20,
         )
         self.assertTrue(any("paper_shadow_required_days=10 < 20" in error for error in result["errors"]))
+
+    def test_factor_rule_link_requires_explicit_binding_mode(self) -> None:
+        payload = _valid_factor_rule_link_proposal()
+        payload.pop("binding_mode")
+
+        result = validate_proposal_record(payload)
+
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("binding_mode" in error for error in result["errors"]))
+
+    def test_hot_factor_rule_link_rejects_manual_promotion_binding_mode(self) -> None:
+        payload = _valid_factor_rule_link_proposal()
+        payload["binding_mode"] = "manual_promotion"
+        payload["recommended_update_mode"] = "hot"
+
+        result = validate_proposal_record(payload)
+
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("binding_mode 'diagnostic' or 'disabled_rule'" in error for error in result["errors"]))
+        self.assertEqual(
+            result["quality_summary"]["metrics"]["binding_mode"],
+            "manual_promotion",
+        )
+
+    def test_cold_factor_rule_link_accepts_manual_promotion_binding_mode(self) -> None:
+        payload = _valid_factor_rule_link_proposal()
+        payload["binding_mode"] = "manual_promotion"
+        payload["recommended_update_mode"] = "cold"
+
+        result = validate_proposal_record(payload)
+
+        self.assertTrue(result["valid"])
+        self.assertEqual(
+            result["quality_summary"]["metrics"]["binding_mode"],
+            "manual_promotion",
+        )
 
 
 if __name__ == "__main__":

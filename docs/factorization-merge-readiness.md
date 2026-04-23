@@ -48,6 +48,7 @@
 - `factor_code` 只能 `cold/manual`，不得被 applier 自动写入 engine source。
 - `factor_config` hot apply 只能改 `factors/registry.json`。
 - `factor_rule_link` hot apply 只能改 `rules/rules.json`，并且必须同时通过 rule schema 与 factor registry schema。
+- v1 的 hot `factor_rule_link` 只允许 diagnostic / disabled-rule binding；任何对已启用规则的 promotion 或行为改写都必须走 manual/cold。
 - factor-based conditions 在 schema 上是兼容的，但 v1 默认 runtime 仍然保持 shadow-only，不代表默认开启 actionable factor trading。
 - `factor_rule_link` 只表示规则可以引用已批准 factor id；在 `allow_actionable_consumption=false` 下，不意味着因子可直接进入 actionable BUY。
 - Factor Engine 在 runtime 中必须 fail-open：即使因子侧报错，也不改变 `strategy.signals`、`risk.decisions`、`execution_preview`、`order_intents`。

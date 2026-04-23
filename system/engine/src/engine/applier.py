@@ -183,6 +183,64 @@ def _factor_ids_from_rule(rule: dict[str, Any]) -> set[str]:
     return factor_ids
 
 
+def _rule_enabled(rule: dict[str, Any] | None) -> bool:
+    if not isinstance(rule, dict):
+        return False
+    return bool(rule.get("enabled", True))
+
+
+def _validate_factor_rule_link_hot_apply(
+    before_payload: dict[str, Any],
+    after_payload: dict[str, Any],
+) -> dict[str, Any]:
+    before_rules = {
+        str(rule.get("rule_id")): rule
+        for rule in before_payload.get("rules", [])
+        if isinstance(rule, dict) and rule.get("rule_id")
+    }
+    after_rules = {
+        str(rule.get("rule_id")): rule
+        for rule in after_payload.get("rules", [])
+        if isinstance(rule, dict) and rule.get("rule_id")
+    }
+
+    changed_rule_ids: list[str] = []
+    changed_enabled_rule_ids: list[str] = []
+    for rule_id in sorted(set(before_rules.keys()) | set(after_rules.keys())):
+        if before_rules.get(rule_id) == after_rules.get(rule_id):
+            continue
+        changed_rule_ids.append(rule_id)
+        if _rule_enabled(before_rules.get(rule_id)) or _rule_enabled(after_rules.get(rule_id)):
+            changed_enabled_rule_ids.append(rule_id)
+
+    changed_global_settings = before_payload.get("global_settings") != after_payload.get("global_settings")
+    changed_profile_templates = before_payload.get("symbol_profile_templates") != after_payload.get("symbol_profile_templates")
+    changed_symbol_profiles = before_payload.get("symbol_profiles") != after_payload.get("symbol_profiles")
+
+    errors: list[str] = []
+    if changed_enabled_rule_ids:
+        errors.append(
+            "factor_rule_link hot apply may not change enabled rules: "
+            + ", ".join(changed_enabled_rule_ids)
+        )
+    if changed_global_settings:
+        errors.append("factor_rule_link hot apply may not change global_settings")
+    if changed_profile_templates:
+        errors.append("factor_rule_link hot apply may not change symbol_profile_templates")
+    if changed_symbol_profiles:
+        errors.append("factor_rule_link hot apply may not change symbol_profiles")
+
+    return {
+        "valid": len(errors) == 0,
+        "errors": errors,
+        "changed_rule_ids": changed_rule_ids,
+        "changed_enabled_rule_ids": changed_enabled_rule_ids,
+        "changed_global_settings": changed_global_settings,
+        "changed_symbol_profile_templates": changed_profile_templates,
+        "changed_symbol_profiles": changed_symbol_profiles,
+    }
+
+
 def _factor_registry_state(repo_root: Path) -> tuple[Any | None, dict[str, Any], str | None]:
     registry_path = (repo_root / "factors" / "registry.json").resolve()
     if not registry_path.exists():
@@ -348,6 +406,7 @@ def _apply_hot_rules_update(
     changed_rules: set[str] = set()
     changed_factors: set[str] = set()
     factor_validation_summary: dict[str, Any] | None = None
+    factor_rule_link_safety_summary: dict[str, Any] | None = None
     registry_hash: str | None = None
 
     try:
@@ -389,6 +448,16 @@ def _apply_hot_rules_update(
 
             before_payload = json.loads(original_bytes.decode("utf-8")) if original_bytes else {"rules": []}
             after_payload = json.loads(payload) if isinstance(payload, str) else payload
+            if proposal_type == "factor_rule_link":
+                factor_rule_link_safety_summary = _validate_factor_rule_link_hot_apply(
+                    before_payload,
+                    after_payload,
+                )
+                if not factor_rule_link_safety_summary["valid"]:
+                    raise ValueError(
+                        "unsafe factor_rule_link hot apply: "
+                        + "; ".join(factor_rule_link_safety_summary["errors"])
+                    )
 
             written_bytes = _write_rules_file(target_path, payload)
             after_checksum = _checksum_bytes(written_bytes)
@@ -402,6 +471,7 @@ def _apply_hot_rules_update(
                     "proposal": _proposal_validation_summary(record),
                     "rules": rules_validation_summary,
                     "factor_registry": factor_validation_summary,
+                    "factor_rule_link_safety": factor_rule_link_safety_summary,
                 },
                 **_describe_rules_changes(before_payload, after_payload),
             }
@@ -430,6 +500,7 @@ def _apply_hot_rules_update(
                 "proposal": _proposal_validation_summary(record),
                 "rules": deployment_targets[0]["validation_result"] if deployment_targets else None,
                 "factor_registry": factor_validation_summary,
+                "factor_rule_link_safety": factor_rule_link_safety_summary,
             },
             "targets": deployment_targets,
         }
@@ -467,6 +538,7 @@ def _apply_hot_rules_update(
                 "proposal": _proposal_validation_summary(record),
                 "rules": deployment_targets[-1]["validation_result"] if deployment_targets else None,
                 "factor_registry": factor_validation_summary,
+                "factor_rule_link_safety": factor_rule_link_safety_summary,
             },
             rollback_performed=True,
             changed_factors=sorted(changed_factors),

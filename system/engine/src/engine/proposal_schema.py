@@ -19,6 +19,11 @@ FACTOR_PROPOSAL_QUALITY_THRESHOLDS = {
 FACTOR_RULE_LINK_QUALITY_OVERRIDES = {
     "min_paper_shadow_required_days": 20,
 }
+FACTOR_RULE_LINK_BINDING_MODES = {
+    "diagnostic",
+    "disabled_rule",
+    "manual_promotion",
+}
 
 _FACTOR_CONFIG_TARGETS = {
     "factors/registry.json",
@@ -219,6 +224,20 @@ def _validate_factor_proposal(
         if any(target not in _FACTOR_CONFIG_TARGETS for target in target_files):
             errors.append("factor_config proposals may only target factors/registry.json")
     elif proposal_type == "factor_rule_link":
+        binding_mode = str(record.get("binding_mode") or "").strip().lower()
+        if binding_mode not in FACTOR_RULE_LINK_BINDING_MODES:
+            errors.append(
+                "factor_rule_link proposals require binding_mode in "
+                f"{sorted(FACTOR_RULE_LINK_BINDING_MODES)}"
+            )
+        elif recommended_update_mode == "hot" and binding_mode not in {"diagnostic", "disabled_rule"}:
+            errors.append(
+                "hot factor_rule_link proposals must use binding_mode 'diagnostic' or 'disabled_rule'"
+            )
+        elif binding_mode == "manual_promotion" and recommended_update_mode != "cold":
+            errors.append(
+                "manual_promotion factor_rule_link proposals must use recommended_update_mode='cold'"
+            )
         if any(not any(target.startswith(prefix) for prefix in _RULES_TARGET_PREFIXES) for target in target_files):
             errors.append("factor_rule_link proposals may only target rules/")
     elif proposal_type == "factor_code":
@@ -267,6 +286,11 @@ def _validate_factor_proposal(
             "missing_rate": missing_rate_value,
             "correlation_with_existing": correlation_value,
             "paper_shadow_required_days": paper_shadow_required_days,
+            "binding_mode": (
+                str(record.get("binding_mode") or "").strip().lower()
+                if proposal_type == "factor_rule_link"
+                else None
+            ),
             "backtest_delta_present": record.get("backtest_delta") is not None,
             "fee_cost_impact_present": _first_present_value(record, "fee_cost_impact", "cost_impact", "fee_impact")
             is not None,

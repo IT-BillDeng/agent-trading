@@ -781,6 +781,38 @@ class BacktestEngine:
             }
             print(f"[Backtest] Failed to evaluate factor snapshot for {symbol}: {exc}")
             return None, None
+
+    def _evaluate_rule_engine_symbol(
+        self,
+        symbol: str,
+        bars_history: list[dict[str, Any]],
+        position_dict: dict[str, Any] | None,
+        *,
+        factor_snapshot: dict[str, Any] | None,
+        previous_factor_snapshot: dict[str, Any] | None,
+    ) -> list[Any]:
+        evaluate_symbol = self.rule_engine.evaluate_symbol
+        try:
+            return evaluate_symbol(
+                symbol,
+                self.config.market,
+                bars_history,
+                position_dict,
+                factor_snapshot=factor_snapshot,
+                previous_factor_snapshot=previous_factor_snapshot,
+            )
+        except TypeError as exc:
+            message = str(exc)
+            if "unexpected keyword argument 'factor_snapshot'" not in message and (
+                "unexpected keyword argument 'previous_factor_snapshot'" not in message
+            ):
+                raise
+        return evaluate_symbol(
+            symbol,
+            self.config.market,
+            bars_history,
+            position_dict,
+        )
     
     def load_data(self):
         """加载历史数据"""
@@ -1006,9 +1038,8 @@ class BacktestEngine:
                     timestamp=bar.timestamp,
                 )
 
-                signals = self.rule_engine.evaluate_symbol(
+                signals = self._evaluate_rule_engine_symbol(
                     symbol,
-                    self.config.market,
                     bars_history,
                     position_dict,
                     factor_snapshot=factor_snapshot,

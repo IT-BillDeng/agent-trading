@@ -354,6 +354,9 @@ def infer_update_mode(record: dict[str, Any]) -> str:
     if proposal_type == "factor_config":
         return "hot"
     if proposal_type == "factor_rule_link":
+        binding_mode = str(record.get("binding_mode") or "").strip().lower()
+        if binding_mode == "manual_promotion":
+            return "cold"
         return "hot"
     if proposal_type == "factor_code":
         return "cold"
@@ -393,6 +396,14 @@ def resolve_apply_gate(proposal_id: str, base_dir: str | Path | None = None) -> 
     proposal_type = str(record.get("proposal_type") or "").strip().lower()
     if proposal_type == "factor_code" and recommended_mode != "cold":
         raise ValueError("factor_code proposal must remain cold/manual")
+    if proposal_type == "factor_rule_link":
+        binding_mode = str(record.get("binding_mode") or "").strip().lower()
+        if recommended_mode == "hot" and binding_mode not in {"diagnostic", "disabled_rule"}:
+            raise ValueError(
+                "hot factor_rule_link proposal must use binding_mode 'diagnostic' or 'disabled_rule'"
+            )
+        if binding_mode == "manual_promotion" and recommended_mode != "cold":
+            raise ValueError("manual_promotion factor_rule_link proposal must remain cold/manual")
 
     requires_restart = record.get("requires_restart")
     if requires_restart is None:

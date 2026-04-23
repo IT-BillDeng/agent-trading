@@ -161,6 +161,10 @@ Hot factor config change:
 - `factor_rule_link` only means rules may reference approved factor ids; it does
   not imply actionable factor trading while
   `allow_actionable_consumption=false`
+- in v1, hot `factor_rule_link` is limited to diagnostic or disabled-rule
+  binding only
+- changing an already enabled rule through `factor_rule_link` is not a hot-path
+  action; promotion must remain manual/cold
 
 Cold factor code change:
 

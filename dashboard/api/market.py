@@ -6,6 +6,8 @@ from datetime import date, datetime
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from dashboard.services.runtime import replace_quote_provider
+
 
 _dashboard_main_module = None
 
@@ -286,8 +288,12 @@ async def api_quote_provider(body: dict):
     if not dashboard_main.cache:
         return JSONResponse({"error": "not ready"}, status_code=503)
     try:
-        new_provider = dashboard_main.get_quote_provider(provider, config_dir=str(dashboard_main.CONFIG_DIR_PATH))
-        dashboard_main.cache._quote_provider = new_provider
+        new_provider = replace_quote_provider(
+            dashboard_main.cache,
+            provider,
+            broker_properties_dir=dashboard_main.BROKER_PROPERTIES_DIR,
+            config_dir=dashboard_main.CONFIG_DIR_PATH,
+        )
         return {"status": "ok", "provider": provider, "name": new_provider.name}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)

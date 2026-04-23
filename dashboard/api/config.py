@@ -6,6 +6,8 @@ import sys
 from fastapi import File, UploadFile
 from fastapi.responses import JSONResponse
 
+from dashboard.services.runtime import create_dashboard_bindings, get_broker_account_info
+
 
 _dashboard_main_module = None
 
@@ -45,10 +47,7 @@ def _mask_value(val: str, visible: int = 6) -> str:
 
 def _get_broker_account_info(config_dir: str) -> dict:
     try:
-        from dashboard.tiger_client import TigerClient as DefaultBrokerClient
-
-        client = DefaultBrokerClient(config_dir=config_dir)
-        return client.get_account_type()
+        return get_broker_account_info(config_dir)
     except Exception as e:
         return {"error": str(e)}
 
@@ -204,13 +203,13 @@ async def api_broker_config_upload_file(file: UploadFile = File(...)):
     if dashboard_main.cache:
         dashboard_main.cache.stop()
     try:
-        from dashboard.tiger_client import TigerClient as DefaultBrokerClientImpl
-        from dashboard.data_cache import DataCache as DC
-
-        broker_client = DefaultBrokerClientImpl(config_dir=str(dashboard_main.BROKER_PROPERTIES_DIR))
         provider_name = dashboard_main.os.environ.get("ENGINE_QUOTE_PROVIDER", "yfinance")
-        quote_provider = dashboard_main.get_quote_provider(provider_name, config_dir=str(dashboard_main.CONFIG_DIR_PATH))
-        cache = DC(broker_client, quote_provider, refresh_interval=30)
+        broker_client, _, cache = create_dashboard_bindings(
+            broker_properties_dir=dashboard_main.BROKER_PROPERTIES_DIR,
+            config_dir=dashboard_main.CONFIG_DIR_PATH,
+            provider_name=provider_name,
+            refresh_interval=30,
+        )
         cache.start()
     except Exception:
         broker_client = None

@@ -103,12 +103,12 @@ from .api.strategy import (
     set_dashboard_main_module as set_strategy_dashboard_main_module,
 )
 from .broker_client import BrokerClient
-from .tiger_client import TigerClient as DefaultBrokerClient
 from .data_cache import DataCache
 from .quote_provider import get_quote_provider
 from .scheduler import SignalScheduler
 from .normalize import get_normalizer, available_brokers
 from .service_logs import append_service_log
+from .services.runtime import create_dashboard_bindings
 from .trading_day import get_us_trading_day_status
 from system.engine.src.engine.config import (
     load_app_config_raw,
@@ -139,10 +139,16 @@ async def lifespan(app: FastAPI):
         "ENGINE_CONFIG_DIR",
         str(Path(__file__).parent.parent / "config"),
     )
+    provider_name = os.environ.get("ENGINE_QUOTE_PROVIDER", "yfinance")
 
     # Broker client may fail if credentials are invalid - don't crash the app
     try:
-        broker_client = DefaultBrokerClient(config_dir=str(BROKER_PROPERTIES_DIR))
+        broker_client, _, cache = create_dashboard_bindings(
+            broker_properties_dir=BROKER_PROPERTIES_DIR,
+            config_dir=config_dir,
+            provider_name=provider_name,
+            refresh_interval=30,
+        )
         append_service_log(
             "dashboard",
             "info",
@@ -162,12 +168,7 @@ async def lifespan(app: FastAPI):
             config_dir=str(BROKER_PROPERTIES_DIR),
         )
 
-    # Quote provider: ENGINE_QUOTE_PROVIDER env var (default: yfinance)
-    provider_name = os.environ.get("ENGINE_QUOTE_PROVIDER", "yfinance")
-    quote_provider = get_quote_provider(provider_name, config_dir=config_dir)
-
     if broker_client:
-        cache = DataCache(broker_client, quote_provider, refresh_interval=30)
         cache.start()
         append_service_log(
             "dashboard",

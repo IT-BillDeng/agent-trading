@@ -1,6 +1,6 @@
 # Factorization Merge Readiness
 
-更新时间：2026-04-22
+更新时间：2026-04-23
 
 ## 目标
 
@@ -42,6 +42,12 @@
 
 合并 `main` 前，这些边界必须继续成立：
 
+- factor-first 已经是 canonical feature source；`rule_engine` 不应再维护
+  RSI / Bollinger / Volume Ratio / ATR / Return 的第二套私算实现。
+- legacy indicator path 对这些 canonical features 已下线；保留的只有旧规则
+  语法兼容层，而不是第二套计算口径。
+- `engine.strategy` 只应保留 thin compatibility facade 身份，不应重新演化成
+  第二套与 factor-first 并行的热路径策略实现。
 - Factor Engine 只能处于 `shadow` 或显式 `disabled` 状态，不能直接驱动 BUY/HOLD/EXIT。
 - `premarket_gap_pct` 和 extended-hours 因子默认只能作为 `context_only`，不能直接触发 actionable BUY。
 - Dashboard 只允许只读展示 factor 状态，不新增直接修改 `factors/registry.json` 或 `rules/rules.json` 的写入口。
@@ -69,9 +75,10 @@
 4. Dashboard 只读展示因子状态，没有新增 factor/rules 写 API 或直接写按钮。
 5. `factor-researcher` 的 write scope 不包含 `rules/`、`factors/`、execution、broker、risk、live 相关路径。
 6. `factor_code` 仍是 `manual_code_apply_required`，不能被 applier 自动 apply。
-7. `deployment_records` / `failure_records` / rollback 文档齐备，能够审计每次 factor hot apply。
-8. protected paths 未被修改或提交，运行 artifacts 未被提交。
-9. 容器测试通过；如果指定的 `dashboard` pytest 命令仍因镜像缺少 `pytest` 失败，则不得宣称该项已经满足。
+7. canonical feature source 已统一到 factor layer，runtime / dashboard / backtest / proposal / factor-researcher 文档口径一致。
+8. `deployment_records` / `failure_records` / rollback 文档齐备，能够审计每次 factor hot apply。
+9. protected paths 未被修改或提交，运行 artifacts 未被提交。
+10. 容器测试通过；如果指定的 `dashboard` pytest 命令仍因镜像缺少 `pytest` 失败，则不得宣称该项已经满足。
 
 ## 绝对禁止合并的情况
 

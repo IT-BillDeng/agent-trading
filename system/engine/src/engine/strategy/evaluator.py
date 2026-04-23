@@ -344,6 +344,12 @@ class FactorConditionEvaluator:
 
 
 class CompatibilityLegacyConditionEvaluator:
+    """Legacy syntax bridge for non-factor conditions.
+
+    Factor-backed indicator semantics are expected to normalize into
+    ``factor_condition`` before they reach this evaluator.
+    """
+
     def __init__(
         self,
         *,

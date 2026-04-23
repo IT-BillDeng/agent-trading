@@ -37,6 +37,24 @@ Boundary rules:
 - factor metadata in `factors/registry.json` is behavior-preserving in FR-01
 - no factor may bypass existing live gates, broker controls, or approval flow
 
+## Canonical Feature Source
+
+From the factor-first rewrite batches onward, the canonical source for
+RSI/Bollinger/Volume Ratio/ATR/Return is the factor layer:
+
+- `engine.factors.builtins`
+- `engine.factors.engine`
+
+Implications:
+
+- factor-first is canonical for these technical features
+- legacy indicator syntax may still appear in rules, but it must normalize into
+  factor bindings before evaluation
+- `rule_engine` must not keep a second private implementation of those
+  calculations
+- `engine.strategy` remains only as a thin compatibility facade for the older
+  heuristic strategy path
+
 ## Factor ID Naming
 
 `factor_id` must use lowercase snake_case and should be stable across versions.

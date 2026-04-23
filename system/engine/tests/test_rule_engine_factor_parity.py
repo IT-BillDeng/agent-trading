@@ -281,15 +281,44 @@ class RuleEngineFactorParityTests(unittest.TestCase):
         self.assertAlmostEqual(resolved["value"], expected, places=9)
 
     def test_missing_snapshot_uses_compatibility_fallback(self):
+        factor_def = self.rule_engine.condition_eval.factor_accessor._synthetic_factor_definition(
+            "momentum",
+            {"period": 3},
+        )
+        payload = self.rule_engine.condition_eval.factor_accessor.factor_engine.evaluate_factor_definition(
+            factor_def,
+            self.bars,
+            evaluation_time=self.snapshot["timestamp"],
+        )
+        expected, reason = self.rule_engine.condition_eval.factor_accessor._payload_to_numeric_value(
+            "momentum",
+            payload,
+            self.bars,
+        )
+
         resolved = self.rule_engine.condition_eval.factor_accessor.resolve_numeric_indicator(
             "momentum",
             {"period": 3},
             self.bars,
             factor_snapshot=self.snapshot,
         )
-        expected = self.calc.calculate("momentum", {"period": 3}, self.bars)
-        self.assertEqual(resolved["source"], "compatibility_factor_builtin")
+        self.assertEqual(resolved["source"], "factor_engine_compatibility")
+        self.assertEqual(resolved["reason"], reason)
         self.assertAlmostEqual(resolved["value"], expected, places=9)
+
+    def test_default_rules_use_factor_engine_compatibility_without_snapshot(self):
+        baseline = self.rule_engine.evaluate_symbol("AAPL", "US", self.bars, None)
+
+        self.assertEqual(len(baseline), 1)
+        entry_diagnostics = baseline[0].diagnostics["entry"]["diagnostics"]
+        feature_sources = {
+            item.get("feature_source")
+            for item in entry_diagnostics
+            if isinstance(item, dict)
+        }
+
+        self.assertIn("factor_engine_compatibility", feature_sources)
+        self.assertNotIn("legacy_indicator_calculator", feature_sources)
 
     def test_default_buy_signal_is_unchanged_with_factor_snapshot(self):
         baseline = self.rule_engine.evaluate_symbol("AAPL", "US", self.bars, None)

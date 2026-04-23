@@ -185,6 +185,47 @@ class FactorApplyTests(unittest.TestCase):
         self.assertIn("allow_actionable_consumption", failure_record["reason"])
         self.assertEqual(failure_record["proposal_type"], "factor_config")
 
+    def test_shadow_only_factor_registry_hot_apply_rejects_non_shadow_defaults_and_actionable_fields(self) -> None:
+        cases = [
+            ("mode", "paper", "defaults.mode must be 'shadow'"),
+            ("allow_actionable_consumption", True, "defaults.allow_actionable_consumption must be false"),
+            ("factor_actionable", True, "actionable must be false"),
+            ("usage_actionable", ["shadow", "actionable"], "usage 'actionable' is not allowed"),
+        ]
+
+        for case_name, value, expected_reason in cases:
+            with self.subTest(case=case_name):
+                invalid_registry = copy.deepcopy(self.original_registry)
+                proposal_id = f"factor_config_invalid_{case_name}"
+                if case_name == "mode":
+                    invalid_registry["defaults"]["mode"] = value
+                elif case_name == "allow_actionable_consumption":
+                    invalid_registry["defaults"]["allow_actionable_consumption"] = value
+                elif case_name == "factor_actionable":
+                    invalid_registry["factors"]["rsi_14_30m"]["actionable"] = value
+                elif case_name == "usage_actionable":
+                    invalid_registry["factors"]["rsi_14_30m"]["usage"] = value
+
+                record = self._base_factor_record(
+                    proposal_id,
+                    proposal_type="factor_config",
+                    factor_id="rsi_14_30m",
+                    target_files=["factors/registry.json"],
+                    recommended_update_mode="hot",
+                )
+                record["target_contents"] = {"factors/registry.json": invalid_registry}
+                queue_approval_request(proposal_id, record)
+
+                with self.assertRaisesRegex(ValueError, "invalid factor registry payload"):
+                    apply_approved_proposal(
+                        proposal_id,
+                        operator_type="agent",
+                        operator_id="applier",
+                    )
+
+                failure_record = self._read_failure_records()[-1]
+                self.assertIn(expected_reason, failure_record["reason"])
+
     def test_factor_code_is_marked_manual_code_apply_required(self) -> None:
         proposal_id = "factor_code_manual"
         before_bytes = self.factor_impl_path.read_bytes()
@@ -246,6 +287,10 @@ class FactorApplyTests(unittest.TestCase):
             target_files=["rules/rules.json"],
             recommended_update_mode="hot",
         )
+        record["correlation_with_existing"] = 0.4
+        record["backtest_delta"] = {"sharpe": 0.12}
+        record["fee_cost_impact"] = {"bps": 1.0}
+        record["paper_shadow_required_days"] = 20
         record["target_contents"] = {"rules/rules.json": updated_rules}
         queue_approval_request(proposal_id, record)
 

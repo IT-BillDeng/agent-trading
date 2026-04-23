@@ -123,36 +123,15 @@ async def api_rules_get():
 
 
 async def api_rules_update(rules_data: dict):
-    dashboard_main = _dashboard_main()
-    import shutil
-    from datetime import datetime
-
-    if "rules" not in rules_data:
-        return JSONResponse({"error": "Missing 'rules' field"}, status_code=400)
-
-    validation = dashboard_main.validate_rules_config(
-        rules_data,
-        symbol_universe=dashboard_main._current_symbol_universe(),
+    reason = "direct_rules_write_disabled_use_proposal_applier"
+    return JSONResponse(
+        {
+            "error": reason,
+            "reason": reason,
+            "read_only": True,
+        },
+        status_code=403,
     )
-    if not validation["valid"]:
-        return JSONResponse(
-            {"valid": False, "errors": validation["errors"], "warnings": validation["warnings"]},
-            status_code=400,
-        )
-
-    if dashboard_main.RULES_FILE.exists():
-        backup_dir = dashboard_main.RULES_DIR / "rules_backup"
-        backup_dir.mkdir(exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_file = backup_dir / f"rules_{timestamp}.json"
-        shutil.copy2(dashboard_main.RULES_FILE, backup_file)
-
-    rules_data["updated_at"] = datetime.now().isoformat()
-    if "version" not in rules_data:
-        rules_data["version"] = "1.0"
-
-    dashboard_main.RULES_FILE.write_text(json.dumps(rules_data, indent=2, ensure_ascii=False))
-    return {"status": "ok", "message": "Rules updated", "backup_created": dashboard_main.RULES_FILE.exists()}
 
 
 async def api_rules_validate(rules_data: dict):

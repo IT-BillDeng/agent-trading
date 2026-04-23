@@ -34,7 +34,9 @@ def _bars_from_closes(closes: list[float]) -> list[dict]:
     return bars
 
 
-def _registry_payload(*, allow_actionable: bool, actionable: bool, usage: list[str]) -> dict:
+def _registry_payload(*, allow_actionable: bool = False, actionable: bool = False, usage: list[str] | None = None) -> dict:
+    if usage is None:
+        usage = ["shadow", "rule_condition_candidate"]
     return {
         "schema_version": 1,
         "defaults": {
@@ -66,26 +68,38 @@ def _registry_payload(*, allow_actionable: bool, actionable: bool, usage: list[s
     }
 
 
-def _factor_rule_payload(*, rule_id: str = "factor_rule", include_price_rule: bool = False) -> dict:
-    rules = [
-        {
-            "rule_id": rule_id,
-            "name": "Factor Rule",
-            "enabled": True,
-            "priority": 1,
-            "symbols": ["*"],
-            "markets": ["US"],
-            "entry": {
-                "action": "BUY",
-                "conditions": {
-                    "type": "indicator",
-                    "indicator": "factor",
-                    "factor_id": "rsi_14_30m",
-                    "compare": {"operator": "cross_above", "value": 30},
-                },
-            },
+def _factor_rule_payload(
+    *,
+    rule_id: str = "factor_rule",
+    include_price_rule: bool = False,
+    intent_action: str = "BUY",
+) -> dict:
+    rule = {
+        "rule_id": rule_id,
+        "name": "Factor Rule",
+        "enabled": True,
+        "priority": 1,
+        "symbols": ["*"],
+        "markets": ["US"],
+    }
+    factor_condition = {
+        "type": "indicator",
+        "indicator": "factor",
+        "factor_id": "rsi_14_30m",
+        "compare": {"operator": "cross_above", "value": 30},
+    }
+    if intent_action == "EXIT":
+        rule["exit"] = {
+            "action": "EXIT",
+            "conditions": factor_condition,
         }
-    ]
+    else:
+        rule["entry"] = {
+            "action": "BUY",
+            "conditions": factor_condition,
+        }
+
+    rules = [rule]
     if include_price_rule:
         rules.append(
             {
@@ -136,7 +150,7 @@ class RuleEngineFactorConditionTests(unittest.TestCase):
         )
         return current, previous
 
-    def test_factor_condition_can_trigger_from_factor_engine_output_and_preserve_diagnostics(self):
+    def test_factor_condition_is_shadow_only_and_preserves_diagnostics(self):
         closes = [100, 99, 98, 97, 96, 95, 94, 93, 92, 91, 90, 89, 88, 87, 86, 85, 86, 87, 91]
         bars = _bars_from_closes(closes)
 
@@ -145,13 +159,9 @@ class RuleEngineFactorConditionTests(unittest.TestCase):
             registry_path = self._write_json(
                 root,
                 "registry.json",
-                _registry_payload(
-                    allow_actionable=True,
-                    actionable=True,
-                    usage=["shadow", "rule_condition_candidate", "actionable"],
-                ),
+                _registry_payload(),
             )
-            rules_path = self._write_json(root, "rules.json", _factor_rule_payload(include_price_rule=True))
+            rules_path = self._write_json(root, "rules.json", _factor_rule_payload())
             current_factor, previous_factor = self._factor_snapshots(registry_path, closes)
             engine = RuleEngine(rules_path, factor_registry=registry_path)
 
@@ -167,7 +177,8 @@ class RuleEngineFactorConditionTests(unittest.TestCase):
         self.assertEqual(len(signals), 1)
         signal = signals[0]
         self.assertEqual(signal.rule_id, "factor_rule")
-        self.assertEqual(signal.action, "BUY")
+        self.assertEqual(signal.action, "HOLD")
+        self.assertEqual(signal.reason, "no_condition_met")
         self.assertEqual(signal.diagnostics["used_factors"], ["rsi_14_30m"])
         self.assertTrue(signal.diagnostics["factor_readiness"]["rsi_14_30m"])
         self.assertAlmostEqual(
@@ -177,8 +188,15 @@ class RuleEngineFactorConditionTests(unittest.TestCase):
         )
         self.assertIn("arbiter", signal.diagnostics)
         self.assertEqual(signal.diagnostics["entry"]["factor_id"], "rsi_14_30m")
-        self.assertLessEqual(signal.diagnostics["entry"]["prev_value"], 30)
-        self.assertGreater(signal.diagnostics["entry"]["value"], 30)
+        self.assertEqual(signal.diagnostics["entry"]["reason"], "factor_actionable_consumption_disabled")
+        self.assertEqual(
+            signal.diagnostics["entry"]["source"],
+            current_factor["factors"]["rsi_14_30m"]["source"],
+        )
+        self.assertEqual(
+            signal.diagnostics["entry"]["config_hash"],
+            current_factor["factors"]["rsi_14_30m"]["config_hash"],
+        )
 
     def test_factor_not_ready_returns_false_condition_and_reason(self):
         closes = [100, 99, 98, 97, 96, 95, 94, 93, 92, 91]
@@ -189,13 +207,13 @@ class RuleEngineFactorConditionTests(unittest.TestCase):
             registry_path = self._write_json(
                 root,
                 "registry.json",
-                _registry_payload(
-                    allow_actionable=True,
-                    actionable=True,
-                    usage=["shadow", "rule_condition_candidate", "actionable"],
-                ),
+                _registry_payload(),
             )
-            rules_path = self._write_json(root, "rules.json", _factor_rule_payload())
+            rules_path = self._write_json(
+                root,
+                "rules.json",
+                _factor_rule_payload(intent_action="EXIT"),
+            )
             current_factor, _ = self._factor_snapshots(registry_path, closes)
             engine = RuleEngine(rules_path, factor_registry=registry_path)
 
@@ -203,7 +221,7 @@ class RuleEngineFactorConditionTests(unittest.TestCase):
                 "AAPL",
                 "US",
                 bars,
-                None,
+                {"quantity": 10, "avg_price": closes[-1]},
                 factor_snapshot=current_factor,
             )
 
@@ -211,8 +229,8 @@ class RuleEngineFactorConditionTests(unittest.TestCase):
         signal = signals[0]
         self.assertEqual(signal.action, "HOLD")
         self.assertEqual(signal.reason, "no_condition_met")
-        self.assertEqual(signal.diagnostics["entry"]["reason"], "factor_not_ready")
-        self.assertEqual(signal.diagnostics["entry"]["factor_reason"], "insufficient_bars")
+        self.assertEqual(signal.diagnostics["exit"]["reason"], "factor_not_ready")
+        self.assertEqual(signal.diagnostics["exit"]["factor_reason"], "insufficient_bars")
         self.assertEqual(signal.diagnostics["used_factors"], ["rsi_14_30m"])
         self.assertFalse(signal.diagnostics["factor_readiness"]["rsi_14_30m"])
 
@@ -260,11 +278,7 @@ class RuleEngineFactorConditionTests(unittest.TestCase):
             registry_path = self._write_json(
                 root,
                 "registry.json",
-                _registry_payload(
-                    allow_actionable=True,
-                    actionable=True,
-                    usage=["shadow", "rule_condition_candidate", "actionable"],
-                ),
+                _registry_payload(),
             )
             current_factor, previous_factor = self._factor_snapshots(registry_path, closes)
             engine = RuleEngine(rules_path)

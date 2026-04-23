@@ -16,6 +16,9 @@ FACTOR_PROPOSAL_QUALITY_THRESHOLDS = {
     "max_missing_rate": 0.2,
     "min_paper_shadow_required_days": 5,
 }
+FACTOR_RULE_LINK_QUALITY_OVERRIDES = {
+    "min_paper_shadow_required_days": 20,
+}
 
 _FACTOR_CONFIG_TARGETS = {
     "factors/registry.json",
@@ -114,6 +117,10 @@ def _validate_factor_proposal(
 ) -> tuple[list[str], list[str], dict[str, Any]]:
     errors: list[str] = []
     warnings: list[str] = []
+    strict_rule_link_quality = proposal_type == "factor_rule_link"
+    thresholds = dict(FACTOR_PROPOSAL_QUALITY_THRESHOLDS)
+    if strict_rule_link_quality:
+        thresholds.update(FACTOR_RULE_LINK_QUALITY_OVERRIDES)
 
     proposal_id = record.get("proposal_id")
     if not isinstance(proposal_id, str) or not proposal_id.strip():
@@ -168,7 +175,9 @@ def _validate_factor_proposal(
     if "correlation_with_existing" not in record:
         errors.append("factor proposals require explicit correlation_with_existing field")
     correlation_value = _optional_metric_number(record.get("correlation_with_existing"))
-    if record.get("correlation_with_existing") is None:
+    if record.get("correlation_with_existing") is None and strict_rule_link_quality:
+        errors.append("factor_rule_link proposals require non-null correlation_with_existing")
+    elif record.get("correlation_with_existing") is None:
         warnings.append("factor proposals should include numeric correlation_with_existing")
     elif correlation_value is None:
         errors.append("correlation_with_existing must be numeric or null")
@@ -177,10 +186,14 @@ def _validate_factor_proposal(
 
     if "backtest_delta" not in record:
         errors.append("factor proposals require explicit backtest_delta field")
-    if record.get("backtest_delta") is None:
+    if record.get("backtest_delta") is None and strict_rule_link_quality:
+        errors.append("factor_rule_link proposals require non-null backtest_delta")
+    elif record.get("backtest_delta") is None:
         warnings.append("factor proposals should include explicit backtest_delta analysis")
     if not _has_any_key(record, "fee_cost_impact", "cost_impact", "fee_impact"):
         errors.append("factor proposals require explicit fee/cost impact field")
+    elif _first_present_value(record, "fee_cost_impact", "cost_impact", "fee_impact") is None and strict_rule_link_quality:
+        errors.append("factor_rule_link proposals require non-null fee_cost_impact")
     elif _first_present_value(record, "fee_cost_impact", "cost_impact", "fee_impact") is None:
         warnings.append("factor proposals should include explicit fee/cost impact analysis")
 
@@ -215,39 +228,39 @@ def _validate_factor_proposal(
             errors.append("factor_code proposals may only target factor source, factor tests, factor docs, or factor specs")
 
     failed_checks: list[str] = []
-    if ic_value is not None and abs(ic_value) < FACTOR_PROPOSAL_QUALITY_THRESHOLDS["min_abs_ic"]:
+    if ic_value is not None and abs(ic_value) < thresholds["min_abs_ic"]:
         failed_checks.append(
-            f"proposal quality failed: abs(ic)={abs(ic_value):.4f} < {FACTOR_PROPOSAL_QUALITY_THRESHOLDS['min_abs_ic']:.4f}"
+            f"proposal quality failed: abs(ic)={abs(ic_value):.4f} < {thresholds['min_abs_ic']:.4f}"
         )
     if coverage_value is not None:
         if coverage_value < 0 or coverage_value > 1:
             failed_checks.append("proposal quality failed: coverage must be between 0 and 1")
-        elif coverage_value < FACTOR_PROPOSAL_QUALITY_THRESHOLDS["min_coverage"]:
+        elif coverage_value < thresholds["min_coverage"]:
             failed_checks.append(
-                f"proposal quality failed: coverage={coverage_value:.4f} < {FACTOR_PROPOSAL_QUALITY_THRESHOLDS['min_coverage']:.4f}"
+                f"proposal quality failed: coverage={coverage_value:.4f} < {thresholds['min_coverage']:.4f}"
             )
     if missing_rate_value is not None:
         if missing_rate_value < 0 or missing_rate_value > 1:
             failed_checks.append("proposal quality failed: missing_rate must be between 0 and 1")
-        elif missing_rate_value > FACTOR_PROPOSAL_QUALITY_THRESHOLDS["max_missing_rate"]:
+        elif missing_rate_value > thresholds["max_missing_rate"]:
             failed_checks.append(
-                f"proposal quality failed: missing_rate={missing_rate_value:.4f} > {FACTOR_PROPOSAL_QUALITY_THRESHOLDS['max_missing_rate']:.4f}"
+                f"proposal quality failed: missing_rate={missing_rate_value:.4f} > {thresholds['max_missing_rate']:.4f}"
             )
     if (
         isinstance(paper_shadow_required_days, int)
         and not isinstance(paper_shadow_required_days, bool)
-        and paper_shadow_required_days < FACTOR_PROPOSAL_QUALITY_THRESHOLDS["min_paper_shadow_required_days"]
+        and paper_shadow_required_days < thresholds["min_paper_shadow_required_days"]
     ):
         failed_checks.append(
             "proposal quality failed: "
             f"paper_shadow_required_days={paper_shadow_required_days} < "
-            f"{FACTOR_PROPOSAL_QUALITY_THRESHOLDS['min_paper_shadow_required_days']}"
+            f"{thresholds['min_paper_shadow_required_days']}"
         )
 
     errors.extend(failed_checks)
 
     quality_summary = {
-        "thresholds": dict(FACTOR_PROPOSAL_QUALITY_THRESHOLDS),
+        "thresholds": thresholds,
         "metrics": {
             "ic": ic_value,
             "coverage": coverage_value,

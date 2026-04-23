@@ -156,6 +156,11 @@ Hot factor config change:
 - changes registry metadata or rule references only
 - must use already-shipped implementations
 - may be applied through proposal, approval, and applier after validation
+- factor-based conditions are schema-compatible in v1, but default runtime still
+  remains shadow-only
+- `factor_rule_link` only means rules may reference approved factor ids; it does
+  not imply actionable factor trading while
+  `allow_actionable_consumption=false`
 
 Cold factor code change:
 

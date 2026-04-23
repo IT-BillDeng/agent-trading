@@ -144,11 +144,15 @@ def _validate_defaults(defaults: dict[str, Any]) -> list[str]:
             errors.append(f"defaults missing required field '{field_name}'")
 
     mode = defaults.get("mode")
-    if mode is not None and (not isinstance(mode, str) or not mode.strip()):
+    if not isinstance(mode, str) or not mode.strip():
         errors.append("defaults.mode must be a non-empty string")
+    elif mode != "shadow":
+        errors.append("defaults.mode must be 'shadow'")
 
     if "allow_actionable_consumption" in defaults and not isinstance(defaults.get("allow_actionable_consumption"), bool):
         errors.append("defaults.allow_actionable_consumption must be bool")
+    elif defaults.get("allow_actionable_consumption") is not False:
+        errors.append("defaults.allow_actionable_consumption must be false")
     if "regular_session_only_for_indicators" in defaults and not isinstance(defaults.get("regular_session_only_for_indicators"), bool):
         errors.append("defaults.regular_session_only_for_indicators must be bool")
 
@@ -249,11 +253,11 @@ def _validate_factor_definition(
     version = factor_data.get("version")
     errors.extend(_validate_positive_int(version, path=f"{prefix}.version"))
 
-    if not allow_actionable_consumption and actionable is True:
-        errors.append(f"{prefix}: actionable factor is not allowed when defaults.allow_actionable_consumption=false")
+    if isinstance(actionable, bool) and actionable is not False:
+        errors.append(f"{prefix}: actionable must be false")
 
-    if not allow_actionable_consumption and "actionable" in usage_values:
-        errors.append(f"{prefix}: usage 'actionable' is not allowed when defaults.allow_actionable_consumption=false")
+    if "actionable" in usage_values:
+        errors.append(f"{prefix}: usage 'actionable' is not allowed")
 
     if session in EXTENDED_HOURS_SESSIONS:
         if actionable is True:

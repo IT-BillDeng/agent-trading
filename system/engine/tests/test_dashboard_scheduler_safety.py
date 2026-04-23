@@ -249,6 +249,17 @@ class SchedulerSafetyTests(unittest.TestCase):
                 "dashboard_scheduler_preview_only",
             )
 
+    def test_dashboard_scheduler_submit_helper_is_hard_disabled(self):
+        scheduler = SignalScheduler(
+            app_config_path="unused.json",
+            runtime_dir=tempfile.mkdtemp(),
+            provider_name="yfinance",
+            interval_seconds=60,
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "Dashboard scheduler submit is disabled by design"):
+            scheduler._submit_orders({}, None)
+
     def test_scheduler_preview_only_cycles_do_not_double_count_same_intent(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

@@ -24,6 +24,7 @@ zip_path = Path(os.environ["ZIP_PATH"]).resolve()
 
 keep_specs = [
     "docs",
+    "factors",
     "rules",
     "config/app.defaults.json",
     "config/app_config.docker.json",
@@ -32,11 +33,15 @@ keep_specs = [
     "agents",
     "cron",
     "scripts/make_safe_handoff.sh",
+    "specs/factor-registry-schema-v1.md",
     "specs/strategist-output-schema-v1.md",
     "system/engine/requirements.txt",
     "system/engine/src",
     "system/engine/tests",
+    "tests",
     "dashboard",
+    "README.md",
+    "docker-compose.yml",
 ]
 
 exclude_patterns = [
@@ -44,6 +49,7 @@ exclude_patterns = [
     ".env.*",
     "properties/*",
     "runtime/*",
+    "logs/latest/*",
     "logs/latest/execution_state.json",
     "logs/latest/control_state.json",
     "artifacts/broker/*",
@@ -100,12 +106,52 @@ with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
                 zf.write(match, rel_posix)
                 added.add(rel_posix)
 
+required_exact = {
+    "factors/registry.json",
+    "specs/factor-registry-schema-v1.md",
+    "README.md",
+    "docker-compose.yml",
+}
+required_prefixes = {
+    "factors/",
+    "tests/",
+}
+protected_prefixes = (
+    ".env",
+    "properties/",
+    "runtime/",
+    "logs/latest/",
+    "artifacts/broker/",
+)
+
+missing_exact = sorted(path for path in required_exact if path not in added)
+missing_prefixes = sorted(
+    prefix for prefix in required_prefixes if not any(path.startswith(prefix) for path in added)
+)
+protected_hits = sorted(
+    path for path in added
+    if path == ".env" or any(path.startswith(prefix) for prefix in protected_prefixes[1:])
+)
+if missing_exact or missing_prefixes or protected_hits:
+    raise SystemExit(
+        "safe handoff verification failed: "
+        f"missing_exact={missing_exact!r} "
+        f"missing_prefixes={missing_prefixes!r} "
+        f"protected_hits={protected_hits!r}"
+    )
+
 print(f"packed_files={len(added)}")
 PY
 
 cat <<EOF
 Safe handoff zip: ${ZIP_PATH}
 Critical review files retained:
+- factors/
+- factors/registry.json
+- specs/factor-registry-schema-v1.md
+- tests/
+- README.md
+- docker-compose.yml
 - scripts/make_safe_handoff.sh
 - system/engine/requirements.txt
 - config/broker_fee.tiger.json
@@ -115,6 +161,7 @@ Exclude rules:
 - .env.*
 - properties/*
 - runtime/*
+- logs/latest/*
 - logs/latest/execution_state.json
 - logs/latest/control_state.json
 - artifacts/broker/*

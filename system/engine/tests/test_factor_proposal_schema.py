@@ -40,6 +40,14 @@ def _valid_factor_proposal() -> dict:
     }
 
 
+def _valid_factor_rule_link_proposal() -> dict:
+    payload = _valid_factor_proposal()
+    payload["proposal_type"] = "factor_rule_link"
+    payload["target_files"] = ["rules/rules.json"]
+    payload["paper_shadow_required_days"] = 20
+    return payload
+
+
 class FactorProposalSchemaTests(unittest.TestCase):
     def test_valid_quality_gate_passes_and_records_summary(self) -> None:
         result = validate_proposal_record(_valid_factor_proposal())
@@ -90,6 +98,32 @@ class FactorProposalSchemaTests(unittest.TestCase):
         self.assertTrue(any("correlation_with_existing" in warning for warning in result["warnings"]))
         self.assertTrue(any("backtest_delta" in warning for warning in result["warnings"]))
         self.assertTrue(any("fee/cost impact" in warning for warning in result["warnings"]))
+
+    def test_factor_rule_link_requires_non_null_quality_fields(self) -> None:
+        payload = _valid_factor_rule_link_proposal()
+        payload["correlation_with_existing"] = None
+        payload["backtest_delta"] = None
+        payload["fee_cost_impact"] = None
+
+        result = validate_proposal_record(payload)
+
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("factor_rule_link proposals require non-null correlation_with_existing" in error for error in result["errors"]))
+        self.assertTrue(any("factor_rule_link proposals require non-null backtest_delta" in error for error in result["errors"]))
+        self.assertTrue(any("factor_rule_link proposals require non-null fee_cost_impact" in error for error in result["errors"]))
+
+    def test_factor_rule_link_requires_longer_shadow_observation(self) -> None:
+        payload = _valid_factor_rule_link_proposal()
+        payload["paper_shadow_required_days"] = 10
+
+        result = validate_proposal_record(payload)
+
+        self.assertFalse(result["valid"])
+        self.assertEqual(
+            result["quality_summary"]["thresholds"]["min_paper_shadow_required_days"],
+            20,
+        )
+        self.assertTrue(any("paper_shadow_required_days=10 < 20" in error for error in result["errors"]))
 
 
 if __name__ == "__main__":

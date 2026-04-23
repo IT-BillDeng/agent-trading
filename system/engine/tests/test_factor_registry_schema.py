@@ -204,6 +204,30 @@ class FactorRegistrySchemaTests(unittest.TestCase):
                 set(available_builtin_implementations())
             )
         )
+        self.assertEqual(registry.defaults["mode"], "shadow")
+        self.assertFalse(registry.defaults["allow_actionable_consumption"])
+        self.assertTrue(all(factor.actionable is False for factor in registry.factors.values()))
+        self.assertTrue(all("actionable" not in factor.usage for factor in registry.factors.values()))
+
+    def test_defaults_mode_must_be_shadow(self):
+        payload = _valid_registry_payload()
+        payload["defaults"]["mode"] = "paper"
+
+        result = validate_factor_registry(payload)
+
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("defaults.mode must be 'shadow'" in error for error in result["errors"]))
+
+    def test_allow_actionable_consumption_must_be_false(self):
+        payload = _valid_registry_payload()
+        payload["defaults"]["allow_actionable_consumption"] = True
+
+        result = validate_factor_registry(payload)
+
+        self.assertFalse(result["valid"])
+        self.assertTrue(
+            any("defaults.allow_actionable_consumption must be false" in error for error in result["errors"])
+        )
 
     def test_missing_required_field_is_rejected(self):
         payload = _valid_registry_payload()
@@ -245,17 +269,23 @@ class FactorRegistrySchemaTests(unittest.TestCase):
         self.assertTrue(any("extended-hours factor cannot be actionable" in error for error in result["errors"]))
         self.assertTrue(any("extended-hours factor usage cannot include 'actionable'" in error for error in result["errors"]))
 
-    def test_actionable_factor_is_rejected_when_defaults_forbid_it(self):
+    def test_actionable_factor_is_rejected_even_in_shadow_mode(self):
         payload = _valid_registry_payload()
         payload["factors"]["rsi_14_30m"]["actionable"] = True
+
+        result = validate_factor_registry(payload)
+
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("actionable must be false" in error for error in result["errors"]))
+
+    def test_actionable_usage_is_rejected_even_in_shadow_mode(self):
+        payload = _valid_registry_payload()
         payload["factors"]["rsi_14_30m"]["usage"] = ["shadow", "actionable"]
 
         result = validate_factor_registry(payload)
 
         self.assertFalse(result["valid"])
-        self.assertTrue(
-            any("defaults.allow_actionable_consumption=false" in error for error in result["errors"])
-        )
+        self.assertTrue(any("usage 'actionable' is not allowed" in error for error in result["errors"]))
 
     def test_invalid_indicator_params_are_rejected(self):
         cases = [

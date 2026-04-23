@@ -134,7 +134,7 @@ class DashboardApiStructureTests(unittest.TestCase):
         self.assertEqual(run_result["error"], "scheduler control disabled from dashboard")
         self.assertTrue(run_result["read_only"])
 
-    def test_rules_validate_returns_errors_and_hot_apply_rejects_invalid_rules(self):
+    def test_rules_validate_returns_errors_and_direct_rules_write_is_disabled(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             rules_dir = Path(tmpdir) / "rules"
             rules_dir.mkdir(parents=True)
@@ -167,9 +167,12 @@ class DashboardApiStructureTests(unittest.TestCase):
             self.assertGreater(len(validate_result["errors"]), 0)
             self.assertEqual(validate_result["warnings"], [])
 
-            self.assertEqual(update_result.status_code, 400)
-            self.assertFalse(update_result["valid"])
-            self.assertGreater(len(update_result["errors"]), 0)
+            self.assertEqual(update_result.status_code, 403)
+            self.assertEqual(
+                update_result["reason"],
+                "direct_rules_write_disabled_use_proposal_applier",
+            )
+            self.assertTrue(update_result["read_only"])
 
             persisted = json.loads(rules_file.read_text())
             self.assertEqual(persisted, {"version": "1.0", "rules": []})

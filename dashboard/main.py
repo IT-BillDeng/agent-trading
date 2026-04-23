@@ -339,6 +339,12 @@ async def health():
 RUNTIME_DIR = Path(os.environ.get("ENGINE_RUNTIME_DIR", str(Path(__file__).parent.parent / "runtime")))
 CONFIG_DIR_PATH = Path(os.environ.get("ENGINE_CONFIG_DIR", str(Path(__file__).parent.parent / "config")))
 RULES_DIR = Path(os.environ.get("ENGINE_RULES_DIR", str(Path(__file__).parent.parent / "rules")))
+EXPERIMENTS_DIR = Path(
+    os.environ.get("ENGINE_EXPERIMENTS_DIR", str(Path(__file__).parent.parent / "experiments"))
+)
+EXPERIMENT_RULE_BATCHES_DIR = Path(
+    os.environ.get("ENGINE_RULE_BATCHES_DIR", str(EXPERIMENTS_DIR / "rule_batches"))
+)
 NEWS_DIR_PATH = Path(os.environ.get("ENGINE_NEWS_DIR", str(Path(__file__).parent.parent / "news")))
 BROKER_PROPERTIES_DIR = Path(
     os.environ.get(

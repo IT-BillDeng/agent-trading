@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 from .config import AppConfig
 from .indicators import bar_range_pct, pct_change, sma
+
+# FF-01 compatibility shim:
+# keep ``engine.strategy`` as the legacy module while allowing
+# ``engine.strategy.bindings`` / ``engine.strategy.evaluator`` style imports.
+__path__ = [str(Path(__file__).with_suffix(""))]
 
 
 @dataclass

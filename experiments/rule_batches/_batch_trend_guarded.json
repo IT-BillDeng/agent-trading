@@ -1,0 +1,356 @@
+{
+  "version": "1.0",
+  "updated_at": "2026-04-15T00:20:04.270968",
+  "rules": [
+    {
+      "rule_id": "trend_follow_30m",
+      "name": "30分钟趋势跟随",
+      "description": "基于SMA的趋势跟随策略，当前硬编码策略的参数化版本",
+      "enabled": true,
+      "priority": 1,
+      "timeframe": "30min",
+      "symbols": [
+        "*"
+      ],
+      "markets": [
+        "US"
+      ],
+      "entry": {
+        "conditions": {
+          "operator": "AND",
+          "items": [
+            {
+              "type": "indicator",
+              "indicator": "sma",
+              "params": {
+                "period": 5
+              },
+              "compare": {
+                "field": "close",
+                "operator": "above"
+              }
+            },
+            {
+              "type": "indicator",
+              "indicator": "sma",
+              "params": {
+                "period": 10
+              },
+              "compare": {
+                "indicator": "sma",
+                "params": {
+                  "period": 10
+                },
+                "operator": "above"
+              }
+            },
+            {
+              "type": "indicator",
+              "indicator": "sma",
+              "params": {
+                "period": 20
+              },
+              "compare": {
+                "indicator": "sma",
+                "params": {
+                  "period": 20
+                },
+                "operator": "above"
+              }
+            },
+            {
+              "type": "indicator",
+              "indicator": "momentum",
+              "params": {
+                "period": 3
+              },
+              "compare": {
+                "operator": "above",
+                "value": 0.004
+              }
+            },
+            {
+              "type": "indicator",
+              "indicator": "bar_range_pct",
+              "compare": {
+                "operator": "below",
+                "value": 0.03
+              }
+            }
+          ]
+        },
+        "action": "BUY",
+        "order_type": "LMT",
+        "stop_loss_pct": 0.03,
+        "take_profit_pct": 0.06
+      },
+      "exit": {
+        "conditions": {
+          "operator": "OR",
+          "items": [
+            {
+              "type": "indicator",
+              "indicator": "sma",
+              "params": {
+                "period": 5
+              },
+              "compare": {
+                "field": "close",
+                "operator": "below"
+              }
+            },
+            {
+              "type": "indicator",
+              "indicator": "sma",
+              "params": {
+                "period": 5
+              },
+              "compare": {
+                "indicator": "sma",
+                "params": {
+                  "period": 10
+                },
+                "operator": "below"
+              }
+            }
+          ]
+        },
+        "action": "EXIT",
+        "order_type": "MKT"
+      },
+      "search_space": {
+        "sma_short": {
+          "min": 3,
+          "max": 10,
+          "step": 1,
+          "path": "entry.conditions.items[0].params.period"
+        },
+        "sma_mid": {
+          "min": 5,
+          "max": 20,
+          "step": 5,
+          "path": "entry.conditions.items[1].params.period"
+        },
+        "sma_long": {
+          "min": 10,
+          "max": 30,
+          "step": 5,
+          "path": "entry.conditions.items[2].params.period"
+        },
+        "momentum_period": {
+          "min": 2,
+          "max": 5,
+          "step": 1,
+          "path": "entry.conditions.items[3].params.period"
+        },
+        "momentum_threshold": {
+          "min": 0.001,
+          "max": 0.005,
+          "step": 0.001,
+          "path": "entry.conditions.items[3].compare.value"
+        },
+        "bar_range_threshold": {
+          "min": 0.02,
+          "max": 0.06,
+          "step": 0.01,
+          "path": "entry.conditions.items[4].compare.value"
+        }
+      }
+    },
+    {
+      "rule_id": "rsi_reversal",
+      "name": "RSI反转策略",
+      "description": "RSI超卖反弹策略，用于捕捉超卖反弹机会",
+      "enabled": true,
+      "priority": 2,
+      "timeframe": "30min",
+      "symbols": [
+        "*"
+      ],
+      "markets": [
+        "US"
+      ],
+      "entry": {
+        "conditions": {
+          "operator": "AND",
+          "items": [
+            {
+              "type": "indicator",
+              "indicator": "rsi",
+              "params": {
+                "period": 14
+              },
+              "compare": {
+                "operator": "cross_above",
+                "value": 30
+              }
+            }
+          ]
+        },
+        "action": "BUY",
+        "order_type": "LMT",
+        "stop_loss_pct": 0.02,
+        "take_profit_pct": 0.04,
+        "symbols": [
+          "*"
+        ]
+      },
+      "exit": {
+        "conditions": {
+          "operator": "OR",
+          "items": [
+            {
+              "type": "indicator",
+              "indicator": "rsi",
+              "params": {
+                "period": 14
+              },
+              "compare": {
+                "operator": "above",
+                "value": 75
+              }
+            },
+            {
+              "type": "stop_loss",
+              "threshold_pct": 0.02
+            }
+          ]
+        },
+        "action": "EXIT",
+        "order_type": "MKT",
+        "symbols": [
+          "*"
+        ]
+      }
+    },
+    {
+      "rule_id": "bollinger_breakout",
+      "name": "布林带突破策略",
+      "description": "价格突破布林带上轨的趋势策略",
+      "enabled": true,
+      "priority": 3,
+      "timeframe": "30min",
+      "symbols": [
+        "*"
+      ],
+      "markets": [
+        "US"
+      ],
+      "entry": {
+        "conditions": {
+          "operator": "AND",
+          "items": [
+            {
+              "type": "indicator",
+              "indicator": "bollinger",
+              "params": {
+                "period": 20,
+                "std_dev": 2
+              },
+              "compare": {
+                "field": "close",
+                "operator": "above_upper"
+              }
+            },
+            {
+              "type": "volume",
+              "operator": "above_avg",
+              "ratio": 1.2
+            }
+          ]
+        },
+        "action": "BUY",
+        "order_type": "LMT",
+        "stop_loss_pct": 0.025,
+        "take_profit_pct": 0.05,
+        "symbols": [
+          "*"
+        ]
+      },
+      "exit": {
+        "conditions": {
+          "operator": "OR",
+          "items": [
+            {
+              "type": "indicator",
+              "indicator": "bollinger",
+              "params": {
+                "period": 20,
+                "std_dev": 2
+              },
+              "compare": {
+                "field": "close",
+                "operator": "below_middle"
+              }
+            },
+            {
+              "type": "stop_loss",
+              "threshold_pct": 0.025
+            }
+          ]
+        },
+        "action": "EXIT",
+        "order_type": "MKT",
+        "symbols": [
+          "*"
+        ]
+      }
+    }
+  ],
+  "symbol_profile_templates": {
+    "default_shared_30m": {
+      "description": "Behavior-preserving default profile. Uses the same enabled rules as the base rules.",
+      "enabled_rules": {},
+      "rule_overrides": {}
+    },
+    "mega_cap_core": {
+      "description": "Reserved profile for large-cap liquid symbols. No behavior-changing overrides in initial commit.",
+      "enabled_rules": {},
+      "rule_overrides": {}
+    },
+    "high_beta_guarded": {
+      "description": "Reserved profile for high-beta symbols. No behavior-changing overrides in initial commit.",
+      "enabled_rules": {},
+      "rule_overrides": {}
+    }
+  },
+  "symbol_profiles": {
+    "AAPL": {
+      "profile": "default_shared_30m",
+      "enabled_rules": {},
+      "rule_overrides": {}
+    },
+    "MSFT": {
+      "profile": "default_shared_30m",
+      "enabled_rules": {},
+      "rule_overrides": {}
+    },
+    "NVDA": {
+      "profile": "default_shared_30m",
+      "enabled_rules": {},
+      "rule_overrides": {}
+    },
+    "AMZN": {
+      "profile": "default_shared_30m",
+      "enabled_rules": {},
+      "rule_overrides": {}
+    },
+    "SMCI": {
+      "profile": "default_shared_30m",
+      "enabled_rules": {},
+      "rule_overrides": {}
+    },
+    "GOOGL": {
+      "profile": "default_shared_30m",
+      "enabled_rules": {},
+      "rule_overrides": {}
+    }
+  },
+  "global_settings": {
+    "min_score": 4,
+    "max_rules_per_symbol": 3,
+    "conflict_resolution": "highest_priority",
+    "require_all_entry_conditions": true,
+    "exit_on_any_exit_condition": true
+  }
+}

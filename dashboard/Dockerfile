@@ -40,6 +40,7 @@ COPY tests/ /app/tests/
 COPY system/engine/tests/ /app/system/engine/tests/
 COPY scripts/ /app/scripts/
 COPY specs/ /app/specs/
+COPY experiments/ /app/experiments/
 COPY agents/ /app/agents/
 COPY cron/ /app/cron/
 COPY docs/ /app/docs/
@@ -57,6 +58,7 @@ COPY tests/ /app/tests/
 COPY system/engine/tests/ /app/system/engine/tests/
 COPY scripts/ /app/scripts/
 COPY specs/ /app/specs/
+COPY experiments/ /app/experiments/
 COPY rules/ /app/rules/
 COPY config/ /app/config/
 COPY agents/ /app/agents/

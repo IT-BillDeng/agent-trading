@@ -98,12 +98,14 @@ async def api_backtest_batch(body: dict):
     for ps in param_sets:
         label = ps.get("label", f"set_{len(results)}")
         params = ps.get("params", {})
+        tmp_rules = None
         try:
             rules_file = dashboard_main.RULES_FILE
             rules = json.loads(rules_file.read_text()) if rules_file.exists() else {"rules": []}
             if params:
                 _apply_param_overrides(rules, params)
-            tmp_rules = dashboard_main.RULES_DIR / f"_batch_{label}.json"
+            dashboard_main.EXPERIMENT_RULE_BATCHES_DIR.mkdir(parents=True, exist_ok=True)
+            tmp_rules = dashboard_main.EXPERIMENT_RULE_BATCHES_DIR / f"_batch_{label}.json"
             tmp_rules.write_text(json.dumps(rules, indent=2, ensure_ascii=False))
 
             config = BacktestConfig(
@@ -135,9 +137,11 @@ async def api_backtest_batch(body: dict):
                     "fee_drag_pct": bt_dict.get("fee_drag_pct", 0),
                 }
             )
-            tmp_rules.unlink(missing_ok=True)
         except Exception as e:
             results.append({"label": label, "params": params, "error": str(e)})
+        finally:
+            if tmp_rules is not None:
+                tmp_rules.unlink(missing_ok=True)
 
     valid = [r for r in results if "error" not in r and r.get("trades", 0) > 0]
     best = max(

@@ -261,6 +261,8 @@ class BacktestBatchApiTests(unittest.TestCase):
             strategist_artifacts_dir = artifacts_dir / "strategist"
             strategist_memory_dir = strategist_artifacts_dir / "memory"
             strategist_iterations_artifact_dir = strategist_artifacts_dir / "iterations"
+            experiments_dir = root / "experiments"
+            experiment_rule_batches_dir = experiments_dir / "rule_batches"
             rules_dir = root / "rules"
             runtime_dir = root / "runtime"
             logs_dir = root / "logs"
@@ -291,6 +293,8 @@ class BacktestBatchApiTests(unittest.TestCase):
 
             with mock.patch.object(dashboard_main, "RULES_DIR", rules_dir), \
                 mock.patch.object(dashboard_main, "RULES_FILE", rules_file), \
+                mock.patch.object(dashboard_main, "EXPERIMENTS_DIR", experiments_dir), \
+                mock.patch.object(dashboard_main, "EXPERIMENT_RULE_BATCHES_DIR", experiment_rule_batches_dir), \
                 mock.patch.object(dashboard_main, "ARTIFACTS_ROOT", artifacts_dir), \
                 mock.patch.object(dashboard_main, "STRATEGIST_ARTIFACTS_DIR", strategist_artifacts_dir), \
                 mock.patch.object(dashboard_main, "STRATEGIST_MEMORY_DIR", strategist_memory_dir), \
@@ -315,6 +319,8 @@ class BacktestBatchApiTests(unittest.TestCase):
                 self.assertTrue(variant_run["exists_during_run"])
                 self.assertNotEqual(baseline_run["rules_path"], rules_file)
                 self.assertNotEqual(variant_run["rules_path"], rules_file)
+                self.assertTrue(baseline_run["rules_path"].is_relative_to(experiment_rule_batches_dir))
+                self.assertTrue(variant_run["rules_path"].is_relative_to(experiment_rule_batches_dir))
 
                 baseline_by_id = {rule["rule_id"]: rule for rule in baseline_run["rules"]["rules"]}
                 variant_by_id = {rule["rule_id"]: rule for rule in variant_run["rules"]["rules"]}
@@ -332,6 +338,8 @@ class BacktestBatchApiTests(unittest.TestCase):
 
                 self.assertFalse((rules_dir / "_batch_baseline.json").exists())
                 self.assertFalse((rules_dir / "_batch_enabled_variant.json").exists())
+                self.assertFalse((experiment_rule_batches_dir / "_batch_baseline.json").exists())
+                self.assertFalse((experiment_rule_batches_dir / "_batch_enabled_variant.json").exists())
 
                 iteration_files = list(strategist_iterations_artifact_dir.glob("iter_*.json"))
                 self.assertEqual(len(iteration_files), 1)

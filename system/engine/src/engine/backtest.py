@@ -13,6 +13,7 @@ import yfinance as yf
 
 from .broker_fee import estimate_order_fee_breakdown, load_fee_schedule
 from .factors.attribution import build_factor_attribution
+from .factors.engine import FactorEngine
 from .market_sessions import classify_bar_session, parse_bar_timestamp, session_config
 from .rule_engine import RuleEngine
 
@@ -707,6 +708,11 @@ class BacktestEngine:
         self.current_index: dict[str, int] = {}
         self.data_coverage: dict[str, dict[str, Any]] = {}
         self.data_warnings: list[str] = []
+        self.factor_engine = self._load_factor_engine()
+        self.factor_runtime_diagnostics: dict[str, Any] = {
+            "enabled": self.factor_engine is not None,
+            "symbols": {},
+        }
 
     @staticmethod
     def _load_fee_schedule(broker_platform: str) -> dict[str, Any]:
@@ -714,6 +720,67 @@ class BacktestEngine:
         if not payload:
             print(f"[Backtest] No fee schedule found for broker {broker_platform}")
         return payload
+
+    def _factor_registry_path(self) -> Path:
+        return Path(__file__).resolve().parents[4] / "factors" / "registry.json"
+
+    def _load_factor_engine(self) -> FactorEngine | None:
+        factor_registry = getattr(self.rule_engine.condition_eval, "factor_registry", None)
+        if factor_registry is not None:
+            try:
+                return FactorEngine(factor_registry)
+            except Exception as exc:
+                print(f"[Backtest] Failed to initialize factor engine from rule registry: {exc}")
+                return None
+
+        registry_path = self._factor_registry_path()
+        if not registry_path.exists():
+            return None
+        try:
+            return FactorEngine(registry_path)
+        except Exception as exc:
+            print(f"[Backtest] Failed to initialize factor engine: {exc}")
+            return None
+
+    def _build_rule_engine_factor_snapshots(
+        self,
+        symbol: str,
+        bars_history: list[dict[str, Any]],
+        *,
+        timestamp: datetime,
+    ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+        if self.factor_engine is None:
+            return None, None
+
+        evaluation_time = timestamp.isoformat()
+        provider = str(self.config.data_source or self.config.broker_platform)
+        try:
+            current_snapshot = self.factor_engine.evaluate_symbol(
+                symbol,
+                bars_history,
+                evaluation_time=evaluation_time,
+                market=self.config.market,
+                provider=provider,
+            )
+            previous_snapshot = None
+            if len(bars_history) > 1:
+                previous_snapshot = self.factor_engine.evaluate_symbol(
+                    symbol,
+                    bars_history[:-1],
+                    evaluation_time=evaluation_time,
+                    market=self.config.market,
+                    provider=provider,
+                )
+            self.factor_runtime_diagnostics["symbols"][symbol] = {"status": "ok"}
+            return current_snapshot, previous_snapshot
+        except Exception as exc:
+            self.factor_runtime_diagnostics["symbols"][symbol] = {
+                "status": "error",
+                "reason": f"factor_snapshot_error:{type(exc).__name__}",
+                "message": str(exc),
+            }
+            print(f"[Backtest] Failed to evaluate factor snapshot for {symbol}: {exc}")
+            return None, None
     
     def load_data(self):
         """加载历史数据"""
@@ -933,7 +1000,20 @@ class BacktestEngine:
                 position = self.positions.get(symbol)
                 position_dict = position.to_dict() if position else None
                 
-                signals = self.rule_engine.evaluate_symbol(symbol, 'US', bars_history, position_dict)
+                factor_snapshot, previous_factor_snapshot = self._build_rule_engine_factor_snapshots(
+                    symbol,
+                    bars_history,
+                    timestamp=bar.timestamp,
+                )
+
+                signals = self.rule_engine.evaluate_symbol(
+                    symbol,
+                    self.config.market,
+                    bars_history,
+                    position_dict,
+                    factor_snapshot=factor_snapshot,
+                    previous_factor_snapshot=previous_factor_snapshot,
+                )
                 
                 for signal in signals:
                     self._record_signal(signal)
@@ -981,7 +1061,7 @@ class BacktestEngine:
         return max(self.rule_engine._get_min_bars_required(rule) for rule in enabled_rules)
 
     def _build_factor_attribution(self) -> dict[str, Any]:
-        registry_path = Path(__file__).resolve().parents[4] / "factors" / "registry.json"
+        registry_path = self._factor_registry_path()
         if not registry_path.exists():
             return {
                 "enabled": False,
@@ -992,7 +1072,7 @@ class BacktestEngine:
         try:
             return build_factor_attribution(
                 self.bars_by_symbol,
-                factor_engine=registry_path,
+                factor_engine=self.factor_engine or registry_path,
                 market_by_symbol={symbol: self.config.market for symbol in self.config.symbols},
                 timeframe=self.config.timeframe,
             )

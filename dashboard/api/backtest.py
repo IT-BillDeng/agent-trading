@@ -38,6 +38,65 @@ def _clean_nan_values(obj):
     return obj
 
 
+def _summarize_factor_attribution(payload: dict | None) -> dict | None:
+    if not isinstance(payload, dict):
+        return None
+    if not payload.get("enabled"):
+        return {
+            "available": False,
+            "reason": payload.get("reason") or payload.get("error") or "factor_attribution_unavailable",
+        }
+
+    factors = payload.get("factors")
+    if not isinstance(factors, dict):
+        return {
+            "available": False,
+            "reason": "factor_attribution_missing_factors",
+        }
+
+    top_factors = []
+    for factor_id, summary in factors.items():
+        if not isinstance(summary, dict):
+            continue
+        ic_1bar = summary.get("ic_1bar")
+        rank_ic_1bar = summary.get("rank_ic_1bar")
+        score_candidates = [
+            abs(float(value))
+            for value in (rank_ic_1bar, ic_1bar)
+            if isinstance(value, (int, float))
+        ]
+        top_factors.append(
+            {
+                "factor_id": factor_id,
+                "coverage": summary.get("coverage"),
+                "missing_rate": summary.get("missing_rate"),
+                "ic_1bar": ic_1bar,
+                "rank_ic_1bar": rank_ic_1bar,
+                "sample_count": summary.get("sample_count"),
+                "score": max(score_candidates) if score_candidates else -1.0,
+            }
+        )
+
+    top_factors.sort(
+        key=lambda item: (
+            item["score"],
+            item["coverage"] if isinstance(item.get("coverage"), (int, float)) else -1.0,
+        ),
+        reverse=True,
+    )
+    for item in top_factors:
+        item.pop("score", None)
+
+    return {
+        "available": True,
+        "registry_hash": payload.get("registry_hash"),
+        "horizons": payload.get("horizons", []),
+        "symbol_coverage": payload.get("symbol_coverage", {}),
+        "factor_correlation": payload.get("factor_correlation"),
+        "top_factors": top_factors[:5],
+    }
+
+
 async def api_backtest(body: dict):
     dashboard_main = _dashboard_main()
 
@@ -68,7 +127,12 @@ async def api_backtest(body: dict):
         market=market,
     )
     result = run_backtest(config, dashboard_main.RULES_FILE)
-    return {"status": "ok", "result": _clean_nan_values(result.to_dict())}
+    result_payload = _clean_nan_values(result.to_dict())
+    return {
+        "status": "ok",
+        "result": result_payload,
+        "factor_attribution_summary": _summarize_factor_attribution(result_payload.get("factor_attribution")),
+    }
 
 
 async def api_backtest_batch(body: dict):
@@ -120,6 +184,7 @@ async def api_backtest_batch(body: dict):
             )
             bt_result = run_backtest(config, tmp_rules)
             bt_dict = _clean_nan_values(bt_result.to_dict())
+            factor_attribution_summary = _summarize_factor_attribution(bt_dict.get("factor_attribution"))
             results.append(
                 {
                     "label": label,
@@ -135,6 +200,7 @@ async def api_backtest_batch(body: dict):
                     "slippage_total": bt_dict.get("slippage_total", 0),
                     "transaction_cost_total": bt_dict.get("transaction_cost_total", 0),
                     "fee_drag_pct": bt_dict.get("fee_drag_pct", 0),
+                    "factor_attribution_summary": factor_attribution_summary,
                 }
             )
         except Exception as e:

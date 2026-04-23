@@ -338,8 +338,48 @@ class StrategyOverviewApiTests(unittest.TestCase):
                 "timestamp": "2026-04-16T10:00:00",
                 "symbols": ["AAPL"],
                 "period": "2026-01-07 ~ 2026-04-07",
-                "results": [{"label": "base", "params": {}, "trades": 4, "return_pct": 2.5}],
-                "best": {"label": "base", "return_pct": 2.5},
+                "results": [
+                    {
+                        "label": "base",
+                        "params": {},
+                        "trades": 4,
+                        "return_pct": 2.5,
+                        "factor_attribution_summary": {
+                            "available": True,
+                            "registry_hash": "registry-hash-1",
+                            "horizons": [1, 2],
+                            "top_factors": [
+                                {
+                                    "factor_id": "rsi_14_30m",
+                                    "coverage": 1.0,
+                                    "missing_rate": 0.0,
+                                    "ic_1bar": 0.22,
+                                    "rank_ic_1bar": 0.2,
+                                    "sample_count": 12,
+                                }
+                            ],
+                        },
+                    }
+                ],
+                "best": {
+                    "label": "base",
+                    "return_pct": 2.5,
+                    "factor_attribution_summary": {
+                        "available": True,
+                        "registry_hash": "registry-hash-1",
+                        "horizons": [1, 2],
+                        "top_factors": [
+                            {
+                                "factor_id": "rsi_14_30m",
+                                "coverage": 1.0,
+                                "missing_rate": 0.0,
+                                "ic_1bar": 0.22,
+                                "rank_ic_1bar": 0.2,
+                                "sample_count": 12,
+                            }
+                        ],
+                    },
+                },
             }
             (runtime_dir / "strategist_iterations" / "iter_20260416_100000.json").write_text(json.dumps(iter_payload, ensure_ascii=False))
             (strategist_logs_dir / "iter_20260416_100000.json").write_text(json.dumps(iter_payload, ensure_ascii=False))
@@ -414,6 +454,10 @@ class StrategyOverviewApiTests(unittest.TestCase):
             self.assertEqual(len(overview["factor_engine"]["factor_rows"]), 1)
             self.assertEqual(overview["factor_engine"]["factor_rows"][0]["source"], "regular_session_completed_bars")
             self.assertEqual(overview["factor_engine"]["last_apply"]["proposal_id"], "factor_config_hot_1")
+            self.assertTrue(overview["factor_attribution"]["available"])
+            self.assertEqual(overview["factor_attribution"]["top_factors"][0]["factor_id"], "rsi_14_30m")
+            self.assertEqual(overview["factor_attribution"]["iteration_id"], "iter_20260416_100000")
+            self.assertTrue(overview["iterations"][0]["factor_attribution_summary"]["available"])
             self.assertEqual(overview["control"]["legacy_mode"], "signals")
             self.assertEqual(overview["control"]["canonical_mode"], "signal_only")
             self.assertTrue(overview["control"]["signal_generation_enabled"])

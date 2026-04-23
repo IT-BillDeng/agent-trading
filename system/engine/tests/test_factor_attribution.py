@@ -67,6 +67,12 @@ class FactorAttributionTests(unittest.TestCase):
         self.assertAlmostEqual(factor_summary["ic_1bar"], 1.0, places=9)
         self.assertIsNone(factor_summary["ic_1bar_reason"])
         self.assertEqual(factor_summary["ic_1bar_sample_count"], 3)
+        self.assertAlmostEqual(factor_summary["rank_ic_1bar"], 1.0, places=9)
+        self.assertEqual(factor_summary["decay_basis"]["status"], "ok")
+        self.assertEqual(factor_summary["decay_basis"]["base_horizon"], 1)
+        self.assertIn("1bar", factor_summary["decay_basis"]["by_horizon"])
+        self.assertIn("AAPL", attribution["symbol_coverage"])
+        self.assertEqual(attribution["factor_correlation"]["status"], "placeholder")
 
     def test_insufficient_samples_return_null_ic_with_reason(self):
         summary = summarize_factor_observations(
@@ -81,6 +87,9 @@ class FactorAttributionTests(unittest.TestCase):
         self.assertIsNone(summary["ic_1bar"])
         self.assertEqual(summary["ic_1bar_reason"], "insufficient_samples")
         self.assertEqual(summary["ic_1bar_sample_count"], 2)
+        self.assertIsNone(summary["rank_ic_1bar"])
+        self.assertEqual(summary["rank_ic_1bar_reason"], "insufficient_samples")
+        self.assertEqual(summary["decay_basis"]["status"], "insufficient_samples")
 
     def test_missing_factor_values_are_counted_in_missing_rate(self):
         summary = summarize_factor_observations(
@@ -98,6 +107,22 @@ class FactorAttributionTests(unittest.TestCase):
         self.assertEqual(summary["missing_count"], 1)
         self.assertAlmostEqual(summary["missing_rate"], 1 / 3, places=9)
         self.assertEqual(summary["not_ready_reasons"], {"insufficient_bars": 1})
+
+    def test_decay_basis_tracks_multi_horizon_ic_retention(self):
+        summary = summarize_factor_observations(
+            [
+                {"value": 1.0, "ready": True, "reason": "ok", "future_returns": {1: 0.1, 2: 0.08}},
+                {"value": 2.0, "ready": True, "reason": "ok", "future_returns": {1: 0.2, 2: 0.12}},
+                {"value": 3.0, "ready": True, "reason": "ok", "future_returns": {1: 0.3, 2: 0.18}},
+            ],
+            horizons=(1, 2),
+            min_ic_samples=3,
+        )
+
+        self.assertAlmostEqual(summary["ic_1bar"], 1.0, places=9)
+        self.assertAlmostEqual(summary["rank_ic_2bar"], 1.0, places=9)
+        self.assertEqual(summary["decay_basis"]["status"], "ok")
+        self.assertGreater(summary["decay_basis"]["by_horizon"]["2bar"]["abs_ic_retention_vs_base"], 0.99)
 
 
 if __name__ == "__main__":

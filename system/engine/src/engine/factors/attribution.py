@@ -45,6 +45,13 @@ def build_factor_attribution(
         for factor_id, factor_observations in observations_by_symbol[symbol].items():
             aggregated[factor_id].extend(factor_observations)
 
+    symbol_coverage: dict[str, dict[str, Any]] = {}
+    for symbol, symbol_observations in observations_by_symbol.items():
+        symbol_items: list[dict[str, Any]] = []
+        for factor_observations in symbol_observations.values():
+            symbol_items.extend(factor_observations)
+        symbol_coverage[symbol] = _coverage_summary(symbol_items)
+
     for factor_id, factor in engine.registry.factors.items():
         symbol_payloads: dict[str, dict[str, Any]] = {}
         for symbol in bars_by_symbol:
@@ -69,6 +76,10 @@ def build_factor_attribution(
                 "usage": list(factor.usage),
                 "actionable": bool(factor.actionable),
                 "config_hash": factor.config_hash,
+                "symbol_level_coverage": {
+                    symbol: _coverage_summary(observations_by_symbol.get(symbol, {}).get(factor_id, []))
+                    for symbol in bars_by_symbol
+                },
                 "symbols": symbol_payloads,
             }
         )
@@ -80,6 +91,12 @@ def build_factor_attribution(
         "registry_hash": engine.registry.config_hash,
         "horizons": list(horizon_values),
         "min_ic_samples": int(min_ic_samples),
+        "symbol_coverage": symbol_coverage,
+        "factor_correlation": {
+            "status": "placeholder",
+            "matrix": None,
+            "reason": "factor_correlation_not_computed_in_v1",
+        },
         "factors": factors_payload,
     }
 
@@ -137,7 +154,6 @@ def summarize_factor_observations(
     min_ic_samples: int = DEFAULT_MIN_IC_SAMPLES,
 ) -> dict[str, Any]:
     horizon_values = tuple(_normalize_horizons(horizons))
-    total_samples = len(observations)
     valid_observations = [
         item
         for item in observations
@@ -145,15 +161,9 @@ def summarize_factor_observations(
     ]
     values = [_coerce_float(item.get("value")) for item in valid_observations]
     numeric_values = [value for value in values if value is not None]
-    valid_count = len(valid_observations)
-    missing_count = total_samples - valid_count
 
     summary: dict[str, Any] = {
-        "sample_count": total_samples,
-        "valid_count": valid_count,
-        "missing_count": missing_count,
-        "coverage": (valid_count / total_samples) if total_samples > 0 else 0.0,
-        "missing_rate": (missing_count / total_samples) if total_samples > 0 else 0.0,
+        **_coverage_summary(observations),
         "mean": _mean(numeric_values),
         "std": _stddev(numeric_values),
         "not_ready_reasons": dict(
@@ -167,8 +177,16 @@ def summarize_factor_observations(
         ),
         "source": _first_value(observations, "source"),
         "config_hash": _first_value(observations, "config_hash"),
+        "decay_basis": {
+            "status": "pending",
+            "base_horizon": horizon_values[0] if horizon_values else None,
+            "by_horizon": {},
+        },
     }
 
+    base_horizon = horizon_values[0] if horizon_values else None
+    base_ic: float | None = None
+    base_rank_ic: float | None = None
     for horizon in horizon_values:
         pairs = [
             (_coerce_float(item.get("value")), _coerce_float(item.get("future_returns", {}).get(horizon)))
@@ -186,9 +204,47 @@ def summarize_factor_observations(
             future_returns,
             min_samples=min_ic_samples,
         )
+        rank_ic_value, rank_ic_reason = rank_information_coefficient(
+            factor_values,
+            future_returns,
+            min_samples=min_ic_samples,
+        )
         summary[f"ic_{horizon}bar"] = ic_value
         summary[f"ic_{horizon}bar_reason"] = ic_reason
         summary[f"ic_{horizon}bar_sample_count"] = len(filtered_pairs)
+        summary[f"rank_ic_{horizon}bar"] = rank_ic_value
+        summary[f"rank_ic_{horizon}bar_reason"] = rank_ic_reason
+        summary[f"rank_ic_{horizon}bar_sample_count"] = len(filtered_pairs)
+        summary["decay_basis"]["by_horizon"][f"{horizon}bar"] = {
+            "ic": ic_value,
+            "rank_ic": rank_ic_value,
+            "sample_count": len(filtered_pairs),
+            "delta_from_base_ic": None,
+            "delta_from_base_rank_ic": None,
+            "abs_ic_retention_vs_base": None,
+            "abs_rank_ic_retention_vs_base": None,
+        }
+        if base_horizon == horizon:
+            base_ic = ic_value
+            base_rank_ic = rank_ic_value
+
+    if base_horizon is not None:
+        for horizon in horizon_values:
+            entry = summary["decay_basis"]["by_horizon"].get(f"{horizon}bar", {})
+            ic_value = entry.get("ic")
+            rank_ic_value = entry.get("rank_ic")
+            if base_ic is not None and ic_value is not None:
+                entry["delta_from_base_ic"] = ic_value - base_ic
+                entry["abs_ic_retention_vs_base"] = _retention_ratio(ic_value, base_ic)
+            if base_rank_ic is not None and rank_ic_value is not None:
+                entry["delta_from_base_rank_ic"] = rank_ic_value - base_rank_ic
+                entry["abs_rank_ic_retention_vs_base"] = _retention_ratio(rank_ic_value, base_rank_ic)
+
+        base_entry = summary["decay_basis"]["by_horizon"].get(f"{base_horizon}bar", {})
+        if base_entry.get("ic") is None and base_entry.get("rank_ic") is None:
+            summary["decay_basis"]["status"] = "insufficient_samples"
+        else:
+            summary["decay_basis"]["status"] = "ok"
 
     return summary
 
@@ -224,6 +280,21 @@ def information_coefficient(
     return correlation, None
 
 
+def rank_information_coefficient(
+    factor_values: Sequence[float],
+    future_returns: Sequence[float],
+    *,
+    min_samples: int = DEFAULT_MIN_IC_SAMPLES,
+) -> tuple[float | None, str | None]:
+    ranked_factor_values = _rank_series(factor_values)
+    ranked_future_returns = _rank_series(future_returns)
+    return information_coefficient(
+        ranked_factor_values,
+        ranked_future_returns,
+        min_samples=min_samples,
+    )
+
+
 def _resolve_factor_engine(factor_engine: FactorEngine | FactorRegistry | str | Path | Any) -> Any:
     if isinstance(factor_engine, FactorEngine):
         return factor_engine
@@ -244,6 +315,45 @@ def _normalize_horizons(horizons: Iterable[int]) -> list[int]:
             raise ValueError("horizons must contain positive integers")
         normalized.append(value)
     return sorted(dict.fromkeys(normalized))
+
+
+def _coverage_summary(observations: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    total_samples = len(observations)
+    valid_count = sum(
+        1
+        for item in observations
+        if bool(item.get("ready")) and _coerce_float(item.get("value")) is not None
+    )
+    missing_count = total_samples - valid_count
+    return {
+        "sample_count": total_samples,
+        "valid_count": valid_count,
+        "missing_count": missing_count,
+        "coverage": (valid_count / total_samples) if total_samples > 0 else 0.0,
+        "missing_rate": (missing_count / total_samples) if total_samples > 0 else 0.0,
+    }
+
+
+def _rank_series(values: Sequence[float]) -> list[float]:
+    indexed = sorted(enumerate(values), key=lambda item: item[1])
+    ranks = [0.0] * len(values)
+    index = 0
+    while index < len(indexed):
+        end = index
+        value = indexed[index][1]
+        while end < len(indexed) and indexed[end][1] == value:
+            end += 1
+        average_rank = (index + 1 + end) / 2.0
+        for original_index, _ in indexed[index:end]:
+            ranks[original_index] = average_rank
+        index = end
+    return ranks
+
+
+def _retention_ratio(value: float, base_value: float) -> float | None:
+    if base_value == 0:
+        return None
+    return abs(value) / abs(base_value)
 
 
 def _normalize_bar(bar: Any) -> dict[str, Any]:

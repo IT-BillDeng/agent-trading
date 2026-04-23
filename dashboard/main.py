@@ -702,6 +702,25 @@ def _build_factor_engine_overview(config: dict[str, Any], cycle: dict[str, Any])
     return factor_engine
 
 
+def _extract_factor_attribution_summary(payload: dict[str, Any]) -> dict[str, Any] | None:
+    if not isinstance(payload, dict):
+        return None
+
+    candidates: list[dict[str, Any]] = []
+    best = payload.get("best")
+    if isinstance(best, dict):
+        candidates.append(best)
+    results = payload.get("results")
+    if isinstance(results, list):
+        candidates.extend(item for item in results if isinstance(item, dict))
+
+    for candidate in candidates:
+        summary = candidate.get("factor_attribution_summary")
+        if isinstance(summary, dict):
+            return summary
+    return None
+
+
 def _tail_jsonl_info(path: Path) -> dict[str, Any]:
     meta = _file_meta(path)
     info = {
@@ -1053,6 +1072,7 @@ def _build_strategy_overview() -> dict[str, Any]:
             break
 
     iterations = []
+    latest_factor_attribution_summary: dict[str, Any] | None = None
     iter_dirs = [STRATEGIST_ITERATIONS_ARTIFACT_DIR, STRATEGIST_ITERATIONS_LOG_DIR, RUNTIME_DIR / "strategist_iterations"]
     seen_iteration_ids: set[str] = set()
     for directory in iter_dirs:
@@ -1065,12 +1085,20 @@ def _build_strategy_overview() -> dict[str, Any]:
                 continue
             seen_iteration_ids.add(iteration_id)
             results = payload.get("results", []) if isinstance(payload.get("results"), list) else []
+            factor_attribution_summary = _extract_factor_attribution_summary(payload)
+            if latest_factor_attribution_summary is None and isinstance(factor_attribution_summary, dict):
+                latest_factor_attribution_summary = {
+                    **factor_attribution_summary,
+                    "iteration_id": iteration_id,
+                    "source_path": str(path),
+                }
             iterations.append({
                 "iteration_id": iteration_id,
                 "timestamp": payload.get("timestamp"),
                 "symbols": payload.get("symbols", []),
                 "period": payload.get("period"),
                 "best": payload.get("best"),
+                "factor_attribution_summary": factor_attribution_summary,
                 "result_count": len(results),
                 "wins": sum(1 for item in results if isinstance(item, dict) and item.get("trades", 0) > 0 and item.get("return_pct", 0) > 0),
                 "losses": sum(1 for item in results if isinstance(item, dict) and item.get("trades", 0) > 0 and item.get("return_pct", 0) <= 0),
@@ -1151,6 +1179,7 @@ def _build_strategy_overview() -> dict[str, Any]:
         },
         "latest_cycle": latest_cycle,
         "factor_engine": factor_engine,
+        "factor_attribution": latest_factor_attribution_summary,
         "data_health": cycle.get("data_health", {}),
         "rules_meta": _file_meta(RULES_FILE),
         "rules_summary": rules_summary,

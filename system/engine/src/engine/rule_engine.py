@@ -2,23 +2,28 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any, Callable
 
+from .factors.builtins import (
+    build_regular_session_analysis,
+    compute_atr_value,
+    compute_bollinger_bands_value,
+    compute_bollinger_zscore_value,
+    compute_return_value,
+    compute_rsi_value,
+    compute_volume_ratio_value,
+)
 from .factors.registry import FactorRegistry, load_factor_registry
 from .indicators import (
     sma,
     ema,
     ema_slope,
-    rsi,
-    bollinger,
     macd,
-    atr,
-    pct_change,
     bar_range_pct,
-    volume_ratio as calc_volume_ratio,
 )
 from .rule_profiles import (
     build_symbol_profile_overview,
@@ -101,23 +106,21 @@ class IndicatorCalculator:
     
     def _calc_rsi(self, params: dict[str, Any], bars: list[dict[str, Any]]) -> float | None:
         period = params.get('period', 14)
-        closes = [float(bar['close']) for bar in bars]
-        return rsi(closes, period)
-    
+        value, _, _ = compute_rsi_value(
+            build_regular_session_analysis(bars),
+            period=int(period),
+        )
+        return value
+
     def _calc_bollinger(self, params: dict[str, Any], bars: list[dict[str, Any]]) -> dict[str, float] | None:
         period = params.get('period', 20)
         std_dev = params.get('std_dev', 2)
-        closes = [float(bar['close']) for bar in bars]
-        
-        upper, middle, lower = bollinger(closes, period, std_dev)
-        if upper is None:
-            return None
-        
-        return {
-            'upper': upper,
-            'middle': middle,
-            'lower': lower
-        }
+        value, _, _ = compute_bollinger_bands_value(
+            build_regular_session_analysis(bars),
+            period=int(period),
+            std_dev=float(std_dev),
+        )
+        return value
     
     def _calc_macd(self, params: dict[str, Any], bars: list[dict[str, Any]]) -> dict[str, float] | None:
         closes = [float(bar['close']) for bar in bars]
@@ -134,28 +137,370 @@ class IndicatorCalculator:
     
     def _calc_atr(self, params: dict[str, Any], bars: list[dict[str, Any]]) -> float | None:
         period = params.get('period', 14)
-        highs = [float(bar['high']) for bar in bars]
-        lows = [float(bar['low']) for bar in bars]
-        closes = [float(bar['close']) for bar in bars]
-        return atr(highs, lows, closes, period)
-    
+        value, _, _ = compute_atr_value(
+            build_regular_session_analysis(bars),
+            period=int(period),
+        )
+        return value
+
     def _calc_momentum(self, params: dict[str, Any], bars: list[dict[str, Any]]) -> float | None:
         period = params.get('period', 3)
-        closes = [float(bar['close']) for bar in bars]
-        if len(closes) < period + 1:
-            return None
-        return pct_change(closes[-1], closes[-period-1])
-    
+        value, _, _ = compute_return_value(
+            build_regular_session_analysis(bars),
+            period=int(period),
+        )
+        return value
+
     def _calc_volume_ratio(self, params: dict[str, Any], bars: list[dict[str, Any]]) -> float | None:
         period = params.get('period', 20)
-        volumes = [float(bar.get('volume', 0)) for bar in bars]
-        return calc_volume_ratio(volumes, period)
+        value, _, _ = compute_volume_ratio_value(
+            build_regular_session_analysis(bars),
+            period=int(period),
+        )
+        return value
     
     def _calc_bar_range_pct(self, params: dict[str, Any], bars: list[dict[str, Any]]) -> float | None:
         if not bars:
             return None
         last_bar = bars[-1]
         return bar_range_pct(float(last_bar['high']), float(last_bar['low']), float(last_bar['close']))
+
+
+class FactorAccessor:
+    _INDICATOR_IMPL = {
+        'rsi': 'builtin:rsi',
+        'bollinger': 'builtin:bollinger_zscore',
+        'volume_ratio': 'builtin:volume_ratio',
+        'atr': 'builtin:atr_pct',
+        'momentum': 'builtin:return',
+    }
+
+    def __init__(
+        self,
+        factor_registry: FactorRegistry | None,
+        *,
+        compatibility_mode: bool = True,
+    ):
+        self.factor_registry = factor_registry
+        self.compatibility_mode = bool(compatibility_mode)
+
+    def supports_indicator(self, indicator: str) -> bool:
+        return indicator in self._INDICATOR_IMPL
+
+    def resolve_numeric_indicator(
+        self,
+        indicator: str,
+        params: dict[str, Any],
+        bars: list[dict[str, Any]],
+        *,
+        factor_snapshot: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        factor_def = self._matching_factor_definition(indicator, params)
+        if factor_def is not None:
+            payload = self._factor_payload(factor_snapshot, factor_def.factor_id)
+            value = self._payload_to_numeric_value(indicator, payload, bars)
+            if value is not None:
+                return {
+                    'ready': True,
+                    'value': value,
+                    'source': 'factor_snapshot',
+                    'reason': 'ok',
+                    'factor_id': factor_def.factor_id,
+                    'config_hash': payload.get('config_hash') if isinstance(payload, dict) else factor_def.config_hash,
+                    'payload': payload,
+                }
+            if isinstance(payload, dict) and not bool(payload.get('ready')):
+                if not self.compatibility_mode:
+                    return {
+                        'ready': False,
+                        'value': None,
+                        'source': 'factor_snapshot',
+                        'reason': str(payload.get('reason') or 'factor_not_ready'),
+                        'factor_id': factor_def.factor_id,
+                        'config_hash': payload.get('config_hash') or factor_def.config_hash,
+                        'payload': payload,
+                    }
+
+        if not self.compatibility_mode:
+            return {
+                'ready': False,
+                'value': None,
+                'source': 'factor_compatibility_disabled',
+                'reason': 'factor_snapshot_unavailable',
+                'factor_id': factor_def.factor_id if factor_def is not None else None,
+                'config_hash': factor_def.config_hash if factor_def is not None else None,
+                'payload': None,
+            }
+
+        value, reason = self._compute_compatibility_numeric(indicator, params, bars)
+        return {
+            'ready': value is not None,
+            'value': value,
+            'source': 'compatibility_factor_builtin',
+            'reason': reason,
+            'factor_id': factor_def.factor_id if factor_def is not None else None,
+            'config_hash': factor_def.config_hash if factor_def is not None else self._compatibility_hash(indicator, params),
+            'payload': None,
+        }
+
+    def resolve_bollinger_bands(
+        self,
+        params: dict[str, Any],
+        bars: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        period = int(params.get('period', 20))
+        std_dev = float(params.get('std_dev', 2.0))
+        value, reason, _ = compute_bollinger_bands_value(
+            build_regular_session_analysis(bars),
+            period=period,
+            std_dev=std_dev,
+        )
+        return {
+            'ready': value is not None,
+            'value': value,
+            'source': 'compatibility_factor_builtin',
+            'reason': reason,
+            'factor_id': None,
+            'config_hash': self._compatibility_hash('bollinger', params),
+            'payload': None,
+        }
+
+    def resolve_bollinger_zscore(
+        self,
+        params: dict[str, Any],
+        bars: list[dict[str, Any]],
+        *,
+        factor_snapshot: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        factor_def = self._matching_factor_definition('bollinger', params)
+        if factor_def is not None:
+            payload = self._factor_payload(factor_snapshot, factor_def.factor_id)
+            value = self._payload_to_numeric_value('bollinger', payload, bars)
+            if value is not None:
+                return {
+                    'ready': True,
+                    'value': value,
+                    'source': 'factor_snapshot',
+                    'reason': 'ok',
+                    'factor_id': factor_def.factor_id,
+                    'config_hash': payload.get('config_hash') if isinstance(payload, dict) else factor_def.config_hash,
+                    'payload': payload,
+                }
+            if isinstance(payload, dict) and not bool(payload.get('ready')) and not self.compatibility_mode:
+                return {
+                    'ready': False,
+                    'value': None,
+                    'source': 'factor_snapshot',
+                    'reason': str(payload.get('reason') or 'factor_not_ready'),
+                    'factor_id': factor_def.factor_id,
+                    'config_hash': payload.get('config_hash') or factor_def.config_hash,
+                    'payload': payload,
+                }
+
+        if not self.compatibility_mode:
+            return {
+                'ready': False,
+                'value': None,
+                'source': 'factor_compatibility_disabled',
+                'reason': 'factor_snapshot_unavailable',
+                'factor_id': factor_def.factor_id if factor_def is not None else None,
+                'config_hash': factor_def.config_hash if factor_def is not None else None,
+                'payload': None,
+            }
+
+        period = int(params.get('period', 20))
+        std_dev = float(params.get('std_dev', 2.0))
+        value, reason, _ = compute_bollinger_zscore_value(
+            build_regular_session_analysis(bars),
+            period=period,
+            std_dev=std_dev,
+        )
+        return {
+            'ready': value is not None,
+            'value': value,
+            'source': 'compatibility_factor_builtin',
+            'reason': reason,
+            'factor_id': factor_def.factor_id if factor_def is not None else None,
+            'config_hash': factor_def.config_hash if factor_def is not None else self._compatibility_hash('bollinger', params),
+            'payload': None,
+        }
+
+    def build_parity_report(
+        self,
+        bars: list[dict[str, Any]],
+        *,
+        factor_snapshot: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        entries = {
+            'rsi_14_30m': self._build_numeric_parity_entry(
+                'rsi',
+                {'period': 14},
+                bars,
+                factor_snapshot=factor_snapshot,
+            ),
+            'bollinger_zscore_20_2_30m': self._build_numeric_parity_entry(
+                'bollinger',
+                {'period': 20, 'std_dev': 2.0},
+                bars,
+                factor_snapshot=factor_snapshot,
+            ),
+            'volume_ratio_20_30m': self._build_numeric_parity_entry(
+                'volume_ratio',
+                {'period': 20},
+                bars,
+                factor_snapshot=factor_snapshot,
+            ),
+            'atr_pct_14_30m': self._build_numeric_parity_entry(
+                'atr',
+                {'period': 14},
+                bars,
+                factor_snapshot=factor_snapshot,
+            ),
+            'return_5_30m': self._build_numeric_parity_entry(
+                'momentum',
+                {'period': 5},
+                bars,
+                factor_snapshot=factor_snapshot,
+            ),
+        }
+        ready_entries = [entry for entry in entries.values() if bool(entry.get('ready'))]
+        return {
+            'ready_count': len(ready_entries),
+            'total_count': len(entries),
+            'entries': entries,
+        }
+
+    def _build_numeric_parity_entry(
+        self,
+        indicator: str,
+        params: dict[str, Any],
+        bars: list[dict[str, Any]],
+        *,
+        factor_snapshot: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        resolved = self.resolve_numeric_indicator(
+            indicator,
+            params,
+            bars,
+            factor_snapshot=factor_snapshot,
+        ) if indicator != 'bollinger' else self.resolve_bollinger_zscore(
+            params,
+            bars,
+            factor_snapshot=factor_snapshot,
+        )
+
+        legacy_value, legacy_reason = self._compute_compatibility_numeric(indicator, params, bars)
+        if resolved['value'] is None or legacy_value is None:
+            return {
+                'ready': False,
+                'indicator': indicator,
+                'params': dict(params),
+                'legacy_value': legacy_value,
+                'factor_value': resolved['value'],
+                'diff': None,
+                'factor_source': resolved['source'],
+                'factor_reason': resolved['reason'],
+                'legacy_reason': legacy_reason,
+            }
+        return {
+            'ready': True,
+            'indicator': indicator,
+            'params': dict(params),
+            'legacy_value': legacy_value,
+            'factor_value': resolved['value'],
+            'diff': float(resolved['value']) - float(legacy_value),
+            'factor_source': resolved['source'],
+            'factor_reason': resolved['reason'],
+            'legacy_reason': legacy_reason,
+        }
+
+    def _compute_compatibility_numeric(
+        self,
+        indicator: str,
+        params: dict[str, Any],
+        bars: list[dict[str, Any]],
+    ) -> tuple[float | None, str]:
+        analysis = build_regular_session_analysis(bars)
+        period = int(params.get('period', 20))
+        if indicator == 'rsi':
+            value, reason, _ = compute_rsi_value(analysis, period=period)
+            return value, reason
+        if indicator == 'volume_ratio':
+            value, reason, _ = compute_volume_ratio_value(analysis, period=period)
+            return value, reason
+        if indicator == 'atr':
+            value, reason, _ = compute_atr_value(analysis, period=period)
+            return value, reason
+        if indicator == 'momentum':
+            value, reason, _ = compute_return_value(analysis, period=period)
+            return value, reason
+        if indicator == 'bollinger':
+            std_dev = float(params.get('std_dev', 2.0))
+            value, reason, _ = compute_bollinger_zscore_value(
+                analysis,
+                period=period,
+                std_dev=std_dev,
+            )
+            return value, reason
+        return None, 'unsupported_indicator'
+
+    def _payload_to_numeric_value(
+        self,
+        indicator: str,
+        payload: dict[str, Any] | None,
+        bars: list[dict[str, Any]],
+    ) -> float | None:
+        if not isinstance(payload, dict) or not payload.get('ready'):
+            return None
+        raw_value = payload.get('value')
+        if raw_value is None:
+            return None
+        if indicator == 'atr':
+            if not bars:
+                return None
+            last_close = float(bars[-1].get('close', 0) or 0)
+            if last_close == 0:
+                return None
+            return float(raw_value) * last_close
+        return float(raw_value)
+
+    def _matching_factor_definition(self, indicator: str, params: dict[str, Any]):
+        if self.factor_registry is None:
+            return None
+        implementation = self._INDICATOR_IMPL.get(indicator)
+        if implementation is None:
+            return None
+        normalized_params = self._normalized_indicator_params(indicator, params)
+        for factor_id, factor_def in self.factor_registry.factors.items():
+            if factor_def.implementation != implementation:
+                continue
+            if self._normalized_indicator_params(indicator, factor_def.params) != normalized_params:
+                continue
+            return factor_def
+        return None
+
+    def _normalized_indicator_params(self, indicator: str, params: dict[str, Any]) -> dict[str, Any]:
+        if indicator == 'bollinger':
+            return {
+                'period': int(params.get('period', 20)),
+                'std_dev': float(params.get('std_dev', 2.0)),
+            }
+        if indicator in {'rsi', 'volume_ratio', 'atr', 'momentum'}:
+            return {'period': int(params.get('period', 14 if indicator != 'momentum' else 3))}
+        return {}
+
+    def _factor_payload(self, factor_snapshot: dict[str, Any] | None, factor_id: str) -> dict[str, Any] | None:
+        if not isinstance(factor_snapshot, dict):
+            return None
+        factors = factor_snapshot.get('factors')
+        if not isinstance(factors, dict):
+            return None
+        payload = factors.get(factor_id)
+        return payload if isinstance(payload, dict) else None
+
+    def _compatibility_hash(self, indicator: str, params: dict[str, Any]) -> str:
+        payload = {'indicator': indicator, 'params': self._normalized_indicator_params(indicator, params)}
+        return hashlib.sha256(json.dumps(payload, sort_keys=True).encode('utf-8')).hexdigest()
 
 
 class ConditionEvaluator:
@@ -167,9 +512,14 @@ class ConditionEvaluator:
         *,
         factor_registry: FactorRegistry | None = None,
         allow_actionable_consumption: bool | None = None,
+        factor_compatibility_mode: bool = True,
     ):
         self.indicator_calc = indicator_calc
         self.factor_registry = factor_registry
+        self.factor_accessor = FactorAccessor(
+            factor_registry,
+            compatibility_mode=factor_compatibility_mode,
+        )
         if allow_actionable_consumption is None:
             allow_actionable_consumption = bool(
                 factor_registry.defaults.get("allow_actionable_consumption", False)
@@ -200,11 +550,16 @@ class ConditionEvaluator:
                     previous_factor_snapshot=previous_factor_snapshot,
                     intent_action=intent_action,
                 )
-            return self._eval_indicator(condition, bars)
+            return self._eval_indicator(
+                condition,
+                bars,
+                factor_snapshot=factor_snapshot,
+                previous_factor_snapshot=previous_factor_snapshot,
+            )
         elif cond_type == 'price':
             return self._eval_price(condition, bars)
         elif cond_type == 'volume':
-            return self._eval_volume(condition, bars)
+            return self._eval_volume(condition, bars, factor_snapshot=factor_snapshot)
         elif cond_type == 'stop_loss':
             return self._eval_stop_loss(condition, bars, position)
         elif cond_type == 'take_profit':
@@ -224,76 +579,137 @@ class ConditionEvaluator:
         
         return False, {'error': f'unknown condition type: {cond_type}'}
     
-    def _eval_indicator(self, condition: dict[str, Any], bars: list[dict[str, Any]]) -> tuple[bool, dict[str, Any]]:
+    def _eval_indicator(
+        self,
+        condition: dict[str, Any],
+        bars: list[dict[str, Any]],
+        *,
+        factor_snapshot: dict[str, Any] | None,
+        previous_factor_snapshot: dict[str, Any] | None,
+    ) -> tuple[bool, dict[str, Any]]:
         """评估指标条件"""
         indicator = condition.get('indicator')
         params = condition.get('params', {})
         compare = condition.get('compare', {})
-        
-        # 计算指标值
-        value = self.indicator_calc.calculate(indicator, params, bars)
-        if value is None:
-            return False, {'indicator': indicator, 'value': None, 'reason': 'insufficient_data'}
-        
-        # 获取比较值
-        compare_value = None
-        compare_field = compare.get('field')
-        compare_indicator = compare.get('indicator')
-        compare_value_const = compare.get('value')
-        
-        if compare_field == 'close':
-            compare_value = float(bars[-1]['close']) if bars else None
-        elif compare_indicator:
-            compare_params = compare.get('params', {})
-            compare_value = self.indicator_calc.calculate(compare_indicator, compare_params, bars)
-        elif compare_value_const is not None:
-            compare_value = compare_value_const
-        
-        if compare_value is None:
-            return False, {'indicator': indicator, 'value': value, 'compare_value': None, 'reason': 'no_compare_value'}
-        
         operator = compare.get('operator', 'above')
+        current_value, current_meta = self._resolve_indicator_value(
+            indicator,
+            params,
+            bars,
+            compare=compare,
+            factor_snapshot=factor_snapshot,
+        )
+        if current_value is None:
+            diagnostics = {
+                'indicator': indicator,
+                'params': params,
+                'value': None,
+                'operator': operator,
+                'compare_value': None,
+                'prev_value': None,
+                'prev_compare_value': None,
+                'result': False,
+            }
+            diagnostics.update(current_meta)
+            diagnostics['reason'] = current_meta.get('feature_reason', 'insufficient_data')
+            return False, diagnostics
+
+        if indicator == 'bollinger' and operator in {'above_upper', 'below_lower', 'above_middle', 'below_middle'}:
+            std_dev = float(params.get('std_dev', 2.0))
+            compare_value = {
+                'above_upper': std_dev,
+                'below_lower': -std_dev,
+                'above_middle': 0.0,
+                'below_middle': 0.0,
+            }.get(operator)
+            compare_meta = {'source': 'bollinger_threshold'}
+        else:
+            compare_value, compare_meta = self._resolve_compare_value(
+                compare,
+                bars,
+                factor_snapshot=factor_snapshot,
+            )
+        if compare_value is None:
+            diagnostics = {
+                'indicator': indicator,
+                'params': params,
+                'value': current_value,
+                'operator': operator,
+                'compare_value': None,
+                'prev_value': None,
+                'prev_compare_value': None,
+                'result': False,
+            }
+            diagnostics.update(current_meta)
+            diagnostics.update(compare_meta)
+            diagnostics['reason'] = 'no_compare_value'
+            return False, diagnostics
+
         prev_value = None
         prev_compare_value = None
-
         if operator in {'cross_above', 'cross_below'}:
             prev_bars = bars[:-1]
             if not prev_bars:
-                return False, {
+                diagnostics = {
                     'indicator': indicator,
-                    'value': value,
+                    'params': params,
+                    'value': current_value,
+                    'operator': operator,
                     'compare_value': compare_value,
+                    'prev_value': None,
+                    'prev_compare_value': None,
+                    'result': False,
                     'reason': 'insufficient_data_for_cross',
                 }
+                diagnostics.update(current_meta)
+                return False, diagnostics
 
-            prev_value = self.indicator_calc.calculate(indicator, params, prev_bars)
+            prev_value, prev_meta = self._resolve_indicator_value(
+                indicator,
+                params,
+                prev_bars,
+                compare=compare,
+                factor_snapshot=previous_factor_snapshot,
+            )
             if prev_value is None:
-                return False, {
+                diagnostics = {
                     'indicator': indicator,
-                    'value': value,
+                    'params': params,
+                    'value': current_value,
+                    'operator': operator,
                     'compare_value': compare_value,
+                    'prev_value': None,
+                    'prev_compare_value': None,
+                    'result': False,
                     'reason': 'insufficient_data_for_cross',
                 }
+                diagnostics.update(current_meta)
+                diagnostics.update({f'prev_{key}': value for key, value in prev_meta.items()})
+                return False, diagnostics
 
-            if compare_field == 'close':
-                prev_compare_value = float(prev_bars[-1]['close']) if prev_bars else None
-            elif compare_indicator:
-                compare_params = compare.get('params', {})
-                prev_compare_value = self.indicator_calc.calculate(compare_indicator, compare_params, prev_bars)
-            elif compare_value_const is not None:
-                prev_compare_value = compare_value_const
-
+            prev_compare_value, prev_compare_meta = self._resolve_compare_value(
+                compare,
+                prev_bars,
+                factor_snapshot=previous_factor_snapshot,
+            )
             if prev_compare_value is None:
-                return False, {
+                diagnostics = {
                     'indicator': indicator,
-                    'value': value,
+                    'params': params,
+                    'value': current_value,
+                    'operator': operator,
                     'compare_value': compare_value,
+                    'prev_value': prev_value,
+                    'prev_compare_value': None,
+                    'result': False,
                     'reason': 'insufficient_data_for_cross',
                 }
+                diagnostics.update(current_meta)
+                diagnostics.update({f'prev_compare_{key}': value for key, value in prev_compare_meta.items()})
+                return False, diagnostics
 
-        # 执行比较
         result = self._compare(
-            value,
+            current_value,
             compare_value,
             operator,
             bars,
@@ -305,14 +721,17 @@ class ConditionEvaluator:
         diagnostics = {
             'indicator': indicator,
             'params': params,
-            'value': value,
+            'value': current_value,
             'operator': operator,
             'compare_value': compare_value,
             'prev_value': prev_value,
             'prev_compare_value': prev_compare_value,
-            'result': result
+            'result': result,
+            'reason': 'ok' if result else 'condition_false',
         }
-        
+        diagnostics.update(current_meta)
+        if compare_meta:
+            diagnostics['compare_meta'] = compare_meta
         return result, diagnostics
 
     def _eval_factor(
@@ -439,24 +858,32 @@ class ConditionEvaluator:
             if isinstance(value, dict):
                 close = float(bars[-1]['close']) if bars else 0
                 return close > value.get('upper', 0)
+            if indicator == 'bollinger' and isinstance(value, (int, float)) and isinstance(compare_value, (int, float)):
+                return float(value) > float(compare_value)
             return False
         
         elif operator == 'below_lower':
             if isinstance(value, dict):
                 close = float(bars[-1]['close']) if bars else 0
                 return close < value.get('lower', 0)
+            if indicator == 'bollinger' and isinstance(value, (int, float)) and isinstance(compare_value, (int, float)):
+                return float(value) < float(compare_value)
             return False
         
         elif operator == 'above_middle':
             if isinstance(value, dict):
                 close = float(bars[-1]['close']) if bars else 0
                 return close > value.get('middle', 0)
+            if indicator == 'bollinger' and isinstance(value, (int, float)):
+                return float(value) > 0.0
             return False
         
         elif operator == 'below_middle':
             if isinstance(value, dict):
                 close = float(bars[-1]['close']) if bars else 0
                 return close < value.get('middle', 0)
+            if indicator == 'bollinger' and isinstance(value, (int, float)):
+                return float(value) < 0.0
             return False
         
         elif operator == 'cross_above':
@@ -501,21 +928,133 @@ class ConditionEvaluator:
         
         return result, {'field': field, 'current': current_price, 'threshold': value, 'result': result}
     
-    def _eval_volume(self, condition: dict[str, Any], bars: list[dict[str, Any]]) -> tuple[bool, dict[str, Any]]:
+    def _eval_volume(
+        self,
+        condition: dict[str, Any],
+        bars: list[dict[str, Any]],
+        *,
+        factor_snapshot: dict[str, Any] | None = None,
+    ) -> tuple[bool, dict[str, Any]]:
         """评估成交量条件"""
         operator = condition.get('operator')
         ratio = condition.get('ratio', 1.5)
-        
-        volume_ratio_val = self.indicator_calc.calculate('volume_ratio', {'period': 20}, bars)
+
+        volume_ratio_val, meta = self._resolve_indicator_value(
+            'volume_ratio',
+            {'period': 20},
+            bars,
+            compare={},
+            factor_snapshot=factor_snapshot,
+        )
         if volume_ratio_val is None:
-            return False, {'reason': 'insufficient_data'}
+            diagnostics = {'reason': meta.get('feature_reason', 'insufficient_data')}
+            diagnostics.update(meta)
+            return False, diagnostics
         
         if operator == 'above_avg':
             result = volume_ratio_val > ratio
         else:
             result = False
-        
-        return result, {'volume_ratio': volume_ratio_val, 'threshold': ratio, 'result': result}
+
+        diagnostics = {
+            'volume_ratio': volume_ratio_val,
+            'threshold': ratio,
+            'result': result,
+        }
+        diagnostics.update(meta)
+        return result, diagnostics
+
+    def _resolve_indicator_value(
+        self,
+        indicator: str,
+        params: dict[str, Any],
+        bars: list[dict[str, Any]],
+        *,
+        compare: dict[str, Any],
+        factor_snapshot: dict[str, Any] | None,
+    ) -> tuple[Any, dict[str, Any]]:
+        operator = compare.get('operator', 'above')
+
+        if self.factor_registry is None:
+            value = self.indicator_calc.calculate(indicator, params, bars)
+            return value, {
+                'feature_source': 'legacy_indicator_calculator',
+                'feature_reason': 'ok' if value is not None else 'insufficient_data',
+                'factor_id': None,
+                'config_hash': None,
+            }
+
+        if indicator == 'bollinger':
+            if operator in {'above_upper', 'below_lower', 'above_middle', 'below_middle'}:
+                resolved = self.factor_accessor.resolve_bollinger_zscore(
+                    params,
+                    bars,
+                    factor_snapshot=factor_snapshot,
+                )
+                return resolved.get('value'), {
+                    'feature_source': resolved.get('source'),
+                    'feature_reason': resolved.get('reason'),
+                    'factor_id': resolved.get('factor_id'),
+                    'config_hash': resolved.get('config_hash'),
+                }
+
+            resolved = self.factor_accessor.resolve_bollinger_bands(params, bars)
+            return resolved.get('value'), {
+                'feature_source': resolved.get('source'),
+                'feature_reason': resolved.get('reason'),
+                'factor_id': resolved.get('factor_id'),
+                'config_hash': resolved.get('config_hash'),
+            }
+
+        if self.factor_accessor.supports_indicator(indicator):
+            resolved = self.factor_accessor.resolve_numeric_indicator(
+                indicator,
+                params,
+                bars,
+                factor_snapshot=factor_snapshot,
+            )
+            return resolved.get('value'), {
+                'feature_source': resolved.get('source'),
+                'feature_reason': resolved.get('reason'),
+                'factor_id': resolved.get('factor_id'),
+                'config_hash': resolved.get('config_hash'),
+            }
+
+        value = self.indicator_calc.calculate(indicator, params, bars)
+        return value, {
+            'feature_source': 'legacy_indicator_calculator',
+            'feature_reason': 'ok' if value is not None else 'insufficient_data',
+            'factor_id': None,
+            'config_hash': None,
+        }
+
+    def _resolve_compare_value(
+        self,
+        compare: dict[str, Any],
+        bars: list[dict[str, Any]],
+        *,
+        factor_snapshot: dict[str, Any] | None,
+    ) -> tuple[Any, dict[str, Any]]:
+        compare_field = compare.get('field')
+        compare_indicator = compare.get('indicator')
+        compare_value_const = compare.get('value')
+
+        if compare_field == 'close':
+            return (float(bars[-1]['close']) if bars else None), {'source': 'close'}
+        if compare_indicator:
+            compare_params = compare.get('params', {})
+            value, meta = self._resolve_indicator_value(
+                compare_indicator,
+                compare_params,
+                bars,
+                compare={},
+                factor_snapshot=factor_snapshot,
+            )
+            meta['source'] = 'indicator'
+            return value, meta
+        if compare_value_const is not None:
+            return compare_value_const, {'source': 'constant'}
+        return None, {'source': 'missing'}
     
     def _eval_stop_loss(self, condition: dict[str, Any], bars: list[dict[str, Any]], 
                         position: dict[str, Any] | None) -> tuple[bool, dict[str, Any]]:

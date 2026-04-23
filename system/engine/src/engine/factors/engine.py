@@ -7,6 +7,7 @@ from typing import Any
 from ..market_sessions import analyze_symbol_bars
 from .builtins import compute_builtin_factor
 from .registry import FactorRegistry, load_factor_registry
+from .schema import FactorDefinition
 
 
 class FactorEngine:
@@ -33,22 +34,17 @@ class FactorEngine:
         for factor_id, factor in self.registry.factors.items():
             analysis_key = (market, factor.timeframe, factor.timezone)
             if analysis_key not in bar_analysis_cache:
-                bar_analysis_cache[analysis_key] = analyze_symbol_bars(
-                    [copy.deepcopy(bar) for bar in bars],
-                    asset_snapshot=_factor_asset_snapshot(
-                        asset_snapshot=asset_snapshot,
-                        evaluation_time=evaluation_time,
-                    ),
+                bar_analysis_cache[analysis_key] = build_factor_analysis(
+                    bars,
+                    evaluation_time=evaluation_time,
                     market=market,
                     timeframe=factor.timeframe,
-                    app_config=_factor_app_config(
-                        market=market,
-                        timezone_name=factor.timezone,
-                        regular_session_only_for_indicators=bool(
-                            self.registry.defaults.get("regular_session_only_for_indicators", True)
-                        ),
-                    ),
+                    timezone_name=factor.timezone,
+                    asset_snapshot=asset_snapshot,
                     provider=provider,
+                    regular_session_only_for_indicators=bool(
+                        self.registry.defaults.get("regular_session_only_for_indicators", True)
+                    ),
                 )
             factor_payloads[factor_id] = compute_builtin_factor(
                 factor,
@@ -68,6 +64,58 @@ class FactorEngine:
             "mode": self.mode,
             "factors": factor_payloads,
         }
+
+    def evaluate_factor_definition(
+        self,
+        factor: FactorDefinition,
+        bars: list[dict[str, Any]],
+        *,
+        evaluation_time: str | None = None,
+        market: str = "US",
+        asset_snapshot: dict[str, Any] | None = None,
+        provider: str | None = None,
+    ) -> dict[str, Any]:
+        analysis = build_factor_analysis(
+            bars,
+            evaluation_time=evaluation_time,
+            market=market,
+            timeframe=factor.timeframe,
+            timezone_name=factor.timezone,
+            asset_snapshot=asset_snapshot,
+            provider=provider,
+            regular_session_only_for_indicators=bool(
+                self.registry.defaults.get("regular_session_only_for_indicators", True)
+            ),
+        )
+        return compute_builtin_factor(factor, analysis=analysis).to_dict()
+
+
+def build_factor_analysis(
+    bars: list[dict[str, Any]],
+    *,
+    evaluation_time: str | None = None,
+    market: str,
+    timeframe: str,
+    timezone_name: str,
+    asset_snapshot: dict[str, Any] | None = None,
+    provider: str | None = None,
+    regular_session_only_for_indicators: bool = True,
+) -> dict[str, Any]:
+    return analyze_symbol_bars(
+        [copy.deepcopy(bar) for bar in bars],
+        asset_snapshot=_factor_asset_snapshot(
+            asset_snapshot=asset_snapshot,
+            evaluation_time=evaluation_time,
+        ),
+        market=market,
+        timeframe=timeframe,
+        app_config=_factor_app_config(
+            market=market,
+            timezone_name=timezone_name,
+            regular_session_only_for_indicators=regular_session_only_for_indicators,
+        ),
+        provider=provider,
+    )
 
 
 def _factor_asset_snapshot(

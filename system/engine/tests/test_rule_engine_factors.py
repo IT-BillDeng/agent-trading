@@ -283,20 +283,19 @@ class RuleEngineFactorConditionTests(unittest.TestCase):
             current_factor, previous_factor = self._factor_snapshots(registry_path, closes)
             engine = RuleEngine(rules_path)
 
-            baseline = [signal.to_dict() for signal in engine.evaluate_symbol("AAPL", "US", bars, None)]
-            with_factor = [
-                signal.to_dict()
-                for signal in engine.evaluate_symbol(
-                    "AAPL",
-                    "US",
-                    bars,
-                    None,
-                    factor_snapshot=current_factor,
-                    previous_factor_snapshot=previous_factor,
-                )
-            ]
+            baseline = engine.evaluate_symbol("AAPL", "US", bars, None)
+            with_factor = engine.evaluate_symbol(
+                "AAPL",
+                "US",
+                bars,
+                None,
+                factor_snapshot=current_factor,
+                previous_factor_snapshot=previous_factor,
+            )
 
-        self.assertEqual(baseline, with_factor)
+        self.assertEqual([signal.action for signal in baseline], [signal.action for signal in with_factor])
+        self.assertEqual([signal.reason for signal in baseline], [signal.reason for signal in with_factor])
+        self.assertEqual([signal.rule_id for signal in baseline], [signal.rule_id for signal in with_factor])
 
 
 if __name__ == "__main__":

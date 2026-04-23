@@ -411,6 +411,10 @@ def _factor_engine_config(app: AppConfig) -> dict[str, Any]:
     return config
 
 
+def _factor_parity_debug_enabled(app: AppConfig) -> bool:
+    return bool(app.raw.get("system", {}).get("debug_factor_parity", False))
+
+
 def _resolve_factor_registry_path(registry_path: str | Path) -> Path:
     path = Path(registry_path)
     if path.is_absolute():
@@ -478,6 +482,67 @@ def _record_factor_shadow_error(summary: dict[str, Any], symbol: str, reason: st
     if not isinstance(symbol_health, dict):
         return
     symbol_health["factor_shadow_error"] = reason
+
+
+def _build_rule_engine_factor_snapshots(
+    summary: dict[str, Any],
+    raw: dict[str, Any],
+    app: AppConfig,
+    *,
+    bars_by_symbol: dict[str, list[dict[str, Any]]],
+) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]], dict[str, Any]]:
+    config = _factor_engine_config(app)
+    current_snapshots: dict[str, dict[str, Any]] = {}
+    previous_snapshots: dict[str, dict[str, Any]] = {}
+    diagnostics: dict[str, Any] = {"enabled": False, "symbols": {}}
+
+    if not config["enabled"] or config["mode"] != "shadow" or config["allow_actionable_consumption"]:
+        return current_snapshots, previous_snapshots, diagnostics
+
+    diagnostics["enabled"] = True
+    try:
+        engine = FactorEngine(_resolve_factor_registry_path(config["registry_path"]))
+    except Exception as exc:
+        diagnostics["error"] = f"factor_snapshot_init_error:{type(exc).__name__}"
+        diagnostics["message"] = str(exc)
+        return current_snapshots, previous_snapshots, diagnostics
+
+    evaluation_time = _resolve_timestamp(summary.get("asset_snapshot"))
+    for item in app.symbols:
+        symbol = item["symbol"]
+        market = item["market"]
+        bars = list(bars_by_symbol.get(symbol, []))
+        provider = (
+            raw.get("_bars_meta", {}).get(market, {}).get("symbols", {}).get(symbol, {}).get("provider")
+            or raw.get("_provider")
+            or app.broker_platform
+        )
+        try:
+            current_snapshots[symbol] = engine.evaluate_symbol(
+                symbol,
+                bars,
+                evaluation_time=evaluation_time,
+                market=market,
+                asset_snapshot=summary.get("asset_snapshot"),
+                provider=str(provider),
+            )
+            if len(bars) > 1:
+                previous_snapshots[symbol] = engine.evaluate_symbol(
+                    symbol,
+                    bars[:-1],
+                    evaluation_time=evaluation_time,
+                    market=market,
+                    asset_snapshot=summary.get("asset_snapshot"),
+                    provider=str(provider),
+                )
+            diagnostics["symbols"][symbol] = {"status": "ok"}
+        except Exception as exc:
+            diagnostics["symbols"][symbol] = {
+                "status": "error",
+                "reason": f"factor_snapshot_error:{type(exc).__name__}",
+                "message": str(exc),
+            }
+    return current_snapshots, previous_snapshots, diagnostics
 
 
 def _attach_factor_shadow(
@@ -795,6 +860,10 @@ def build_strategy_summary(raw: dict[str, Any], app: AppConfig) -> dict[str, Any
     engine_type = 'legacy'
     rule_engine: RuleEngine | None = None
     symbol_profile_overview: dict[str, Any] = {}
+    factor_snapshots_by_symbol: dict[str, dict[str, Any]] = {}
+    previous_factor_snapshots_by_symbol: dict[str, dict[str, Any]] = {}
+    factor_runtime_diag: dict[str, Any] = {"enabled": False, "symbols": {}}
+    factor_parity_diag: dict[str, Any] | None = None
 
     if use_rule_engine and rules_path:
         # Use new rule engine
@@ -808,6 +877,14 @@ def build_strategy_summary(raw: dict[str, Any], app: AppConfig) -> dict[str, Any
                 symbol_universe=[item["symbol"] for item in app.symbols],
             )
             engine_type = 'rule_engine'
+            factor_snapshots_by_symbol, previous_factor_snapshots_by_symbol, factor_runtime_diag = (
+                _build_rule_engine_factor_snapshots(
+                    summary,
+                    raw,
+                    app,
+                    bars_by_symbol=bars_by_symbol,
+                )
+            )
             symbol_profile_overview = rule_engine.get_symbol_profile_overview(
                 [item["symbol"] for item in app.symbols],
                 market_by_symbol={item["symbol"]: item["market"] for item in app.symbols},
@@ -818,8 +895,17 @@ def build_strategy_summary(raw: dict[str, Any], app: AppConfig) -> dict[str, Any
                 market = item['market']
                 bars = bars_by_symbol.get(symbol, [])
                 position = positions_map.get(symbol)
+                factor_snapshot = factor_snapshots_by_symbol.get(symbol)
+                previous_factor_snapshot = previous_factor_snapshots_by_symbol.get(symbol)
                 
-                rule_signals = rule_engine.evaluate_symbol(symbol, market, bars, position)
+                rule_signals = rule_engine.evaluate_symbol(
+                    symbol,
+                    market,
+                    bars,
+                    position,
+                    factor_snapshot=factor_snapshot,
+                    previous_factor_snapshot=previous_factor_snapshot,
+                )
                 for signal in rule_signals:
                     signals.append(
                         _decorate_signal_with_bar_context(
@@ -828,6 +914,27 @@ def build_strategy_summary(raw: dict[str, Any], app: AppConfig) -> dict[str, Any
                             policy=policy,
                         )
                     )
+
+            if _factor_parity_debug_enabled(app) and rule_engine is not None:
+                parity_symbols: dict[str, Any] = {}
+                for item in app.symbols:
+                    symbol = item["symbol"]
+                    bars = bars_by_symbol.get(symbol, [])
+                    if not bars:
+                        parity_symbols[symbol] = {
+                            "ready": False,
+                            "reason": "no_bars",
+                        }
+                        continue
+                    parity_symbols[symbol] = rule_engine.condition_eval.factor_accessor.build_parity_report(
+                        bars,
+                        factor_snapshot=factor_snapshots_by_symbol.get(symbol),
+                    )
+                    parity_symbols[symbol]["snapshot_status"] = factor_runtime_diag.get("symbols", {}).get(symbol, {})
+                factor_parity_diag = {
+                    "enabled": True,
+                    "symbols": parity_symbols,
+                }
         except Exception as e:
             print(f'[build_strategy_summary] Rule engine failed, falling back to legacy: {e}')
             use_rule_engine = False
@@ -870,6 +977,13 @@ def build_strategy_summary(raw: dict[str, Any], app: AppConfig) -> dict[str, Any
         app,
         raw_bars_by_symbol=raw_bars_by_symbol,
     )
+    if use_rule_engine and isinstance(summary.get("factor_engine"), dict):
+        if factor_runtime_diag.get("enabled") and (
+            _factor_parity_debug_enabled(app) or factor_runtime_diag.get("error")
+        ):
+            summary["factor_engine"]["runtime_rule_snapshots"] = factor_runtime_diag
+        if factor_parity_diag is not None:
+            summary["factor_engine"]["parity"] = factor_parity_diag
     return summary
 
 

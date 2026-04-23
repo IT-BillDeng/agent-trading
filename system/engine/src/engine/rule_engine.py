@@ -32,6 +32,13 @@ from .rule_profiles import (
 )
 from .rule_schema import validate_rules_config
 from .signal_arbiter import SignalArbiter
+from .strategy.evaluator import (
+    CompatibilityLegacyConditionEvaluator,
+    FactorConditionEvaluator,
+    StructuralConditionEvaluator,
+    normalize_condition_to_factor_binding_view,
+    normalize_rule_to_factor_binding_view,
+)
 
 
 @dataclass
@@ -520,11 +527,30 @@ class ConditionEvaluator:
             factor_registry,
             compatibility_mode=factor_compatibility_mode,
         )
+        self.factor_only_accessor = FactorAccessor(
+            factor_registry,
+            compatibility_mode=False,
+        )
         if allow_actionable_consumption is None:
             allow_actionable_consumption = bool(
                 factor_registry.defaults.get("allow_actionable_consumption", False)
             ) if factor_registry is not None else False
         self.allow_actionable_consumption = bool(allow_actionable_consumption)
+        self.factor_condition_evaluator = FactorConditionEvaluator(
+            factor_registry=self.factor_registry,
+            compare_fn=self._compare,
+            factor_payload_getter=self._factor_payload,
+            factor_allowed_for_actionable_buy=self._factor_allowed_for_actionable_buy,
+            factor_binding_value_resolver=self._resolve_factor_binding_value,
+        )
+        self.compatibility_legacy_evaluator = CompatibilityLegacyConditionEvaluator(
+            indicator_calc=self.indicator_calc,
+            compare_fn=self._compare,
+        )
+        self.structural_condition_evaluator = StructuralConditionEvaluator(
+            router=self.evaluate,
+            position_avg_cost_resolver=self._position_avg_cost,
+        )
     
     def evaluate(
         self,
@@ -540,44 +566,51 @@ class ConditionEvaluator:
         评估单个条件
         返回 (是否满足, 诊断信息)
         """
-        cond_type = condition.get('type')
-        
-        if cond_type == 'indicator':
-            if condition.get('indicator') == 'factor':
-                return self._eval_factor(
-                    condition,
-                    factor_snapshot=factor_snapshot,
-                    previous_factor_snapshot=previous_factor_snapshot,
-                    intent_action=intent_action,
-                )
-            return self._eval_indicator(
-                condition,
-                bars,
-                factor_snapshot=factor_snapshot,
-                previous_factor_snapshot=previous_factor_snapshot,
-            )
-        elif cond_type == 'price':
-            return self._eval_price(condition, bars)
-        elif cond_type == 'volume':
-            return self._eval_volume(condition, bars, factor_snapshot=factor_snapshot)
-        elif cond_type == 'stop_loss':
-            return self._eval_stop_loss(condition, bars, position)
-        elif cond_type == 'take_profit':
-            return self._eval_take_profit(condition, bars, position)
-        elif cond_type == 'time':
-            return self._eval_time(condition, bars)
-        elif 'operator' in condition and 'items' in condition:
-            # 组合条件 (AND/OR)
-            return self._eval_compound(
-                condition,
-                bars,
-                position,
+        view = normalize_condition_to_factor_binding_view(
+            condition,
+            factor_accessor=self.factor_only_accessor,
+        )
+
+        if view.kind == "structural_condition":
+            return self.structural_condition_evaluator.evaluate(
+                view,
+                bars=bars,
+                position=position,
                 factor_snapshot=factor_snapshot,
                 previous_factor_snapshot=previous_factor_snapshot,
                 intent_action=intent_action,
             )
-        
-        return False, {'error': f'unknown condition type: {cond_type}'}
+
+        if view.kind == "factor_condition":
+            result, diagnostics = self.factor_condition_evaluator.evaluate(
+                view,
+                bars=bars,
+                factor_snapshot=factor_snapshot,
+                previous_factor_snapshot=previous_factor_snapshot,
+                intent_action=intent_action,
+            )
+            if (
+                not result
+                and bool(view.metadata.get("compatibility_fallback"))
+                and self.factor_accessor.compatibility_mode
+                and diagnostics.get("reason")
+                not in {
+                    "factor_actionable_consumption_disabled",
+                    "factor_not_actionable",
+                    "factor_context_only",
+                    "unknown_factor",
+                }
+            ):
+                fallback_result, fallback_diagnostics = self.compatibility_legacy_evaluator.evaluate(
+                    condition,
+                    bars,
+                )
+                fallback_diagnostics["fallback_from_factor"] = True
+                fallback_diagnostics["binding_factor_id"] = view.metadata.get("factor_id")
+                return fallback_result, fallback_diagnostics
+            return result, diagnostics
+
+        return self.compatibility_legacy_evaluator.evaluate(condition, bars)
     
     def _eval_indicator(
         self,
@@ -1055,6 +1088,27 @@ class ConditionEvaluator:
         if compare_value_const is not None:
             return compare_value_const, {'source': 'constant'}
         return None, {'source': 'missing'}
+
+    def _resolve_factor_binding_value(
+        self,
+        view: Any,
+        bars: list[dict[str, Any]],
+        factor_snapshot: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        legacy_indicator = str(view.metadata.get("legacy_indicator") or "")
+        params = dict(view.metadata.get("legacy_params") or {})
+        if legacy_indicator == "bollinger":
+            return self.factor_only_accessor.resolve_bollinger_zscore(
+                params,
+                bars,
+                factor_snapshot=factor_snapshot,
+            )
+        return self.factor_only_accessor.resolve_numeric_indicator(
+            legacy_indicator,
+            params,
+            bars,
+            factor_snapshot=factor_snapshot,
+        )
     
     def _eval_stop_loss(self, condition: dict[str, Any], bars: list[dict[str, Any]], 
                         position: dict[str, Any] | None) -> tuple[bool, dict[str, Any]]:
@@ -1289,6 +1343,12 @@ class RuleEngine:
             self.rules_config,
             symbols,
             market_by_symbol=market_by_symbol,
+        )
+
+    def get_rule_binding_view(self, rule: dict[str, Any]) -> dict[str, Any]:
+        return normalize_rule_to_factor_binding_view(
+            rule,
+            factor_accessor=self.condition_eval.factor_only_accessor,
         )
     
     def evaluate_symbol(
@@ -1574,8 +1634,15 @@ class RuleEngine:
     def _collect_factor_diags(self, payload: Any) -> list[dict[str, Any]]:
         items: list[dict[str, Any]] = []
         if isinstance(payload, dict):
-            if payload.get('indicator') == 'factor' and payload.get('factor_id'):
-                items.append(payload)
+            factor_id = payload.get('factor_id') or payload.get('binding_factor_id')
+            if factor_id and (
+                payload.get('indicator') == 'factor'
+                or payload.get('binding_kind') == 'factor_condition'
+                or payload.get('fallback_from_factor')
+            ):
+                factor_diag = dict(payload)
+                factor_diag['factor_id'] = factor_id
+                items.append(factor_diag)
             for key, value in payload.items():
                 if key in {'used_factors', 'factor_values', 'factor_readiness'}:
                     continue
@@ -1588,9 +1655,13 @@ class RuleEngine:
     def _condition_uses_factor(self, condition: Any) -> bool:
         if not isinstance(condition, dict):
             return False
-        if condition.get('indicator') == 'factor':
+        view = normalize_condition_to_factor_binding_view(
+            condition,
+            factor_accessor=self.condition_eval.factor_only_accessor,
+        )
+        if view.kind == "factor_condition":
             return True
-        items = condition.get('items')
+        items = condition.get("items")
         if isinstance(items, list):
             return any(self._condition_uses_factor(item) for item in items)
         return False

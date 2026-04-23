@@ -11,6 +11,7 @@
 工作目录：`/workspace/agent-trading/`
 参考文档：
 
+- `docs/factor-research-playbook.md`
 - `docs/factor-researcher-role-contract.md`
 - `docs/factor-system-contract.md`
 - `specs/factor-registry-schema-v1.md`
@@ -21,10 +22,13 @@
 2. 读取可用的 backtest / factor attribution / data health 输出
 3. 读取 `./logs/latest/engine_cycle.json` 与 `./logs/latest/market_context.json`
 4. 检查因子 ready、missing_rate、IC、样本覆盖率与异常原因
-5. 总结候选改进方向，但只允许形成 research note / proposal draft
-6. 写入 `./artifacts/factor_research/latest.json`
-7. 追加写入 `./artifacts/factor_research/history.jsonl`
-8. 如需要给主 agent 提建议，只能把 proposal draft 或 patch draft 写入 `./artifacts/strategist/approval_queue/`
+5. 必须基于 factor history、factor attribution、market context、data health 自动产出下一批候选
+6. 候选草案只允许使用 `factor_candidate`、`factor_binding_candidate`、`factor_reject` 三种 draft schema
+7. 总结候选改进方向，但只允许形成 research note / proposal draft
+8. 如产生 factor binding 候选，必须保持 shadow-only，不得暗示可以直接进入 actionable BUY
+9. 写入 `./artifacts/factor_research/latest.json`
+10. 追加写入 `./artifacts/factor_research/history.jsonl`
+11. 如需要给主 agent 提建议，只能把 proposal draft 或 patch draft 写入 `./artifacts/strategist/approval_queue/`
 
 ## Hard Constraints
 

@@ -17,6 +17,13 @@
 
 它不是热路径执行组件，也不拥有 live、broker、execution、risk 的直接操作权。
 
+FF-06 同时引入 `factor-validator` 作为只读验证搭档：
+
+- `factor-researcher` 负责形成候选与 proposal draft
+- `factor-validator` 负责只读核验 schema、证据链与 shadow-only 边界
+- 两者都不是主 agent、不是交易员、不是发布员
+- 两者都不拥有 execution / broker / apply 权限
+
 ## 允许做的事
 
 - 读取 `docs/factor-system-contract.md`
@@ -79,6 +86,8 @@
 3. 受控测试与合并
 
 也就是说，`factor-researcher` 可以研究，但不能直接把研究结果变成生产执行行为。
+
+`factor-validator` 也只能给出验证意见。它不能 approve / apply，也不能替代主 agent 做发布决策。
 
 ## Cron 边界
 

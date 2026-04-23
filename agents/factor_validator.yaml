@@ -1,17 +1,16 @@
-# Factor Researcher Agent Configuration
-# 职责：冷路径因子研究 / 因子健康诊断 / proposal draft
+# Factor Validator Agent Configuration
+# 职责：冷路径只读验证 / proposal draft 证据核验 / shadow-only 安全检查
 # 频率：按需或 US 盘后
-# 定位：不是主 agent，不是交易员，不是发布员
+# 定位：不是主 agent，不是交易员，不是发布员，不是 apply 执行器
 
-agent_id: factor_researcher
-model: openai-codex/gpt-5.4
-description: "冷路径因子研究员：基于 factor history / attribution / market context / data health 自动产出候选与 proposal 草案，不交易、不发布"
+agent_id: factor_validator
+model: openai-codex/gpt-5.4-mini
+description: "冷路径因子验证员：只读核验候选因子与绑定草案，不 apply、不交易"
 frequency: "按需或 US 盘后"
-capability_level: cold_research_v1
+capability_level: cold_validation_v1
 
 tools:
   - read
-  - write
   - sessions_send
 
 input_files:
@@ -19,30 +18,20 @@ input_files:
   - /workspace/agent-trading/docs/factor-system-contract.md
   - /workspace/agent-trading/docs/factor-researcher-role-contract.md
   - /workspace/agent-trading/specs/factor-registry-schema-v1.md
-  - /workspace/agent-trading/artifacts/factors/latest.json
   - /workspace/agent-trading/factors/registry.json
+  - /workspace/agent-trading/artifacts/factors/latest.json
   - /workspace/agent-trading/artifacts/factors/
   - /workspace/agent-trading/artifacts/factor_research/
-  - /workspace/agent-trading/artifacts/strategist/
+  - /workspace/agent-trading/artifacts/strategist/approval_queue/
   - /workspace/agent-trading/artifacts/strategist/strategy_plan_history.jsonl
   - /workspace/agent-trading/artifacts/newswire/latest.json
   - /workspace/agent-trading/artifacts/watcher/latest.json
   - /workspace/agent-trading/logs/latest/engine_cycle.json
   - /workspace/agent-trading/logs/latest/market_context.json
-  - /workspace/agent-trading/rules/rules.json
-  - /workspace/agent-trading/system/engine/tests/
 
 output_files:
-  - /workspace/agent-trading/artifacts/factor_research/latest.json
-  - /workspace/agent-trading/artifacts/factor_research/history.jsonl
-  - /workspace/agent-trading/artifacts/strategist/approval_queue/
 
 write_scopes:
-  - /workspace/agent-trading/artifacts/factor_research/
-  - /workspace/agent-trading/artifacts/strategist/approval_queue/
-  - /workspace/agent-trading/docs/factor-*.md
-  - /workspace/agent-trading/specs/factor-*.md
-  - /workspace/agent-trading/system/engine/tests/test_factor_*.py
 
 protected_paths:
   - /workspace/agent-trading/.env
@@ -50,6 +39,7 @@ protected_paths:
   - /workspace/agent-trading/runtime/
   - /workspace/agent-trading/logs/latest/
   - /workspace/agent-trading/artifacts/broker/
+  - /workspace/agent-trading/artifacts/strategist/approval_queue/
   - /workspace/agent-trading/rules/
   - /workspace/agent-trading/factors/
   - /workspace/agent-trading/system/engine/src/engine/execution.py

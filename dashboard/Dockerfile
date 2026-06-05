@@ -48,7 +48,7 @@ COPY README.md /app/README.md
 
 EXPOSE 8088
 
-CMD ["uvicorn", "dashboard.main:app", "--host", "0.0.0.0", "--port", "8088"]
+CMD ["python", "-m", "dashboard.main"]
 
 FROM base AS test-runner
 
@@ -65,5 +65,6 @@ COPY agents/ /app/agents/
 COPY cron/ /app/cron/
 COPY docs/ /app/docs/
 COPY README.md /app/README.md
+COPY .env.example .gitignore docker-compose.yml /app/
 
 CMD ["python", "-m", "pytest", "-q"]

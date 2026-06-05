@@ -1,0 +1,20 @@
+{
+  "name": "trading-strategist-intraday",
+  "description": "US 盘中异常监控（1h，gpt-5.4-mini）",
+  "schedule": {
+    "kind": "cron",
+    "expr": "0 9-15 * * 1-5",
+    "tz": "America/New_York"
+  },
+  "sessionTarget": "isolated",
+  "payload": {
+    "kind": "agentTurn",
+    "model": "openai-codex/gpt-5.4-mini",
+    "timeoutSeconds": 180,
+    "message": "读取 taskFile 并执行：/workspace/agent-trading/docs/tasks/cron/strategist-intraday.md",
+    "taskFile": "/workspace/agent-trading/docs/tasks/cron/strategist-intraday.md"
+  },
+  "delivery": {
+    "mode": "none"
+  }
+}

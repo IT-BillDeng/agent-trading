@@ -287,7 +287,7 @@ def test_rule_engine_supports_ema_slope_momentum_strategy():
 
 
 def test_rsi_reversal_rule_uses_real_cross_logic_and_can_trigger_once():
-    rules_path = Path(__file__).resolve().parents[3] / 'rules' / 'rules.json'
+    rules_path = Path(__file__).resolve().parents[3] / 'rules' / 'rules.example.json'
     engine = RuleEngine(rules_path)
 
     closes = [100, 99, 98, 97, 96, 95, 94, 93, 92, 91, 90, 89, 88, 87, 86, 85, 86, 87, 91]
@@ -314,7 +314,7 @@ def test_rsi_reversal_rule_uses_real_cross_logic_and_can_trigger_once():
 
 
 def test_rsi_reversal_rule_does_not_trigger_without_cross():
-    rules_path = Path(__file__).resolve().parents[3] / 'rules' / 'rules.json'
+    rules_path = Path(__file__).resolve().parents[3] / 'rules' / 'rules.example.json'
     engine = RuleEngine(rules_path)
 
     closes = [100, 99, 98, 97, 96, 95, 94, 93, 92, 91, 90, 89, 88, 87, 86, 85, 86, 87, 88]

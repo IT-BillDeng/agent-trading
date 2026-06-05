@@ -4,17 +4,17 @@
 
 ## 目标
 
-让回测、strategist 评估、实盘前预估和实盘后复盘使用同一套手续费语义：
+让回测、strategist 评估、broker preview 预估和 adapter-reported execution 复盘使用同一套手续费语义：
 
 - 回测：使用 broker-specific 静态费率模型
-- 实盘前：使用 `preview_order`
-- 实盘后：使用 `get_order(show_charges=true)` 或成交同步结果
+- Broker preview：使用 `preview_order`
+- Adapter-reported execution review：使用 `get_order(show_charges=true)` 或成交同步结果
 
 当前项目的最小落地优先级是：
 
 1. 回测先从“毛收益”改成“净收益”
 2. strategist 优先比较净收益、净 Sharpe 和 fee drag
-3. 再逐步用真实订单费用回写校准模型
+3. 再逐步用本地 adapter 返回的费用数据校准模型
 
 ## 当前实现
 
@@ -38,7 +38,7 @@
 - `commission_rate = 0.001`
 - `slippage_rate = 0.001`
 
-问题在于 Tiger 的真实费用结构并不是简单的统一百分比，而是：
+问题在于 broker 费用结构并不是简单的统一百分比，而是：
 
 - 有 per-share 收费
 - 有 per-order 最低收费
@@ -99,7 +99,7 @@
 - 可复现
 - 适合大规模历史回测
 
-### 实盘前
+### Broker preview
 
 优先用 broker API：
 
@@ -110,7 +110,7 @@
 - 获取订单级预估费用
 - 判断候选订单在当前 broker 下的大致净成本
 
-### 实盘后
+### Adapter-reported execution review
 
 优先用 broker API：
 
@@ -167,13 +167,13 @@
 
 ### Phase D
 
-- 用真实订单费用校准静态模型
+- 用本地 adapter 返回的费用数据校准静态模型
 - 输出 `estimated_cost_error`
 - 把“费用偏差”也纳入 strategist 记忆
 
 ## 校准产物
 
-当前真实费用校准记录会写到：
+当前本地费用校准记录会写到：
 
 - `artifacts/broker/fee_calibration.jsonl`
 - `artifacts/broker/fee_calibration_summary.json`

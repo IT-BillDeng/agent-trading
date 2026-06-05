@@ -1,0 +1,20 @@
+{
+  "name": "factor-research-afterhours",
+  "description": "US 盘后因子冷路径研究与 proposal draft（desired state only，不自动同步 live）",
+  "schedule": {
+    "kind": "cron",
+    "expr": "30 17 * * 1-5",
+    "tz": "America/New_York"
+  },
+  "sessionTarget": "isolated",
+  "payload": {
+    "kind": "agentTurn",
+    "model": "openai-codex/gpt-5.4",
+    "timeoutSeconds": 600,
+    "message": "读取 taskFile 并执行：/workspace/agent-trading/docs/tasks/cron/FACTOR_RESEARCH_AFTERHOURS.md",
+    "taskFile": "/workspace/agent-trading/docs/tasks/cron/FACTOR_RESEARCH_AFTERHOURS.md"
+  },
+  "delivery": {
+    "mode": "none"
+  }
+}

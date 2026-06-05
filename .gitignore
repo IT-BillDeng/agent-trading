@@ -31,15 +31,17 @@ config/secrets*
 .env.local
 .env.*.local
 
-rules/rules_backup/
-rules/rules.json
-rules/
+rules/*
+!rules/
+!rules/README.md
+!rules/rules.example.json
 learning_log/
 runtime/tiger_engine/strategist_iterations/
 memory/
 logs/watcher-*.json
 handoff/
 _watcher_run.py
+run_watcher.sh
 .tmp_*.js
 tmp/
 system/artifacts/

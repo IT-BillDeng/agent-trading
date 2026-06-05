@@ -1,0 +1,16 @@
+# Generated latest snapshots
+latest/*.json
+
+# Generated audit / service logs
+audit/*.jsonl
+service/*.jsonl
+
+# Generated agent logs and history
+agents/*/*.jsonl
+agents/*/*.json
+agents/*/iterations/*.json
+
+# Keep scaffold / docs / manifests tracked
+!README.md
+!manifests/log_index.json
+!**/.gitkeep

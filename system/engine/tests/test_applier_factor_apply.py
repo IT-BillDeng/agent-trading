@@ -22,7 +22,7 @@ from engine.strategist_artifacts import queue_approval_request  # noqa: E402
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-RULES_FILE = REPO_ROOT / "rules" / "rules.json"
+RULES_FILE = REPO_ROOT / "rules" / "rules.example.json"
 FACTOR_REGISTRY_FILE = REPO_ROOT / "factors" / "registry.json"
 
 

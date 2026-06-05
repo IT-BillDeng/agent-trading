@@ -1,0 +1,21 @@
+{
+  "name": "trading-closer-us",
+  "description": "美股收盘后生成总结报告（16:00 ET）",
+  "schedule": {
+    "kind": "cron",
+    "expr": "0 16 * * 1-5",
+    "tz": "America/New_York"
+  },
+  "sessionTarget": "isolated",
+  "wakeMode": "now",
+  "payload": {
+    "kind": "agentTurn",
+    "message": "读取 taskFile 并执行：/workspace/agent-trading/docs/tasks/cron/closer-us.md",
+    "timeoutSeconds": 90,
+    "model": "openai-codex/gpt-5.4-mini",
+    "taskFile": "/workspace/agent-trading/docs/tasks/cron/closer-us.md"
+  },
+  "delivery": {
+    "mode": "none"
+  }
+}

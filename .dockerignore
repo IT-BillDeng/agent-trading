@@ -1,5 +1,4 @@
 .git
-.gitignore
 .pytest_cache
 .venv
 __pycache__/
@@ -25,4 +24,9 @@ data/watchlist.json
 data/closer_outbox.json
 data/tiger_shared_watchlist.json
 runtime/tiger_engine/
+rules/*
+!rules/
+!rules/README.md
+!rules/rules.example.json
 _watcher_run.py
+run_watcher.sh

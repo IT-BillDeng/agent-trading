@@ -1,0 +1,4 @@
+-r dashboard/requirements.txt
+-r system/engine/requirements.txt
+
+pytest>=8.0,<9

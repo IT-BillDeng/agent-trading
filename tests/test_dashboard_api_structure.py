@@ -134,6 +134,14 @@ class DashboardApiStructureTests(unittest.TestCase):
         self.assertEqual(run_result["error"], "scheduler control disabled from dashboard")
         self.assertTrue(run_result["read_only"])
 
+    def test_broker_config_upload_is_disabled_by_default(self):
+        with mock.patch.dict("os.environ", {}, clear=True):
+            result = asyncio.run(dashboard_main.api_broker_config_upload_file(_FakeUploadFile()))
+
+        self.assertEqual(result.status_code, 403)
+        self.assertEqual(result["error"], "broker config upload disabled")
+        self.assertIn("DASHBOARD_ENABLE_CONFIG_UPLOAD", result["reason"])
+
     def test_rules_validate_returns_errors_and_direct_rules_write_is_disabled(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             rules_dir = Path(tmpdir) / "rules"

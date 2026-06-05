@@ -1,0 +1,20 @@
+{
+  "name": "trading-strategist-premarket",
+  "description": "US 盘前策略复盘 + 设定今日参数",
+  "schedule": {
+    "kind": "cron",
+    "expr": "5 9 * * 1-5",
+    "tz": "America/New_York"
+  },
+  "sessionTarget": "isolated",
+  "payload": {
+    "kind": "agentTurn",
+    "model": "openai-codex/gpt-5.4",
+    "timeoutSeconds": 300,
+    "message": "读取 taskFile 并执行：/workspace/agent-trading/docs/tasks/cron/strategist-premarket.md",
+    "taskFile": "/workspace/agent-trading/docs/tasks/cron/strategist-premarket.md"
+  },
+  "delivery": {
+    "mode": "none"
+  }
+}

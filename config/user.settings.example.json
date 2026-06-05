@@ -8,9 +8,9 @@
     "platform": "tiger"
   },
   "notify": {
-    "telegram": true,
-    "telegram_preview_only": false,
-    "telegram_send_enabled": true,
+    "telegram": false,
+    "telegram_preview_only": true,
+    "telegram_send_enabled": false,
     "telegram_target": "${ENGINE_TELEGRAM_TARGET}"
   }
 }

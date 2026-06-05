@@ -409,7 +409,7 @@
             </div>
             <!-- Upload -->
             <div class="mt-4 flex gap-2 items-center">
-                <label class="bg-sakura-600 hover:bg-sakura-700 text-white px-3 py-2 rounded text-sm font-medium transition cursor-pointer">
+                <label id="broker-config-upload-label" class="bg-sakura-600 hover:bg-sakura-700 text-white px-3 py-2 rounded text-sm font-medium transition cursor-pointer">
                     📤 选择配置文件
                     <input id="broker-config-file" type="file" accept=".properties,.txt,.cfg,.conf" class="hidden" onchange="uploadBrokerConfig()">
                 </label>
@@ -1837,6 +1837,7 @@
         async function fetchBrokerConfig() {
             try {
                 const data = await fetch(API_BASE + '/api/broker-config').then(r => r.json());
+                updateBrokerConfigUploadState(!!data.upload_enabled);
                 if (!data.exists) {
                     document.getElementById('tc-broker-platform').textContent = '未配置';
                     document.getElementById('tc-account').textContent = '未配置';
@@ -1858,6 +1859,19 @@
             } catch (e) {
                 console.error('api-config fetch error:', e);
             }
+        }
+
+        function updateBrokerConfigUploadState(enabled) {
+            const input = document.getElementById('broker-config-file');
+            const label = document.getElementById('broker-config-upload-label');
+            const filename = document.getElementById('broker-config-filename');
+            if (input) input.disabled = !enabled;
+            if (label) {
+                label.className = enabled
+                    ? 'bg-sakura-600 hover:bg-sakura-700 text-white px-3 py-2 rounded text-sm font-medium transition cursor-pointer'
+                    : 'bg-gray-700 text-gray-400 px-3 py-2 rounded text-sm font-medium transition cursor-not-allowed';
+            }
+            if (filename && !enabled) filename.textContent = '上传默认禁用';
         }
 
         async function fetchBrokerPlatforms() {
@@ -1943,6 +1957,7 @@
 
         async function uploadBrokerConfig() {
             const fileInput = document.getElementById('broker-config-file');
+            if (fileInput.disabled) { showTcMsg('配置上传默认禁用', true); return; }
             const file = fileInput.files[0];
             if (!file) { showTcMsg('请先选择文件', true); return; }
             document.getElementById('broker-config-filename').textContent = file.name;

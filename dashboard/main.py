@@ -1214,7 +1214,7 @@ register_logs_routes(app)
 def main():
     import uvicorn
     port = int(os.environ.get("DASHBOARD_PORT", 8088))
-    host = os.environ.get("DASHBOARD_HOST", "0.0.0.0")
+    host = os.environ.get("DASHBOARD_HOST", "127.0.0.1")
     uvicorn.run(app, host=host, port=port)
 
 

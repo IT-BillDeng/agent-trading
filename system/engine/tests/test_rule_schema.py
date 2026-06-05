@@ -77,7 +77,7 @@ class RuleSchemaValidationTests(unittest.TestCase):
         self.assertTrue(any("unknown factor_id" in item for item in result["errors"]))
 
     def test_current_rules_file_is_schema_valid(self):
-        rules_path = Path(__file__).resolve().parents[3] / "rules" / "rules.json"
+        rules_path = Path(__file__).resolve().parents[3] / "rules" / "rules.example.json"
         rules_data = json.loads(rules_path.read_text())
 
         result = validate_rules_config(rules_data)

@@ -1,0 +1,20 @@
+{
+  "name": "trading-strategist-afterhours",
+  "description": "US 盘后信号质量分析 + 明日策略调整",
+  "schedule": {
+    "kind": "cron",
+    "expr": "30 16 * * 1-5",
+    "tz": "America/New_York"
+  },
+  "sessionTarget": "isolated",
+  "payload": {
+    "kind": "agentTurn",
+    "model": "openai-codex/gpt-5.4",
+    "timeoutSeconds": 600,
+    "message": "读取 taskFile 并执行：/workspace/agent-trading/docs/tasks/cron/strategist-afterhours.md",
+    "taskFile": "/workspace/agent-trading/docs/tasks/cron/strategist-afterhours.md"
+  },
+  "delivery": {
+    "mode": "none"
+  }
+}

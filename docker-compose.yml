@@ -13,7 +13,7 @@ services:
       target: runtime
     container_name: agent-dashboard
     ports:
-      - "8088:8088"
+      - "127.0.0.1:8088:8088"
     volumes:
       - ./data:/app/data
       - ./config:/app/config
@@ -35,6 +35,8 @@ services:
       - ENGINE_RUNTIME_DIR=${ENGINE_RUNTIME_DIR:-/app/runtime}
       - ENGINE_APP_CONFIG=${ENGINE_APP_CONFIG:-/app/config/app_config.docker.json}
       - ENGINE_BROKER=${ENGINE_BROKER:-tiger}
+      - DASHBOARD_HOST=${DASHBOARD_HOST:-0.0.0.0}
+      - DASHBOARD_ENABLE_CONFIG_UPLOAD=${DASHBOARD_ENABLE_CONFIG_UPLOAD:-false}
       # 调度器配置
       - ENGINE_SCHEDULER_PROVIDER=${ENGINE_SCHEDULER_PROVIDER:-yfinance}
       - ENGINE_SCHEDULER_INTERVAL=${ENGINE_SCHEDULER_INTERVAL:-60}

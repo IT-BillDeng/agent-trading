@@ -1,15 +1,17 @@
-# 模拟盘全自动交易系统需求规格 v1（30min）
+# Paper-first 交易研究框架需求规格 v1（30min）
 
 ## 1. 目标
 
-构建一套基于 **可替换 broker API** 的美股自动交易系统 v1，当前默认实现对接模拟盘 broker API。
+构建一套基于 **可替换 broker API** 的 paper-first、多智能体交易研究框架 v1，当前默认实现只面向模拟盘、dry-run、preview 与 guarded workflow。
+
+项目仍在开发中，不建议用于生产环境。任何 live order submission 都必须由本地显式配置启用，并经过风控门禁与人工确认；默认配置不得开启真实提交。
 
 设计原则：
 - 低频优先：按 `30min` 级别运行
 - 风控优先：先限制风险，再考虑收益
-- 可审计：每次评估、下单、异常都留痕
+- 可审计：每次评估、订单意图、preview、异常都留痕
 - 可回滚：异常即停机，不做隐式恢复
-- 先模拟盘验证，不直接面向实盘
+- 先模拟盘验证，不直接面向实盘或生产环境
 
 ---
 
@@ -25,7 +27,7 @@
   - US `quote_delay` 可用
 
 ### 2.2 允许与禁止
-- 允许：自动下单
+- 允许：生成 paper/dry-run 订单意图、broker preview 与 guarded execution plan
 - 禁止：做空
 - 禁止：杠杆
 - 禁止：期权
@@ -375,7 +377,9 @@ execution:
   allow_prepost: false
   dedupe: true
 notify:
-  telegram: true
+  telegram: false
+  telegram_preview_only: true
+  telegram_send_enabled: false
   ntfy: false
 system:
   stop_on_exception: true
@@ -447,8 +451,8 @@ system:
 
 ## 15. 当前结论
 
-模拟盘自动交易系统 v1 应定位为：
+v1 应定位为：
 
-> **基于延迟行情、30min 级别、风控优先的低频自动交易系统。**
+> **基于延迟行情、30min 级别、paper-first、风控优先的低频交易研究框架。**
 
 在未获得实时行情权限前，不应将 v1 扩展为 5min 级盘中实时策略系统。

@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  tests:
+    name: Python 3.11 tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: |
+            requirements-dev.txt
+            dashboard/requirements.txt
+            system/engine/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Run root tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/system/engine/src
+          DASHBOARD_ENABLE_CONFIG_UPLOAD: "false"
+        run: python -m pytest -q tests
+
+      - name: Run engine tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/system/engine/src
+          DASHBOARD_ENABLE_CONFIG_UPLOAD: "false"
+        run: python -m pytest -q system/engine/tests

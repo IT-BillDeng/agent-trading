@@ -271,7 +271,7 @@ class RuleEngineFactorConditionTests(unittest.TestCase):
     def test_current_rules_without_factor_conditions_keep_same_behavior(self):
         closes = [100, 99, 98, 97, 96, 95, 94, 93, 92, 91, 90, 89, 88, 87, 86, 85, 86, 87, 91]
         bars = _bars_from_closes(closes)
-        rules_path = Path(__file__).resolve().parents[3] / "rules" / "rules.json"
+        rules_path = Path(__file__).resolve().parents[3] / "rules" / "rules.example.json"
 
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

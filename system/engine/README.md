@@ -1,6 +1,8 @@
 # engine
 
-自动交易系统 v1 的实现骨架。
+Paper-first 交易研究引擎的实现骨架。
+
+当前项目仍在开发中，不建议用于生产环境。默认姿态是 paper / guarded / preview-only：不会默认提交真实订单。
 
 ## 当前状态
 - 已接入当前默认 broker API 的最小请求封装
@@ -13,7 +15,7 @@
   - **订单意图层**
   - **Telegram 通知预览骨架**
   - **JSONL 审计日志骨架**
-  - **真实执行适配层（guarded/live）**
+  - **broker execution 适配层（guarded/live gated）**
   - **状态持久化骨架**
   - **preview_order 预检查骨架**
   - **订单状态同步骨架**
@@ -27,7 +29,7 @@
   - **只读运行周期**
   - **策略运行周期（仅生成信号，不下单）**
   - **dry-run 周期（生成信号 + 风控决策 + 订单预览 + 意图 + 通知预览 + 日志，不下单）**
-  - **execution 周期（生成信号 + 风控 + preview_check + 意图 + guarded/live 提交适配 + 同步）**
+  - **execution 周期（生成信号 + 风控 + preview_check + 意图 + guarded/live-gated 适配 + 同步）**
   - **control_state.py（手动 lock/unlock/status）**
 
 ## 已确认的行情事实
@@ -53,13 +55,13 @@ v1 的 30min 策略以 **K 线历史** 为主输入。
 - `src/engine/audit.py`：JSONL 审计日志
 - `src/engine/state.py`：执行状态持久化
 - `src/engine/control.py`：人工锁定/解锁控制平面
-- `src/engine/live_execution.py`：真实执行适配层（含 preview / submit / sync / transactions）
+- `src/engine/live_execution.py`：broker execution 适配层（含 preview / submit / sync / transactions，默认由安全门禁关闭提交）
 - `src/engine/sync.py`：订单/成交回报字段归一化
 - `src/engine/runtime.py`：只读/策略/dry-run/execution 周期逻辑
 - `run_readonly_cycle.py`：只读入口
 - `run_strategy_cycle.py`：策略入口
 - `run_dry_run_cycle.py`：dry-run 入口
-- `run_execution_cycle.py`：真实执行适配入口
+- `run_execution_cycle.py`：guarded execution 适配入口
 - `control_state.py`：锁定/解锁/status 控制入口
 - `logs/*.jsonl`：本地审计日志
 - `logs/dispatch_queue.jsonl`：待发通知队列
@@ -80,8 +82,8 @@ python3 control_state.py ../../config/app_config.docker.json unlock "resume afte
 ## 执行模式
 - `preview_check=true`：提交前先调用 `preview_order`
 - `submit_mode=guarded`：构造真实提交链，但不真正下单
-- `submit_mode=live` 且 `live_submit=true`：允许真实提交
-- `live_cancel=true`：允许真实撤单
+- `submit_mode=live` 且 `live_submit=true`：仅在显式本地配置且通过风控/人工门禁时允许 broker submission；默认关闭
+- `live_cancel=true`：仅在显式本地配置且通过门禁时允许 broker cancel；默认关闭
 
 ## Telegram 开关
 - `telegram_preview_only=true`：只生成通知预览
@@ -124,7 +126,7 @@ python3 control_state.py ../../config/app_config.docker.json unlock "resume afte
 - dispatch queue 落盘
 - 本地 JSONL 审计日志输出
 - 提交状态落盘与重复单防护状态文件
-- `order_no` / `preview_order` / `place_order` / `cancel_order` 适配
+- `order_no` / `preview_order` / `place_order` / `cancel_order` 适配（submit/cancel 默认被门禁关闭）
 - 已提交订单的详情同步骨架
 - 已提交订单的成交回报同步骨架
 - preview warning → 风控阻塞原因摘要
@@ -134,7 +136,7 @@ python3 control_state.py ../../config/app_config.docker.json unlock "resume afte
 ## 下一步
 1. 用 OpenClaw `message` 工具把 dispatch plan / queue 接成真发送
 2. 增加 cron/调度接入
-3. 增加实盘前的多重确认与总开关
+3. 增加 live-readiness 文档与更明确的本地确认流程，但保持默认不提交
 4. 增加更精细的恢复策略（只恢复读取，不恢复提交）
 
 ## 兼容说明

@@ -118,6 +118,17 @@ with mock.patch.dict(
 from engine.strategist_artifacts import queue_approval_request
 
 
+def _json_response_payload(response):
+    if isinstance(response, dict):
+        return response
+    body = getattr(response, "body", b"")
+    if isinstance(body, bytes):
+        return json.loads(body.decode("utf-8"))
+    if isinstance(body, str):
+        return json.loads(body)
+    raise TypeError(f"unsupported response type: {type(response)!r}")
+
+
 class ProposalReviewApiTests(unittest.TestCase):
     def _write_fee_summary(self, artifacts_dir: Path):
         broker_dir = artifacts_dir / "broker"
@@ -276,7 +287,7 @@ class ProposalReviewApiTests(unittest.TestCase):
                     os.environ["ENGINE_ARTIFACTS_DIR"] = old_env
 
             self.assertEqual(result.status_code, 400)
-            self.assertIn("invalid approval transition", result["error"])
+            self.assertIn("invalid approval transition", _json_response_payload(result)["error"])
 
 
 if __name__ == "__main__":

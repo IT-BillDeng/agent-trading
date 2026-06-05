@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "updated_at": "2026-04-16T00:00:00+08:00",
+  "root": "logs",
+  "description": "agent-trading 统一观测入口索引",
+  "sections": [
+    {
+      "name": "latest",
+      "path": "logs/latest",
+      "purpose": "最新状态快照与总览文件"
+    },
+    {
+      "name": "audit",
+      "path": "logs/audit",
+      "purpose": "系统行为审计日志"
+    },
+    {
+      "name": "service",
+      "path": "logs/service",
+      "purpose": "组件运行日志"
+    },
+    {
+      "name": "agents",
+      "path": "logs/agents",
+      "purpose": "按 agent 聚合的运行日志（历史产物后续迁出）"
+    }
+  ]
+}

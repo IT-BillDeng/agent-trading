@@ -1,0 +1,20 @@
+{
+  "name": "trading-newswire-intraday",
+  "description": "US 盘中新闻扫描（v3优化：web_fetch优先+批量搜索≤2次）",
+  "schedule": {
+    "kind": "cron",
+    "expr": "0,30 9-15 * * 1-5",
+    "tz": "America/New_York"
+  },
+  "sessionTarget": "isolated",
+  "payload": {
+    "kind": "agentTurn",
+    "model": "openai-codex/gpt-5.4-mini",
+    "timeoutSeconds": 300,
+    "message": "读取 taskFile 并执行：/workspace/agent-trading/docs/tasks/cron/newswire-intraday.md",
+    "taskFile": "/workspace/agent-trading/docs/tasks/cron/newswire-intraday.md"
+  },
+  "delivery": {
+    "mode": "none"
+  }
+}

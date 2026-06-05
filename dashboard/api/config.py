@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 
 from fastapi import File, UploadFile
@@ -61,6 +62,11 @@ def _account_type_to_mode(account_type: str) -> str | None:
     return None
 
 
+def _broker_config_upload_enabled() -> bool:
+    value = os.environ.get("DASHBOARD_ENABLE_CONFIG_UPLOAD", "false").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
 async def api_config_get():
     dashboard_main = _dashboard_main()
 
@@ -107,9 +113,17 @@ async def api_config_update(update: dict):
 
 async def api_broker_config_get():
     dashboard_main = _dashboard_main()
+    upload_enabled = _broker_config_upload_enabled()
 
     if not dashboard_main.BROKER_PROPS_FILE.exists():
-        return {"exists": False, "mode": "paper", "broker_platform": dashboard_main._current_broker_platform(), "fields": {}, "account_info": None}
+        return {
+            "exists": False,
+            "mode": "paper",
+            "broker_platform": dashboard_main._current_broker_platform(),
+            "fields": {},
+            "account_info": None,
+            "upload_enabled": upload_enabled,
+        }
     props = _parse_properties(dashboard_main.BROKER_PROPS_FILE.read_text())
     masked = {}
     sensitive = {"private_key_pk1", "private_key_pk8", "secret_key"}
@@ -138,11 +152,26 @@ async def api_broker_config_get():
                     pass
     except Exception as e:
         account_info = {"error": str(e)}
-    return {"exists": True, "mode": mode, "broker_platform": broker_platform, "fields": masked, "account_info": account_info}
+    return {
+        "exists": True,
+        "mode": mode,
+        "broker_platform": broker_platform,
+        "fields": masked,
+        "account_info": account_info,
+        "upload_enabled": upload_enabled,
+    }
 
 
 async def api_broker_config_upload_file(file: UploadFile = File(...)):
     dashboard_main = _dashboard_main()
+    if not _broker_config_upload_enabled():
+        return JSONResponse(
+            {
+                "error": "broker config upload disabled",
+                "reason": "set DASHBOARD_ENABLE_CONFIG_UPLOAD=true only for local trusted development",
+            },
+            status_code=403,
+        )
 
     content_bytes = await file.read()
     if len(content_bytes) > 64 * 1024:

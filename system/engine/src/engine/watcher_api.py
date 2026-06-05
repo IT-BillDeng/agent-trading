@@ -12,7 +12,13 @@ from typing import Any
 import urllib.request
 import urllib.error
 
-from .artifacts import append_jsonl, resolve_artifacts_root, write_json
+try:
+    from .artifacts import append_jsonl, resolve_artifacts_root, write_json
+except ImportError:  # pragma: no cover - supports direct script execution
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from engine.artifacts import append_jsonl, resolve_artifacts_root, write_json
 
 
 class AlertLevel(str, Enum):
@@ -107,11 +113,7 @@ class TigerWatcherAPI:
         self.state = self._load_state()
 
     def _default_state_file(self) -> Path:
-        broker_path = Path("/tmp/broker_watcher_state.json")
-        legacy_path = Path("/tmp/tiger_watcher_state.json")
-        if broker_path.exists() or not legacy_path.exists():
-            return broker_path
-        return legacy_path
+        return Path(__file__).resolve().parents[4] / "runtime" / "state" / "watcher_state.json"
     
     def _load_state(self) -> dict[str, Any]:
         if self.state_file.exists():

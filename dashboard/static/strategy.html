@@ -402,6 +402,81 @@
                     </table>
                 </div>
             </div>
+
+            <div class="card w-full">
+                <div class="flex items-center justify-between gap-3 mb-3">
+                    <div>
+                        <div class="card-title mb-0">Factor Research Summary</div>
+                        <div id="factor-research-meta" class="text-xs text-gray-500 mt-1">read-only research artifacts / draft hypotheses</div>
+                    </div>
+                    <div class="text-xs text-gray-500">draft-only</div>
+                </div>
+                <div id="factor-research-summary" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 mb-4">
+                    <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-4 text-sm text-gray-500">加载中...</div>
+                </div>
+                <div id="factor-sample-health" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+                    <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-4 text-sm text-gray-500">加载中...</div>
+                </div>
+                <div id="historical-fact-replay-section">
+                    <div class="text-xs uppercase text-gray-500 mb-2">Historical Fact Replay Summary</div>
+                    <div id="historical-fact-summary" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+                        <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-4 text-sm text-gray-500">加载中...</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="text-xs uppercase text-gray-500 mb-2">Factor Validation Summary</div>
+                    <div id="factor-validation-summary" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+                        <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-4 text-sm text-gray-500">加载中...</div>
+                    </div>
+                    <div id="factor-validation-candidates" class="space-y-2 text-sm text-gray-300 mb-4">--</div>
+                </div>
+                <div>
+                    <div class="text-xs uppercase text-gray-500 mb-2">Factor Parity Summary</div>
+                    <div id="factor-parity-summary" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+                        <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-4 text-sm text-gray-500">加载中...</div>
+                    </div>
+                    <div id="factor-parity-mismatches" class="space-y-2 text-sm text-gray-300 mb-4">--</div>
+                </div>
+                <div>
+                    <div class="text-xs uppercase text-gray-500 mb-2">Factor Dual-Run Summary</div>
+                    <div id="factor-dual-run-summary" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+                        <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-4 text-sm text-gray-500">加载中...</div>
+                    </div>
+                    <div id="factor-dual-run-mismatches" class="space-y-2 text-sm text-gray-300 mb-4">--</div>
+                </div>
+                <div>
+                    <div class="text-xs uppercase text-gray-500 mb-2">Diagnostic Factor Rules</div>
+                    <div id="diagnostic-factor-rules-summary" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+                        <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-4 text-sm text-gray-500">加载中...</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="text-xs uppercase text-gray-500 mb-2">Diagnostic Factor Metrics</div>
+                    <div id="diagnostic-factor-metrics-summary" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+                        <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-4 text-sm text-gray-500">加载中...</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="text-xs uppercase text-gray-500 mb-2">Factor Research Ops Summary</div>
+                    <div id="factor-ops-summary" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+                        <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-4 text-sm text-gray-500">加载中...</div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 text-sm">
+                    <div>
+                        <div class="text-xs uppercase text-gray-500 mb-2">Insufficient Samples</div>
+                        <div id="factor-research-insufficient" class="space-y-2 text-gray-300">--</div>
+                    </div>
+                    <div>
+                        <div class="text-xs uppercase text-gray-500 mb-2">Top Coverage</div>
+                        <div id="factor-research-coverage" class="space-y-2 text-gray-300">--</div>
+                    </div>
+                    <div>
+                        <div class="text-xs uppercase text-gray-500 mb-2">High Redundancy Pairs</div>
+                        <div id="factor-research-redundancy" class="space-y-2 text-gray-300">--</div>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <section class="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -1035,6 +1110,429 @@
                     </tr>
                 `;
             }).join('');
+        }
+
+        function renderFactorResearch(data) {
+            const research = data?.factor_research || {};
+            const sampleHealth = data?.factor_sample_health || {};
+            const validation = data?.factor_validation_summary || {};
+            const parity = data?.factor_parity_summary || {};
+            const dualRun = data?.factor_dual_run_summary || {};
+            const diagnosticRules = data?.diagnostic_factor_rules_summary || {};
+            const diagnosticMetrics = data?.diagnostic_factor_metrics_summary || {};
+            const opsSummary = data?.factor_ops_summary || {};
+            const historicalFacts = data?.historical_fact_summary || {};
+            const meta = document.getElementById('factor-research-meta');
+            const summary = document.getElementById('factor-research-summary');
+            const sampleSummary = document.getElementById('factor-sample-health');
+            const historicalFactSummary = document.getElementById('historical-fact-summary');
+            const validationSummary = document.getElementById('factor-validation-summary');
+            const validationCandidates = document.getElementById('factor-validation-candidates');
+            const paritySummary = document.getElementById('factor-parity-summary');
+            const parityMismatches = document.getElementById('factor-parity-mismatches');
+            const dualRunSummary = document.getElementById('factor-dual-run-summary');
+            const dualRunMismatches = document.getElementById('factor-dual-run-mismatches');
+            const diagnosticRulesSummary = document.getElementById('diagnostic-factor-rules-summary');
+            const diagnosticMetricsSummary = document.getElementById('diagnostic-factor-metrics-summary');
+            const factorOpsSummary = document.getElementById('factor-ops-summary');
+            const insufficient = Array.isArray(research.factors_with_insufficient_samples) ? research.factors_with_insufficient_samples : [];
+            const topCoverage = Array.isArray(research.top_coverage_factors) ? research.top_coverage_factors : [];
+            const highPairs = Array.isArray(research.high_redundancy_pairs) ? research.high_redundancy_pairs : [];
+            const sampleSources = Array.isArray(sampleHealth.sample_sources) ? sampleHealth.sample_sources : [];
+            const candidates = Array.isArray(validation.top_candidate_factors) ? validation.top_candidate_factors : [];
+            const parityTopMismatches = Array.isArray(parity.top_mismatches) ? parity.top_mismatches : [];
+            const dualRunTopMismatches = Array.isArray(dualRun.top_mismatches) ? dualRun.top_mismatches : [];
+            const historicalScenarios = Array.isArray(historicalFacts.top_debug_scenarios) ? historicalFacts.top_debug_scenarios : [];
+            const leakageWarnings = Array.isArray(historicalFacts.leakage_warnings) ? historicalFacts.leakage_warnings : [];
+            meta.textContent = [
+                research.generated_at ? `generated: ${fmtDateTime(research.generated_at)}` : 'generated: --',
+                `status: ${research.status || '--'}`,
+                sampleSources.length ? `samples: ${sampleSources.join(', ')}` : 'samples: --',
+                research.last_report_path ? `report: ${research.last_report_path}` : 'report: --',
+            ].join(' | ');
+
+            summary.innerHTML = `
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Research</div>
+                    <div class="text-lg font-semibold">${research.available ? 'available' : 'missing'}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(research.status || '--')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Factors</div>
+                    <div class="text-lg font-semibold">${fmtNumber(research.factor_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">registry candidates</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Insufficient</div>
+                    <div class="text-lg font-semibold">${fmtNumber(insufficient.length)}</div>
+                    <div class="text-xs text-gray-500 mt-1">sample gaps</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">High Redundancy</div>
+                    <div class="text-lg font-semibold">${fmtNumber(highPairs.length)}</div>
+                    <div class="text-xs text-gray-500 mt-1">correlation pairs</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Hypotheses</div>
+                    <div class="text-lg font-semibold">${fmtNumber(research.hypothesis_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">draft only</div>
+                </div>
+            `;
+
+            sampleSummary.innerHTML = `
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Sample Health</div>
+                    <div class="text-lg font-semibold">${sampleHealth.latest_exists ? 'latest exists' : 'latest missing'}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(sampleHealth.insufficient_samples_reason || 'ok')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Live Observations</div>
+                    <div class="text-lg font-semibold">${fmtNumber(sampleHealth.live_observation_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">history rows ${fmtNumber(sampleHealth.history_count || 0)}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Backfill Observations</div>
+                    <div class="text-lg font-semibold">${fmtNumber(sampleHealth.backfill_observation_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(sampleSources.join(' / ') || '--')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Last Observation</div>
+                    <div class="text-sm font-semibold break-words">${escapeHtml(sampleHealth.last_observation_time || '--')}</div>
+                    <div class="text-xs text-gray-500 mt-1">read-only</div>
+                </div>
+            `;
+
+            historicalFactSummary.innerHTML = `
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Fact Store</div>
+                    <div class="text-lg font-semibold">${historicalFacts.available ? 'available' : 'missing'}</div>
+                    <div class="text-xs text-gray-500 mt-1">${historicalFacts.latest_generated_at ? fmtDateTime(historicalFacts.latest_generated_at) : '--'}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Facts</div>
+                    <div class="text-lg font-semibold">${fmtNumber(historicalFacts.fact_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(Object.entries(historicalFacts.usage_counts || {}).map(([key, value]) => `${key}:${value}`).join(', ') || '--')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Scenarios</div>
+                    <div class="text-lg font-semibold">${fmtNumber(historicalFacts.scenario_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">debug replay only</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Report</div>
+                    <div class="text-sm font-semibold break-words">${escapeHtml(historicalFacts.report_path || '--')}</div>
+                    <div class="text-xs text-gray-500 mt-1">read-only</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3 sm:col-span-2">
+                    <div class="text-xs text-gray-500 mb-1">Leakage Warnings</div>
+                    <div class="text-sm font-semibold break-words">${escapeHtml(leakageWarnings.join(', ') || 'none')}</div>
+                    <div class="text-xs text-gray-500 mt-1">facts are not actionable factors</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3 sm:col-span-2">
+                    <div class="text-xs text-gray-500 mb-1">Top Debug Scenarios</div>
+                    <div class="text-sm font-semibold break-words">${escapeHtml(historicalScenarios.map(item => `${item.scenario_type || '--'}:${(item.symbols || []).join('/') || 'all'}`).join(', ') || '--')}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(historicalScenarios[0]?.replay_command_hint || 'python -m engine.factors.facts summarize')}</div>
+                </div>
+            `;
+
+            validationSummary.innerHTML = `
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Validation</div>
+                    <div class="text-lg font-semibold">${validation.available ? 'available' : 'missing'}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(validation.sample_source || '--')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Labeled Samples</div>
+                    <div class="text-lg font-semibold">${fmtNumber(validation.labeled_sample_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">factors ${fmtNumber(validation.factor_count || 0)}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Candidates</div>
+                    <div class="text-lg font-semibold">${fmtNumber(validation.research_candidate_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">draft only</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Blocked / Redundant</div>
+                    <div class="text-lg font-semibold">${fmtNumber(validation.insufficient_factor_count || 0)} / ${fmtNumber(validation.high_redundancy_pair_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(validation.no_lookahead_validation_status || '--')}</div>
+                </div>
+            `;
+
+            validationCandidates.innerHTML = candidates.length
+                ? candidates.map(item => `
+                    <div class="rounded border border-gray-700/40 px-3 py-2">
+                        <div class="font-medium mono">${escapeHtml(item.factor_id || '--')}</div>
+                        <div class="text-xs text-gray-500 mt-1">grade ${escapeHtml(item.candidate_grade || '--')} · IC ${fmt(item.IC_1bar)} · labeled ${fmtNumber(item.labeled_sample_count || 0)}</div>
+                    </div>
+                `).join('')
+                : '<div class="text-gray-500">no research candidates</div>';
+
+            paritySummary.innerHTML = `
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Parity</div>
+                    <div class="text-lg font-semibold">${parity.available ? 'available' : 'missing'}</div>
+                    <div class="text-xs text-gray-500 mt-1">${parity.latest_generated_at ? fmtDateTime(parity.latest_generated_at) : '--'}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Factor Pass / Fail</div>
+                    <div class="text-lg font-semibold">${fmtNumber(parity.parity_pass_count || 0)} / ${fmtNumber(parity.parity_fail_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">compared ${fmtNumber(parity.compared_factor_count || 0)} of ${fmtNumber(parity.factor_count || 0)}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Blocking / Warning</div>
+                    <div class="text-lg font-semibold">${fmtNumber(parity.blocking_mismatch_count || 0)} / ${fmtNumber(parity.warning_mismatch_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">mismatches</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Signal Pass / Fail</div>
+                    <div class="text-lg font-semibold">${fmtNumber(parity.signal_parity_pass_count || 0)} / ${fmtNumber(parity.signal_parity_fail_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">diagnostic only</div>
+                </div>
+            `;
+
+            parityMismatches.innerHTML = parityTopMismatches.length
+                ? parityTopMismatches.map(item => `
+                    <div class="rounded border border-gray-700/40 px-3 py-2">
+                        <div class="font-medium mono">${escapeHtml(item.factor_id || item.rule_id || '--')}</div>
+                        <div class="text-xs text-gray-500 mt-1">${escapeHtml(item.reason || '--')} · ${escapeHtml(item.severity || '--')} · delta ${fmt(item.delta)}</div>
+                    </div>
+                `).join('')
+                : '<div class="text-gray-500">no parity mismatches</div>';
+
+            dualRunSummary.innerHTML = `
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Dual-Run</div>
+                    <div class="text-lg font-semibold">${dualRun.enabled ? 'enabled' : 'disabled'}</div>
+                    <div class="text-xs text-gray-500 mt-1">${dualRun.latest_generated_at ? fmtDateTime(dualRun.latest_generated_at) : escapeHtml(dualRun.reason || '--')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Readiness</div>
+                    <div class="text-lg font-semibold">${escapeHtml(dualRun.readiness_status || '--')}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml((dualRun.readiness_reasons || []).join(', ') || '--')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Matched</div>
+                    <div class="text-lg font-semibold">${fmtNumber(dualRun.matched_count || 0)} / ${fmtNumber(dualRun.compared_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">rate ${dualRun.matched_rate == null ? '--' : fmt(Number(dualRun.matched_rate) * 100) + '%'}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Mismatches</div>
+                    <div class="text-lg font-semibold">${fmtNumber(dualRun.blocking_mismatch_count || 0)} / ${fmtNumber(dualRun.warning_mismatch_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">blocking / warning</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Rules</div>
+                    <div class="text-sm font-semibold break-words">${escapeHtml((dualRun.compared_rules || []).join(', ') || '--')}</div>
+                    <div class="text-xs text-gray-500 mt-1">diagnostic only</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Universe</div>
+                    <div class="text-sm font-semibold break-words">${escapeHtml(dualRun.real_universe_symbols_detected ? 'real universe detected' : 'no real universe')}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(dualRun.synthetic_fixture_symbols_detected ? 'synthetic fixture detected' : 'no synthetic fixture')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Source Bar Session</div>
+                    <div class="text-sm font-semibold break-words">${escapeHtml(JSON.stringify(dualRun.source_bar_session_summary || {}))}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(dualRun.latest_observation_path || '--')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Production Path</div>
+                    <div class="text-lg font-semibold">${dualRun.production_path_unchanged ? 'unchanged' : 'check required'}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(dualRun.report_path || '--')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Artifact Freshness</div>
+                    <div class="text-lg font-semibold">${dualRun.artifact_is_stale ? 'stale' : 'fresh/unknown'}</div>
+                    <div class="text-xs text-gray-500 mt-1">age ${dualRun.artifact_age_seconds == null ? '--' : fmtNumber(Math.round(Number(dualRun.artifact_age_seconds)))}s</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Cycle Runner</div>
+                    <div class="text-lg font-semibold">${dualRun.cycle_run_succeeded ? 'succeeded' : (dualRun.cycle_run_skipped ? 'skipped' : 'not confirmed')}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml((dualRun.app_universe_symbols || []).join(', ') || '--')}</div>
+                </div>
+            `;
+
+            dualRunMismatches.innerHTML = dualRunTopMismatches.length
+                ? dualRunTopMismatches.map(item => `
+                    <div class="rounded border border-gray-700/40 px-3 py-2">
+                        <div class="font-medium mono">${escapeHtml(item.symbol || '--')} · ${escapeHtml(item.rule_id || '--')}</div>
+                        <div class="text-xs text-gray-500 mt-1">${escapeHtml((item.mismatch_reasons || []).join(', ') || '--')} · ${escapeHtml(item.mismatch_severity || '--')}</div>
+                    </div>
+                `).join('')
+                : '<div class="text-gray-500">no dual-run mismatches</div>';
+
+            diagnosticRulesSummary.innerHTML = `
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Diagnostic File</div>
+                    <div class="text-lg font-semibold">${diagnosticRules.exists ? 'present' : 'missing'}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(diagnosticRules.target_file || 'rules/diagnostic_factor_rules.json')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Rules</div>
+                    <div class="text-lg font-semibold">${fmtNumber(diagnosticRules.rule_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">diagnostic-only ${fmtNumber(diagnosticRules.diagnostic_only_count || 0)}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Safety</div>
+                    <div class="text-lg font-semibold">${diagnosticRules.valid === false ? 'invalid' : 'read-only'}</div>
+                    <div class="text-xs text-gray-500 mt-1">${diagnosticRules.production_rules_modified ? 'production modified' : 'production_rules_modified=false'} · ${diagnosticRules.actionable_enabled ? 'actionable enabled' : 'actionable_enabled=false'}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Source Rules</div>
+                    <div class="text-sm font-semibold break-words">${escapeHtml((diagnosticRules.source_rules || []).join(', ') || '--')}</div>
+                    <div class="text-xs text-gray-500 mt-1">factors ${escapeHtml((diagnosticRules.factor_ids || []).join(', ') || '--')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Enabled Count</div>
+                    <div class="text-lg font-semibold">${fmtNumber(diagnosticRules.enabled_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">expected 0</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Last Apply</div>
+                    <div class="text-sm font-semibold break-words">${escapeHtml(diagnosticRules.last_apply?.proposal_id || '--')}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(diagnosticRules.last_apply?.apply_mode || '--')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Latest Diagnostic Rules</div>
+                    <div class="text-sm font-semibold break-words">${escapeHtml((diagnosticRules.latest_diagnostic_rule_ids || []).join(', ') || '--')}</div>
+                    <div class="text-xs text-gray-500 mt-1">latest_diagnostic_rule_ids</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Trial Evidence</div>
+                    <div class="text-sm font-semibold break-words">${escapeHtml(diagnosticRules.approval_decision_snapshot_present ? 'approval_decision_snapshot_present=true' : 'approval_decision_snapshot_present=false')}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(diagnosticRules.last_deployment_record_id || '--')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Real Apply Readiness</div>
+                    <div class="text-sm font-semibold break-words">${escapeHtml(diagnosticRules.real_apply_ready ? 'real_apply_ready=true' : 'real_apply_ready=false')}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(diagnosticRules.latest_trial_mode || '--')} · ${escapeHtml(diagnosticRules.latest_proposal_id || '--')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Approval Request</div>
+                    <div class="text-sm font-semibold break-words">${escapeHtml(diagnosticRules.latest_approval_request_path || '--')}</div>
+                    <div class="text-xs text-gray-500 mt-1">read-only</div>
+                </div>
+            `;
+
+            const metricSources = Array.isArray(diagnosticMetrics.sample_sources) ? diagnosticMetrics.sample_sources : [];
+            const topMetricRules = Array.isArray(diagnosticMetrics.top_diagnostic_rules) ? diagnosticMetrics.top_diagnostic_rules : [];
+            const labelJoin = diagnosticMetrics.label_join_summary || {};
+            const labelJoinBlockers = Array.isArray(diagnosticMetrics.top_label_join_blockers) ? diagnosticMetrics.top_label_join_blockers : [];
+            diagnosticMetricsSummary.innerHTML = `
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Metrics</div>
+                    <div class="text-lg font-semibold">${diagnosticMetrics.available ? 'available' : 'missing'}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(diagnosticMetrics.status || '--')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Rules Evaluated</div>
+                    <div class="text-lg font-semibold">${fmtNumber(diagnosticMetrics.evaluated_rule_count || 0)} / ${fmtNumber(diagnosticMetrics.rule_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">insufficient ${fmtNumber(diagnosticMetrics.insufficient_rule_count || 0)}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Watchlist Candidates</div>
+                    <div class="text-lg font-semibold">${fmtNumber(diagnosticMetrics.watchlist_candidate_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(metricSources.join(' / ') || '--')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Report</div>
+                    <div class="text-sm font-semibold break-words">${escapeHtml(diagnosticMetrics.report_path || '--')}</div>
+                    <div class="text-xs text-gray-500 mt-1">${diagnosticMetrics.latest_generated_at ? fmtDateTime(diagnosticMetrics.latest_generated_at) : 'read-only'}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Label Join Rate</div>
+                    <div class="text-lg font-semibold">${labelJoin.join_rate == null ? '--' : fmt(Number(labelJoin.join_rate) * 100) + '%'}</div>
+                    <div class="text-xs text-gray-500 mt-1">joined ${fmtNumber(labelJoin.joined_events || 0)} / ${fmtNumber(labelJoin.total_events || 0)}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Live vs Backfill</div>
+                    <div class="text-sm font-semibold break-words">live ${fmtNumber(diagnosticMetrics.live_joined_events || 0)} · backfill ${fmtNumber(diagnosticMetrics.backfill_joined_events || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">${diagnosticMetrics.backfill_replay_available ? 'backfill_replay_available=true' : 'backfill_replay_available=false'}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Event Artifacts</div>
+                    <div class="text-sm font-semibold break-words">${escapeHtml(diagnosticMetrics.events_path || '--')}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(diagnosticMetrics.events_summary_path || '--')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Label Join Blockers</div>
+                    <div class="text-sm font-semibold break-words">${escapeHtml(labelJoinBlockers.map(item => `${item.reason || '--'}:${item.count || 0}`).join(', ') || '--')}</div>
+                    <div class="text-xs text-gray-500 mt-1">top_label_join_blockers</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3 sm:col-span-2 xl:col-span-4">
+                    <div class="text-xs text-gray-500 mb-1">Top Diagnostic Rules</div>
+                    <div class="text-sm font-semibold break-words">${escapeHtml(topMetricRules.map(item => `${item.rule_id || '--'}:${item.evaluation_status || '--'}`).join(', ') || '--')}</div>
+                    <div class="text-xs text-gray-500 mt-1">paper-only / shadow-only</div>
+                </div>
+            `;
+
+            const opsBlockers = Array.isArray(opsSummary.promotion_blockers) ? opsSummary.promotion_blockers : [];
+            const missingBackfillSymbols = Array.isArray(opsSummary.missing_backfill_symbols) ? opsSummary.missing_backfill_symbols : [];
+            factorOpsSummary.innerHTML = `
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Ops</div>
+                    <div class="text-lg font-semibold">${opsSummary.available ? 'available' : 'missing'}</div>
+                    <div class="text-xs text-gray-500 mt-1">${opsSummary.latest_generated_at ? fmtDateTime(opsSummary.latest_generated_at) : '--'}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Promotion Readiness</div>
+                    <div class="text-lg font-semibold">${escapeHtml(opsSummary.promotion_readiness || '--')}</div>
+                    <div class="text-xs text-gray-500 mt-1">${escapeHtml(opsBlockers.join(', ') || 'none')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Live Evidence</div>
+                    <div class="text-lg font-semibold">${fmtNumber(opsSummary.live_labeled_events || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">days ${fmtNumber(opsSummary.live_shadow_days_observed || 0)}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Backfill Evidence</div>
+                    <div class="text-lg font-semibold">${fmtNumber(opsSummary.backfill_labeled_events || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">mixed ${fmtNumber(opsSummary.mixed_labeled_events || 0)}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Dual-Run</div>
+                    <div class="text-lg font-semibold">${escapeHtml(opsSummary.dual_run_readiness_status || '--')}</div>
+                    <div class="text-xs text-gray-500 mt-1">blocking ${fmtNumber(opsSummary.dual_run_blocking_mismatch_count || 0)}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Diagnostic Rules</div>
+                    <div class="text-lg font-semibold">${fmtNumber(opsSummary.diagnostic_rule_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">signals ${fmtNumber(opsSummary.diagnostic_signal_count || 0)}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Backfill Coverage</div>
+                    <div class="text-lg font-semibold">${fmtNumber(opsSummary.backfill_symbol_count || 0)}</div>
+                    <div class="text-xs text-gray-500 mt-1">missing ${escapeHtml(missingBackfillSymbols.join(', ') || 'none')}</div>
+                </div>
+                <div class="rounded border border-gray-700/50 bg-dark-900/70 px-3 py-3">
+                    <div class="text-xs text-gray-500 mb-1">Report</div>
+                    <div class="text-sm font-semibold break-words">${escapeHtml(opsSummary.report_path || '--')}</div>
+                    <div class="text-xs text-gray-500 mt-1">research-only</div>
+                </div>
+            `;
+
+            document.getElementById('factor-research-insufficient').innerHTML = insufficient.length
+                ? insufficient.map(item => `<div class="rounded border border-gray-700/40 px-3 py-2 mono">${escapeHtml(item)}</div>`).join('')
+                : '<div class="text-gray-500">none</div>';
+            document.getElementById('factor-research-coverage').innerHTML = topCoverage.length
+                ? topCoverage.map(item => `
+                    <div class="rounded border border-gray-700/40 px-3 py-2">
+                        <div class="font-medium mono">${escapeHtml(item.factor_id || '--')}</div>
+                        <div class="text-xs text-gray-500 mt-1">coverage ${fmt((item.coverage || 0) * 100)}% · samples ${fmtNumber(item.sample_count || 0)}</div>
+                    </div>
+                `).join('')
+                : '<div class="text-gray-500">none</div>';
+            document.getElementById('factor-research-redundancy').innerHTML = highPairs.length
+                ? highPairs.map(item => {
+                    const pair = Array.isArray(item.factor_pair) ? item.factor_pair.join(' / ') : '--';
+                    return `
+                        <div class="rounded border border-gray-700/40 px-3 py-2">
+                            <div class="font-medium mono">${escapeHtml(pair)}</div>
+                            <div class="text-xs text-gray-500 mt-1">corr ${fmt(item.correlation)} · samples ${fmtNumber(item.sample_count || 0)}</div>
+                        </div>
+                    `;
+                }).join('')
+                : '<div class="text-gray-500">none</div>';
         }
 
         function renderDataHealth(data) {

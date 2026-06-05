@@ -9,6 +9,17 @@ description: "冷路径因子验证员：只读核验候选因子与绑定草案
 frequency: "按需或 US 盘后"
 capability_level: cold_validation_v1
 
+dashboard:
+  base_url_env: AGENT_TRADING_DASHBOARD_URL
+  default_base_url: "http://host.docker.internal:8088"
+  parallel_factor_base_url: "http://host.docker.internal:18088"
+  allowed_readonly_endpoints:
+    - /api/strategy-overview
+  forbidden_endpoint_classes:
+    - control
+    - submit
+    - apply
+
 tools:
   - read
   - sessions_send

@@ -122,6 +122,11 @@ from system.engine.src.engine.control import (
 from system.engine.src.engine.rule_profiles import build_symbol_profile_overview
 from system.engine.src.engine.rule_schema import validate_rules_config
 from system.engine.src.engine.factors import available_builtin_implementations
+from system.engine.src.engine.diagnostic_factor_rules import (
+    diagnostic_factor_rules_summary,
+    load_diagnostic_factor_rules,
+    validate_diagnostic_factor_rules,
+)
 
 # --- App lifecycle ---
 
@@ -362,6 +367,7 @@ EXECUTOR_ARTIFACTS_DIR = ARTIFACTS_ROOT / "executor"
 SCOUT_ARTIFACTS_DIR = ARTIFACTS_ROOT / "scout"
 CLOSER_ARTIFACTS_DIR = ARTIFACTS_ROOT / "closer"
 FACTOR_ARTIFACTS_DIR = ARTIFACTS_ROOT / "factors"
+FACTOR_RESEARCH_ARTIFACTS_DIR = ARTIFACTS_ROOT / "factor_research"
 AUDIT_LOG_DIR = LOGS_ROOT / "audit"
 SERVICE_LOG_DIR = LOGS_ROOT / "service"
 LATEST_LOG_DIR = LOGS_ROOT / "latest"
@@ -396,6 +402,7 @@ def _ensure_artifacts_layout():
         STRATEGIST_MEMORY_DIR,
         STRATEGIST_ITERATIONS_ARTIFACT_DIR,
         FACTOR_ARTIFACTS_DIR,
+        FACTOR_RESEARCH_ARTIFACTS_DIR,
         EXECUTOR_ARTIFACTS_DIR,
         SCOUT_ARTIFACTS_DIR,
         CLOSER_ARTIFACTS_DIR,
@@ -579,6 +586,11 @@ def _last_factor_apply_summary() -> dict[str, Any] | None:
         except json.JSONDecodeError:
             continue
         proposal_type = str(entry.get("proposal_type") or "")
+        if (
+            proposal_type == "factor_rule_link"
+            and entry.get("target_file") == "rules/diagnostic_factor_rules.json"
+        ):
+            continue
         if proposal_type not in {"factor_config", "factor_rule_link", "factor_code"} and not entry.get("changed_factors"):
             continue
         return {
@@ -701,6 +713,491 @@ def _build_factor_engine_overview(config: dict[str, Any], cycle: dict[str, Any])
         }
 
     return factor_engine
+
+
+def _build_factor_research_summary() -> dict[str, Any]:
+    latest_path = FACTOR_RESEARCH_ARTIFACTS_DIR / "latest.json"
+    report_path = FACTOR_RESEARCH_ARTIFACTS_DIR / "reports" / "latest.md"
+    hypotheses_path = FACTOR_RESEARCH_ARTIFACTS_DIR / "hypotheses.jsonl"
+    latest = _safe_read_json(latest_path)
+    if not isinstance(latest, dict):
+        latest = {}
+
+    factors = latest.get("factors") if isinstance(latest.get("factors"), dict) else {}
+    insufficient = latest.get("factors_with_insufficient_samples")
+    if not isinstance(insufficient, list):
+        insufficient = [
+            factor_id
+            for factor_id, payload in factors.items()
+            if isinstance(payload, dict) and payload.get("data_quality_reason") == "insufficient_samples"
+        ]
+    top_coverage = latest.get("top_coverage_factors")
+    if not isinstance(top_coverage, list):
+        top_coverage = sorted(
+            (
+                {
+                    "factor_id": factor_id,
+                    "coverage": payload.get("coverage"),
+                    "sample_count": payload.get("sample_count"),
+                }
+                for factor_id, payload in factors.items()
+                if isinstance(payload, dict)
+            ),
+            key=lambda item: (float(item.get("coverage") or 0), int(item.get("sample_count") or 0)),
+            reverse=True,
+        )[:5]
+    high_redundancy_pairs = latest.get("high_redundancy_pairs")
+    if not isinstance(high_redundancy_pairs, list):
+        high_redundancy_pairs = []
+
+    hypotheses_info = _tail_jsonl_info(hypotheses_path)
+    report_meta = _file_meta(report_path)
+    return {
+        "available": bool(latest),
+        "generated_at": latest.get("generated_at"),
+        "status": latest.get("status") or ("missing" if not latest else None),
+        "factor_count": int(latest.get("factor_count") or len(factors)),
+        "factors_with_insufficient_samples": insufficient,
+        "top_coverage_factors": top_coverage[:5],
+        "high_redundancy_pairs": high_redundancy_pairs,
+        "hypothesis_count": int(latest.get("hypothesis_count") or hypotheses_info.get("lines") or 0),
+        "last_report_path": str(report_path) if report_meta["exists"] else None,
+        "latest": _file_meta(latest_path),
+        "report": report_meta,
+        "hypotheses": hypotheses_info,
+    }
+
+
+def _build_factor_validation_summary() -> dict[str, Any]:
+    latest_path = FACTOR_RESEARCH_ARTIFACTS_DIR / "latest.json"
+    latest = _safe_read_json(latest_path)
+    if not isinstance(latest, dict):
+        latest = {}
+    summary = latest.get("factor_validation_summary") if isinstance(latest.get("factor_validation_summary"), dict) else {}
+    factors = latest.get("factors") if isinstance(latest.get("factors"), dict) else {}
+    if not summary:
+        factor_items = [payload for payload in factors.values() if isinstance(payload, dict)]
+        summary = {
+            "latest_generated_at": latest.get("generated_at"),
+            "sample_source": latest.get("sample_source"),
+            "factor_count": int(latest.get("factor_count") or len(factor_items)),
+            "labeled_sample_count": sum(int(item.get("labeled_sample_count") or 0) for item in factor_items),
+            "insufficient_factor_count": sum(1 for item in factor_items if item.get("gate_status") == "insufficient"),
+            "research_candidate_count": sum(1 for item in factor_items if item.get("candidate_grade") == "research_candidate"),
+            "high_redundancy_pair_count": len(latest.get("high_redundancy_pairs") or []),
+            "top_candidate_factors": [
+                {
+                    "factor_id": item.get("factor_id"),
+                    "candidate_grade": item.get("candidate_grade"),
+                    "IC_1bar": item.get("IC_1bar"),
+                    "coverage": item.get("coverage"),
+                    "labeled_sample_count": item.get("labeled_sample_count"),
+                }
+                for item in factor_items
+                if item.get("candidate_grade") == "research_candidate"
+            ][:5],
+            "blocked_reasons": {},
+            "report_path": latest.get("report_path"),
+        }
+    return {
+        "available": bool(latest),
+        "latest_generated_at": summary.get("latest_generated_at") or latest.get("generated_at"),
+        "sample_source": summary.get("sample_source") or latest.get("sample_source"),
+        "factor_count": int(summary.get("factor_count") or latest.get("factor_count") or 0),
+        "labeled_sample_count": int(summary.get("labeled_sample_count") or 0),
+        "insufficient_factor_count": int(summary.get("insufficient_factor_count") or 0),
+        "research_candidate_count": int(summary.get("research_candidate_count") or 0),
+        "high_redundancy_pair_count": int(summary.get("high_redundancy_pair_count") or 0),
+        "top_candidate_factors": summary.get("top_candidate_factors", []),
+        "blocked_reasons": summary.get("blocked_reasons", {}),
+        "candidate_grade_distribution": summary.get("candidate_grade_distribution", {}),
+        "no_lookahead_validation_status": summary.get("no_lookahead_validation_status"),
+        "report_path": summary.get("report_path") or latest.get("report_path"),
+    }
+
+
+def _build_factor_parity_summary() -> dict[str, Any]:
+    latest_path = FACTOR_RESEARCH_ARTIFACTS_DIR / "parity" / "latest.json"
+    latest = _safe_read_json(latest_path)
+    if not isinstance(latest, dict):
+        latest = {}
+    return {
+        "available": bool(latest),
+        "latest_generated_at": latest.get("generated_at"),
+        "factor_count": int(latest.get("factor_count") or 0),
+        "compared_factor_count": int(latest.get("compared_factor_count") or 0),
+        "parity_pass_count": int(latest.get("parity_pass_count") or 0),
+        "parity_fail_count": int(latest.get("parity_fail_count") or 0),
+        "blocking_mismatch_count": int(latest.get("blocking_mismatch_count") or 0),
+        "warning_mismatch_count": int(latest.get("warning_mismatch_count") or 0),
+        "signal_parity_pass_count": int(latest.get("signal_parity_pass_count") or 0),
+        "signal_parity_fail_count": int(latest.get("signal_parity_fail_count") or 0),
+        "report_path": latest.get("report_path"),
+        "top_mismatches": latest.get("top_mismatches", []),
+    }
+
+
+def _build_factor_dual_run_summary(cycle: dict[str, Any] | None = None) -> dict[str, Any]:
+    latest_path = FACTOR_RESEARCH_ARTIFACTS_DIR / "dual_run" / "latest.json"
+    observation_path = FACTOR_RESEARCH_ARTIFACTS_DIR / "dual_run" / "observations" / "latest.json"
+    latest = _safe_read_json(latest_path)
+    if not isinstance(latest, dict):
+        latest = {}
+    observation = _safe_read_json(observation_path)
+    if not isinstance(observation, dict):
+        observation = {}
+    cycle_summary = cycle.get("factor_dual_run") if isinstance(cycle, dict) and isinstance(cycle.get("factor_dual_run"), dict) else {}
+    source = cycle_summary if cycle_summary else latest
+    report_path = _relative_artifact_path(
+        source.get("report_path") or latest.get("report_path") or "artifacts/factor_research/dual_run/reports/latest.md"
+    )
+    return {
+        "available": bool(latest) or bool(cycle_summary),
+        "enabled": bool(source.get("enabled", False)),
+        "latest_generated_at": source.get("generated_at"),
+        "reason": source.get("reason"),
+        "compared_count": int(source.get("compared_count") or 0),
+        "matched_count": int(source.get("matched_count") or 0),
+        "mismatch_count": int(source.get("mismatch_count") or 0),
+        "blocking_mismatch_count": int(source.get("blocking_mismatch_count") or 0),
+        "warning_mismatch_count": int(source.get("warning_mismatch_count") or 0),
+        "matched_rate": source.get("matched_rate"),
+        "compared_rules": source.get("compared_rules", []),
+        "compared_symbols": source.get("compared_symbols", []),
+        "top_mismatches": source.get("top_mismatches", []),
+        "real_universe_symbols_detected": bool(source.get("real_universe_symbols_detected", False)),
+        "synthetic_fixture_symbols_detected": bool(source.get("synthetic_fixture_symbols_detected", False)),
+        "latest_observation_path": "artifacts/factor_research/dual_run/observations/latest.json" if observation_path.exists() else None,
+        "source_bar_session_summary": source.get("source_bar_session_summary", {}),
+        "production_path_unchanged": bool(source.get("production_path_unchanged", True)),
+        "readiness_status": observation.get("readiness_status"),
+        "readiness_reasons": observation.get("readiness_reasons", []),
+        "artifact_age_seconds": observation.get("artifact_age_seconds"),
+        "artifact_is_stale": bool(observation.get("artifact_is_stale", False)),
+        "cycle_run_attempted": bool(observation.get("cycle_run_attempted", False)),
+        "cycle_run_succeeded": bool(observation.get("cycle_run_succeeded", False)),
+        "cycle_run_skipped": bool(observation.get("cycle_run_skipped", False)),
+        "app_universe_symbols": observation.get("app_universe_symbols", []),
+        "report_path": report_path if (latest or cycle_summary) else None,
+    }
+
+
+def _build_diagnostic_factor_rules_summary() -> dict[str, Any]:
+    target_path = RULES_DIR / "diagnostic_factor_rules.json"
+    source_rules_payload = _safe_read_json(RULES_FILE)
+    registry_path = Path(__file__).parent.parent / "factors" / "registry.json"
+    payload: dict[str, Any] | None = None
+    validation = {"valid": True, "errors": [], "warnings": []}
+    if target_path.exists():
+        try:
+            payload = load_diagnostic_factor_rules(target_path)
+            validation = validate_diagnostic_factor_rules(
+                payload,
+                source_rules_payload=source_rules_payload if isinstance(source_rules_payload, dict) else None,
+                factor_registry=registry_path,
+            )
+        except Exception as exc:
+            validation = {"valid": False, "errors": [f"{type(exc).__name__}:{exc}"], "warnings": []}
+            payload = None
+    summary = diagnostic_factor_rules_summary(payload)
+    last_apply = _latest_diagnostic_factor_rule_apply()
+    trial_status = _latest_diagnostic_factor_rule_trial_status()
+    return {
+        "exists": target_path.exists(),
+        "valid": bool(validation.get("valid", False)),
+        "errors": validation.get("errors", []),
+        "warnings": validation.get("warnings", []),
+        "rule_count": int(summary.get("rule_count") or 0),
+        "enabled_count": int(summary.get("enabled_count") or 0),
+        "diagnostic_only_count": int(summary.get("diagnostic_only_count") or 0),
+        "source_rules": summary.get("source_rules", []),
+        "factor_ids": summary.get("factor_ids", []),
+        "latest_diagnostic_rule_ids": summary.get("latest_diagnostic_rule_ids", []),
+        "latest_source_rule_ids": summary.get("latest_source_rule_ids", []),
+        "latest_factor_ids": summary.get("latest_factor_ids", []),
+        "last_apply": last_apply,
+        "last_deployment_record_id": (last_apply or {}).get("last_deployment_record_id"),
+        "approval_decision_snapshot_present": bool((last_apply or {}).get("approval_decision_snapshot_present")),
+        "real_apply_ready": bool(trial_status.get("real_apply_ready", False)),
+        "latest_approval_request_path": trial_status.get("latest_approval_request_path"),
+        "latest_trial_mode": trial_status.get("latest_trial_mode"),
+        "latest_proposal_id": trial_status.get("latest_proposal_id"),
+        "target_file": "rules/diagnostic_factor_rules.json",
+        "production_rules_modified": False,
+        "actionable_enabled": False,
+    }
+
+
+def _build_diagnostic_factor_metrics_summary() -> dict[str, Any]:
+    latest_path = FACTOR_RESEARCH_ARTIFACTS_DIR / "diagnostic_metrics" / "latest.json"
+    latest = _safe_read_json(latest_path)
+    if not isinstance(latest, dict):
+        latest = {}
+    rules = latest.get("rules") if isinstance(latest.get("rules"), list) else []
+    top_rules = latest.get("top_diagnostic_rules")
+    if not isinstance(top_rules, list):
+        top_rules = sorted(
+            (
+                {
+                    "rule_id": item.get("rule_id"),
+                    "source_rule_id": item.get("source_rule_id"),
+                    "factor_ids": item.get("factor_ids", []),
+                    "evaluation_status": item.get("evaluation_status"),
+                    "sample_source": item.get("sample_source"),
+                    "signal_count": item.get("signal_count"),
+                    "labeled_sample_count": item.get("labeled_sample_count"),
+                    "IC_1bar": item.get("IC_1bar"),
+                    "hit_rate_1bar": item.get("hit_rate_1bar"),
+                    "live_shadow_days_observed": item.get("live_shadow_days_observed"),
+                    "insufficient_reason": item.get("insufficient_reason"),
+                }
+                for item in rules
+                if isinstance(item, dict)
+            ),
+            key=lambda item: (
+                item.get("evaluation_status") == "watchlist_candidate",
+                item.get("evaluation_status") == "research_only",
+                abs(float(item.get("IC_1bar") or 0.0)),
+                int(item.get("labeled_sample_count") or 0),
+            ),
+            reverse=True,
+        )[:5]
+    return {
+        "available": bool(latest),
+        "latest_generated_at": latest.get("generated_at"),
+        "status": latest.get("status") or ("missing" if not latest else None),
+        "rule_count": int(latest.get("rule_count") or len(rules)),
+        "evaluated_rule_count": int(latest.get("evaluated_rule_count") or 0),
+        "insufficient_rule_count": int(latest.get("insufficient_rule_count") or 0),
+        "watchlist_candidate_count": int(latest.get("watchlist_candidate_count") or 0),
+        "sample_sources": latest.get("sample_sources", []),
+        "top_diagnostic_rules": top_rules[:5],
+        "label_join_summary": latest.get("label_join_summary") or {
+            "total_events": 0,
+            "joined_events": 0,
+            "unjoined_events": 0,
+            "join_rate": 0.0,
+            "reasons_count": {},
+            "live_joined_events": 0,
+            "backfill_joined_events": 0,
+            "live_unjoined_events": 0,
+            "backfill_unjoined_events": 0,
+        },
+        "events_path": _relative_artifact_path(latest.get("events_path")),
+        "events_summary_path": _relative_artifact_path(latest.get("events_summary_path")),
+        "top_label_join_blockers": latest.get("top_label_join_blockers", []),
+        "backfill_replay_available": bool(latest.get("backfill_replay_available", False)),
+        "backfill_joined_events": int(latest.get("backfill_joined_events") or 0),
+        "live_joined_events": int(latest.get("live_joined_events") or 0),
+        "report_path": _relative_artifact_path(latest.get("report_path")),
+    }
+
+
+def _build_factor_ops_summary() -> dict[str, Any]:
+    latest_path = FACTOR_RESEARCH_ARTIFACTS_DIR / "ops" / "latest.json"
+    latest = _safe_read_json(latest_path)
+    if not isinstance(latest, dict):
+        latest = {}
+    return {
+        "available": bool(latest),
+        "latest_generated_at": latest.get("generated_at"),
+        "promotion_readiness": latest.get("promotion_readiness") or ("missing" if not latest else None),
+        "promotion_blockers": latest.get("promotion_blockers", []),
+        "live_shadow_days_observed": int(latest.get("live_shadow_days_observed") or 0),
+        "live_labeled_events": int(latest.get("live_labeled_events") or 0),
+        "backfill_labeled_events": int(latest.get("backfill_labeled_events") or 0),
+        "mixed_labeled_events": int(latest.get("mixed_labeled_events") or 0),
+        "dual_run_readiness_status": latest.get("dual_run_readiness_status"),
+        "dual_run_blocking_mismatch_count": int(latest.get("dual_run_blocking_mismatch_count") or 0),
+        "diagnostic_rule_count": int(latest.get("diagnostic_rule_count") or 0),
+        "diagnostic_signal_count": int(latest.get("diagnostic_signal_count") or 0),
+        "label_join_rate": latest.get("label_join_rate"),
+        "top_label_join_blockers": latest.get("top_label_join_blockers", []),
+        "backfill_symbol_count": int(latest.get("backfill_symbol_count") or 0),
+        "backfill_observation_count": int(latest.get("backfill_observation_count") or 0),
+        "app_universe_symbols": latest.get("app_universe_symbols", []),
+        "backfill_universe_symbols": latest.get("backfill_universe_symbols", []),
+        "missing_backfill_symbols": latest.get("missing_backfill_symbols", []),
+        "report_path": _relative_artifact_path(latest.get("report_path")),
+    }
+
+
+def _latest_diagnostic_factor_rule_trial_status() -> dict[str, Any]:
+    path = FACTOR_RESEARCH_ARTIFACTS_DIR / "diagnostic_rule_link_trial" / "latest.json"
+    payload = _safe_read_json(path)
+    return payload if isinstance(payload, dict) else {}
+
+
+def _latest_diagnostic_factor_rule_apply() -> dict[str, Any] | None:
+    path = STRATEGIST_ARTIFACTS_DIR / "deployment_records.jsonl"
+    if not path.exists():
+        return None
+    latest: dict[str, Any] | None = None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            item = json.loads(line)
+        except Exception:
+            continue
+        if item.get("target_file") == "rules/diagnostic_factor_rules.json":
+            latest = item
+    if latest is None:
+        return None
+    return {
+        "last_deployment_record_id": latest.get("deployment_record_id") or latest.get("proposal_id"),
+        "proposal_id": latest.get("proposal_id"),
+        "applied_at": latest.get("applied_at") or latest.get("recorded_at"),
+        "apply_mode": latest.get("apply_mode"),
+        "changed_diagnostic_rules": latest.get("changed_diagnostic_rules", []),
+        "approval_decision_snapshot_present": bool(latest.get("approval_decision_snapshot")),
+        "production_rules_modified": bool(latest.get("production_rules_modified", False)),
+        "actionable_enabled": bool(latest.get("actionable_enabled", False)),
+    }
+
+
+def _relative_artifact_path(path: Any) -> str | None:
+    if path in (None, ""):
+        return None
+    text = str(path)
+    marker = "artifacts/"
+    if marker in text:
+        return text[text.index(marker):]
+    if text.startswith("/"):
+        return Path(text).name
+    return text
+
+
+def _build_historical_fact_summary() -> dict[str, Any]:
+    facts_path = FACTOR_RESEARCH_ARTIFACTS_DIR / "facts" / "latest.json"
+    scenarios_path = FACTOR_RESEARCH_ARTIFACTS_DIR / "scenarios" / "latest.json"
+    facts_latest = _safe_read_json(facts_path)
+    scenarios_latest = _safe_read_json(scenarios_path)
+    if not isinstance(facts_latest, dict):
+        facts_latest = {}
+    if not isinstance(scenarios_latest, dict):
+        scenarios_latest = {}
+
+    scenarios = scenarios_latest.get("top_debug_scenarios")
+    if not isinstance(scenarios, list):
+        scenarios = scenarios_latest.get("scenarios") if isinstance(scenarios_latest.get("scenarios"), list) else []
+    top_debug_scenarios = []
+    for item in scenarios[:6]:
+        if not isinstance(item, dict):
+            continue
+        top_debug_scenarios.append({
+            "scenario_id": item.get("scenario_id"),
+            "scenario_type": item.get("scenario_type"),
+            "symbols": item.get("symbols", []),
+            "time_window": item.get("time_window", {}),
+            "debug_goal": item.get("debug_goal"),
+            "replay_command_hint": item.get("replay_command_hint"),
+            "expected_invariants": item.get("expected_invariants", []),
+        })
+
+    leakage_warnings = []
+    for value in (facts_latest.get("leakage_warnings"), scenarios_latest.get("leakage_warnings")):
+        if isinstance(value, list):
+            leakage_warnings.extend(str(item) for item in value if item)
+    return {
+        "available": bool(facts_latest),
+        "latest_generated_at": facts_latest.get("generated_at") or scenarios_latest.get("generated_at"),
+        "fact_count": int(facts_latest.get("fact_count") or 0),
+        "fact_type_counts": facts_latest.get("fact_type_counts", {}) if isinstance(facts_latest.get("fact_type_counts"), dict) else {},
+        "usage_counts": facts_latest.get("usage_counts", {}) if isinstance(facts_latest.get("usage_counts"), dict) else {},
+        "scenario_count": int(scenarios_latest.get("scenario_count") or 0),
+        "top_debug_scenarios": top_debug_scenarios,
+        "leakage_warnings": sorted(set(leakage_warnings)),
+        "report_path": _relative_artifact_path(facts_latest.get("report_path")) or "artifacts/factor_research/facts/reports/latest.md",
+        "scenario_report_path": _relative_artifact_path(scenarios_latest.get("report_path")) or "artifacts/factor_research/scenarios/reports/latest.md",
+    }
+
+
+def _build_factor_sample_health() -> dict[str, Any]:
+    latest_path = _first_existing_path(
+        FACTOR_ARTIFACTS_DIR / "latest.json",
+        RUNTIME_DIR / "factors" / "latest.json",
+    )
+    latest_exists = bool(latest_path and latest_path.exists())
+    history_dir = FACTOR_ARTIFACTS_DIR / "history"
+    backfill_path = FACTOR_RESEARCH_ARTIFACTS_DIR / "datasets" / "backfill" / "latest.jsonl"
+
+    history_count = 0
+    live_observation_count = 0
+    last_observation_time = None
+    for path in sorted(history_dir.glob("*.jsonl")) if history_dir.exists() else []:
+        entries = _read_jsonl_tail_entries(path, limit=100000)
+        history_count += len(entries)
+        for entry in entries:
+            observation_count, latest_time = _factor_snapshot_health(entry)
+            live_observation_count += observation_count
+            last_observation_time = _max_time_text(last_observation_time, latest_time)
+
+    latest = _safe_read_json(latest_path) if latest_exists else None
+    if isinstance(latest, dict):
+        latest_observation_count, latest_time = _factor_snapshot_health(latest)
+        if live_observation_count == 0:
+            live_observation_count = latest_observation_count
+        last_observation_time = _max_time_text(last_observation_time, latest_time)
+
+    backfill_rows = _read_jsonl_tail_entries(backfill_path, limit=100000)
+    backfill_observation_count = len(backfill_rows)
+    for row in backfill_rows:
+        last_observation_time = _max_time_text(
+            last_observation_time,
+            row.get("factor_timestamp") or row.get("source_bar_time") or row.get("timestamp"),
+        )
+
+    sample_sources = []
+    if live_observation_count:
+        sample_sources.append("live_shadow")
+    if backfill_observation_count:
+        sample_sources.append("historical_backfill")
+    insufficient_reason = None
+    if not latest_exists and live_observation_count == 0:
+        insufficient_reason = "latest_missing"
+    elif live_observation_count == 0 and backfill_observation_count == 0:
+        insufficient_reason = "no_factor_samples"
+
+    return {
+        "latest_exists": latest_exists,
+        "latest_path": str(latest_path) if latest_exists else str(FACTOR_ARTIFACTS_DIR / "latest.json"),
+        "history_count": history_count,
+        "last_observation_time": last_observation_time,
+        "live_observation_count": live_observation_count,
+        "backfill_observation_count": backfill_observation_count,
+        "sample_sources": sample_sources,
+        "insufficient_samples_reason": insufficient_reason,
+    }
+
+
+def _factor_snapshot_health(snapshot: dict[str, Any]) -> tuple[int, str | None]:
+    symbols = snapshot.get("symbols")
+    if not isinstance(symbols, dict):
+        return 0, snapshot.get("timestamp") or snapshot.get("generated_at")
+    count = 0
+    latest_time = snapshot.get("timestamp") or snapshot.get("generated_at")
+    for symbol_payload in symbols.values():
+        if not isinstance(symbol_payload, dict):
+            continue
+        factors = symbol_payload.get("factors")
+        if isinstance(factors, dict):
+            count += len(factors)
+            for factor_payload in factors.values():
+                if isinstance(factor_payload, dict):
+                    latest_time = _max_time_text(
+                        latest_time,
+                        factor_payload.get("source_bar_time") or symbol_payload.get("timestamp"),
+                    )
+    return count, latest_time
+
+
+def _max_time_text(left: Any, right: Any) -> str | None:
+    if not left:
+        return str(right) if right else None
+    if not right:
+        return str(left)
+    return max(str(left), str(right))
 
 
 def _extract_factor_attribution_summary(payload: dict[str, Any]) -> dict[str, Any] | None:
@@ -1125,6 +1622,15 @@ def _build_strategy_overview() -> dict[str, Any]:
         "factor_engine": cycle.get("factor_engine", {}) if isinstance(cycle.get("factor_engine"), dict) else {},
     }
     factor_engine = _build_factor_engine_overview(config, cycle)
+    factor_research = _build_factor_research_summary()
+    factor_sample_health = _build_factor_sample_health()
+    factor_validation_summary = _build_factor_validation_summary()
+    factor_parity_summary = _build_factor_parity_summary()
+    factor_dual_run_summary = _build_factor_dual_run_summary(cycle)
+    diagnostic_factor_rules_summary = _build_diagnostic_factor_rules_summary()
+    diagnostic_factor_metrics_summary = _build_diagnostic_factor_metrics_summary()
+    factor_ops_summary = _build_factor_ops_summary()
+    historical_fact_summary = _build_historical_fact_summary()
 
     fee_calibration = _safe_read_json(BROKER_ARTIFACTS_DIR / "fee_calibration_summary.json") or {}
     if not isinstance(fee_calibration, dict) or not fee_calibration:
@@ -1180,6 +1686,15 @@ def _build_strategy_overview() -> dict[str, Any]:
         },
         "latest_cycle": latest_cycle,
         "factor_engine": factor_engine,
+        "factor_research": factor_research,
+        "factor_sample_health": factor_sample_health,
+        "factor_validation_summary": factor_validation_summary,
+        "factor_parity_summary": factor_parity_summary,
+        "factor_dual_run_summary": factor_dual_run_summary,
+        "diagnostic_factor_rules_summary": diagnostic_factor_rules_summary,
+        "diagnostic_factor_metrics_summary": diagnostic_factor_metrics_summary,
+        "factor_ops_summary": factor_ops_summary,
+        "historical_fact_summary": historical_fact_summary,
         "factor_attribution": latest_factor_attribution_summary,
         "data_health": cycle.get("data_health", {}),
         "rules_meta": _file_meta(RULES_FILE),

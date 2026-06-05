@@ -9,6 +9,17 @@ description: "冷路径因子研究员：基于 factor history / attribution / m
 frequency: "按需或 US 盘后"
 capability_level: cold_research_v1
 
+dashboard:
+  base_url_env: AGENT_TRADING_DASHBOARD_URL
+  default_base_url: "http://host.docker.internal:8088"
+  parallel_factor_base_url: "http://host.docker.internal:18088"
+  allowed_readonly_endpoints:
+    - /api/strategy-overview
+  forbidden_endpoint_classes:
+    - control
+    - submit
+    - apply
+
 tools:
   - read
   - write
@@ -33,11 +44,15 @@ input_files:
   - /workspace/agent-trading/system/engine/tests/
 
 output_files:
+  - /workspace/agent-trading/artifacts/factors/latest.json
+  - /workspace/agent-trading/artifacts/factors/history/
   - /workspace/agent-trading/artifacts/factor_research/latest.json
   - /workspace/agent-trading/artifacts/factor_research/history.jsonl
+  - /workspace/agent-trading/artifacts/factor_research/datasets/backfill/
   - /workspace/agent-trading/artifacts/strategist/approval_queue/
 
 write_scopes:
+  - /workspace/agent-trading/artifacts/factors/
   - /workspace/agent-trading/artifacts/factor_research/
   - /workspace/agent-trading/artifacts/strategist/approval_queue/
   - /workspace/agent-trading/docs/factor-*.md
@@ -50,6 +65,8 @@ protected_paths:
   - /workspace/agent-trading/runtime/
   - /workspace/agent-trading/logs/latest/
   - /workspace/agent-trading/artifacts/broker/
+  - /workspace/agent-trading/artifacts/strategist/approval_decisions.jsonl
+  - /workspace/agent-trading/artifacts/strategist/deployment_records.jsonl
   - /workspace/agent-trading/rules/
   - /workspace/agent-trading/factors/
   - /workspace/agent-trading/system/engine/src/engine/execution.py
@@ -67,3 +84,20 @@ protected_paths:
   - /workspace/agent-trading/agents/
 
 report_to: ${ENGINE_MAIN_AGENT_SESSION_KEY}
+
+approval_integrity:
+  note: "proposal queue writes are draft / awaiting_approval only; no status=approved"
+  may_write_proposal_status:
+    - draft
+    - awaiting_approval
+  forbidden_status:
+    - approved
+    - applied
+  forbidden_files:
+    - /workspace/agent-trading/artifacts/strategist/approval_decisions.jsonl
+    - /workspace/agent-trading/artifacts/strategist/deployment_records.jsonl
+  may_approve: false
+  may_apply: false
+  valid_approvers:
+    - human
+    - main_agent
